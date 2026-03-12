@@ -6,6 +6,10 @@ from utils.github_code_documentation_quality.find_readme import get_readme_info
 from transformers import pipeline
 import time
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
 def log(msg):
     """Print timestamped log message"""
@@ -145,7 +149,6 @@ repo_urls = [
 ]
 
 # 🔐 Optional: add GitHub token (recommended to avoid rate limits)
-GITHUB_TOKEN = "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"  # put your token here if you have one
 headers = {"Authorization": f"Bearer {GITHUB_TOKEN}"} if GITHUB_TOKEN else None
 
 log(f"Processing {len(repo_urls)} repositories...\n")
