@@ -28,42 +28,51 @@ ALLOWED = {"SEPARATE_APPENDIX", "MISSING"}
 # ---------------------------------------------------------------------------
 
 SYSTEM_PROMPT = """You are classifying ML papers for a literature review.
-
 You will be given the full APPENDIX TEXT of a paper.
 
-Decide whether the appendix contains structured data pre-processing artefacts.
+SEPARATE_APPENDIX - ONLY if the appendix contains:
+- Literal tables titled "Prompt Templates", "Input Examples", "Few-shot Templates", "ASCII Art Prompts", "Jailbreak Prompt Table", etc.
+- Pseudocode/Algorithm blocks that show HOW INPUT DATA IS CONSTRUCTED (e.g. Algorithm for building prompts, filtering dataset, assembling probe sets)
+- Structured lists or tables of prompt templates used as experimental inputs
 
-SEPARATE_APPENDIX - choose this if the appendix contains ANY of:
-  - Tables of prompt templates / instruction templates used in experiments
-  - Pseudocode that shows HOW INPUT DATA IS CONSTRUCTED (e.g. how prompts
-    are assembled, how datasets are filtered/tokenized, how probe sets are built)
-  - Structured tokenization / filtering / prompting wrapper details
-  - Step-by-step dataset construction showing HOW inputs were built
-  - Structured jailbreak prompt examples used as attack inputs
-  - ASCII art templates, few-shot examples, or backtranslation prompt tables
+MISSING - everything else, including:
+- Prose descriptions
+- Hyperparameter tables
+- Algorithm pseudocode for the METHOD (patching, steering, circuit discovery, SAE training, etc.)
+- Feature-example tables, output examples, result tables
+- Single-sentence mentions of tokenization/dataset
+- References or bibliography
 
-MISSING - choose this if the appendix:
-  - Does not exist or could not be retrieved
-  - Contains only prose with no tables or pseudocode
-  - Contains only results tables, hyperparameter tables, or statistics
-  - Only briefly mentions tokenization in a single sentence
-  - Contains only references / bibliography
-  - Contains pseudocode for the ANALYSIS METHOD or MODEL ALGORITHM only
-    (e.g. pseudocode for how attention patching works, how a steering vector
-    is computed, or how a circuit discovery algorithm runs — these describe
-    the METHOD, not how input data was constructed)
+CRITICAL DISTINCTION (never forget):
+SEPARATE_APPENDIX = tells you HOW THE INPUT DATA WAS BUILT
+MISSING           = tells you HOW THE METHOD/ANALYSIS WORKS
 
-CRITICAL DISTINCTION:
-  SEPARATE_APPENDIX = pseudocode/tables describing HOW INPUTS ARE BUILT
-  MISSING           = pseudocode/tables describing HOW THE METHOD WORKS
-  When in doubt: ask yourself "does this tell me how to construct the input
-  data fed to the model?" If yes -> SEPARATE_APPENDIX. If it describes the
-  analysis or algorithm applied to the model -> MISSING.
+Few-shot examples:
 
+EXAMPLE 1 (SEPARATE_APPENDIX):
+Appendix contains "Table 3: Prompt Templates" with exact SYSTEM/USER blocks for GPT-4 classification experiments.
+
+EXAMPLE 2 (SEPARATE_APPENDIX):
+Appendix has "ASCII art prompt template tables" or "Table of jailbreak prompts".
+
+EXAMPLE 3 (SEPARATE_APPENDIX):
+Appendix contains "Algorithm 1: Dataset Construction" that builds prompts or probe sets.
+
+EXAMPLE 4 (MISSING):
+Appendix only says "We use 40 sequences of 300 tokens..." or has a hyperparameter table.
+
+EXAMPLE 5 (MISSING):
+Appendix has "Algorithm 1: Activation Patching" or "Table of feature examples".
+
+EXAMPLE 6 (MISSING):
+Appendix is just prose or "Dataset: OpenWebText" with no table/pseudocode for construction.
+
+When in doubt: MISSING.
 Reply in EXACTLY this format, nothing else:
+
 CLASSIFICATION: <SEPARATE_APPENDIX or MISSING>
-EVIDENCE: <direct quote or observation from the appendix, max 2 sentences>
-REASONING: <one sentence explaining your decision>"""
+EVIDENCE: <exact quote from appendix, max 1 sentence — must contain "Table" or "Algorithm" if SEPARATE_APPENDIX>
+REASONING: <one sentence>"""
 
 USER_PROMPT = """Paper title: {title}
 
@@ -185,9 +194,10 @@ def fetch_appendix(title):
 
             # Find appendix heading
             APPENDIX_RE = re.compile(
-                r"(?:^|\n\n)((?:Appendix|Supplementary\s+"
-                r"(?:Material|Notes?)|Appendices)\b)",
-                re.IGNORECASE)
+              r"(?:^|\n\n)(?:Appendix|Supplementary|Appendices|"
+              r"A\.?\s*(?:Prompt|Input|Dataset|Template|Construction|"
+              r"Jailbreak|Few-shot|ASCII))",
+              re.IGNORECASE)
             m2 = APPENDIX_RE.search(text)
             if m2:
                 appendix = text[m2.start():]
@@ -214,24 +224,26 @@ def fetch_appendix(title):
 def parse(raw):
     result = {"classification": "MISSING", "evidence": "N/A", "reasoning": "N/A"}
     if not raw:
-        print(f"  [PARSE] WARNING: Empty input — defaulting to MISSING")
         return result
+
     for line in raw.splitlines():
         ls = line.strip()
         if ls.upper().startswith("CLASSIFICATION:"):
             val = ls.split(":", 1)[1].strip().upper()
             if val in ALLOWED:
                 result["classification"] = val
-            else:
-                print(f"  [PARSE] WARNING: Unknown label '{val}' — "
-                      f"defaulting to MISSING")
         elif ls.upper().startswith("EVIDENCE:"):
             result["evidence"] = ls.split(":", 1)[1].strip()
         elif ls.upper().startswith("REASONING:"):
             result["reasoning"] = ls.split(":", 1)[1].strip()
-    if result["evidence"] == "N/A" and result["reasoning"] == "N/A":
-        print(f"  [PARSE] WARNING: Could not parse EVIDENCE/REASONING. "
-              f"Full response: {raw!r}")
+
+    # POST-PROCESSING HEURISTIC (kills false positives)
+    evidence = result["evidence"].lower()
+    if result["classification"] == "SEPARATE_APPENDIX":
+        if not any(kw in evidence for kw in ["table", "algorithm", "prompt template", "ascii", "few-shot", "input construction"]):
+            print("  [HEURISTIC] Forcing MISSING — evidence not structured prompt table")
+            result["classification"] = "MISSING"
+
     return result
 
 # ---------------------------------------------------------------------------
