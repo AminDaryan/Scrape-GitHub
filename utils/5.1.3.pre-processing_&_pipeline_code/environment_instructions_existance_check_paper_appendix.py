@@ -27,52 +27,47 @@ ALLOWED = {"SEPARATE_APPENDIX", "MISSING"}
 # Prompts
 # ---------------------------------------------------------------------------
 
-SYSTEM_PROMPT = """You are classifying ML papers for a literature review.
-You will be given the full APPENDIX TEXT of a paper.
+SYSTEM_PROMPT = """You are classifying ML papers for reproducibility question 5.1.3 (appendix-only version).
 
-SEPARATE_APPENDIX - ONLY if the appendix contains:
-- Literal tables titled "Prompt Templates", "Input Examples", "Few-shot Templates", "ASCII Art Prompts", "Jailbreak Prompt Table", etc.
-- Pseudocode/Algorithm blocks that show HOW INPUT DATA IS CONSTRUCTED (e.g. Algorithm for building prompts, filtering dataset, assembling probe sets)
-- Structured lists or tables of prompt templates used as experimental inputs
+CRITICAL DISTINCTION — never forget:
+SEPARATE_APPENDIX = the appendix contains structured artefacts showing HOW THE PRIMARY INPUTS TO THE TARGET LLM WERE BUILT.
+   • Literal tables titled "Prompt Templates", "Jailbreak Prompt Table", "Few-shot Templates", "ASCII Art Prompts", "Refusal Prompts", "Adversarial Prompts", "Probe Templates", "Input Examples"
+   • Algorithm whose title/first line is "Input Construction", "Dataset Construction", "Prompt Template Table"
+   • Even if auxiliary prompts (feature labeling, corpus generation, paraphrasing with GPT-4o) are also present, if a primary table for the main experiment exists → SEPARATE_APPENDIX
 
-MISSING - everything else, including:
-- Prose descriptions
-- Hyperparameter tables
-- Algorithm pseudocode for the METHOD (patching, steering, circuit discovery, SAE training, etc.)
-- Feature-example tables, output examples, result tables
-- Single-sentence mentions of tokenization/dataset
-- References or bibliography
+MISSING = everything else, including:
+   • Prompts used only for SAE feature auto-interpretation, monosemanticity scoring, or labeling
+   • Prompts/algorithms only for question generation, corpus creation, or data augmentation (when those are fed to an external model, not the target LLM)
+   • Hyperparameter tables, ablation tables, sample outputs without a full template table
+   • Algorithms for steering, patching, SAE training, circuit discovery
 
-CRITICAL DISTINCTION (never forget):
-SEPARATE_APPENDIX = tells you HOW THE INPUT DATA WAS BUILT
-MISSING           = tells you HOW THE METHOD/ANALYSIS WORKS
+NEW RULE (decides all borderline cases):
+- If the prompt/table is fed to the TARGET MODEL in the core experiment (jailbreak, probe, refusal test, cross-lingual pair, etc.) → SEPARATE_APPENDIX
+- If the prompt is only to GPT-4o/DeepSeek/etc. to create the dataset or label features → MISSING (even if a template appears)
 
-Few-shot examples:
+OUTPUT MUST BE VALID JSON ONLY with this exact schema:
 
-EXAMPLE 1 (SEPARATE_APPENDIX):
-Appendix contains "Table 3: Prompt Templates" with exact SYSTEM/USER blocks for GPT-4 classification experiments.
+{
+  "classification": "SEPARATE_APPENDIX" | "MISSING",
+  "confidence": integer 0-100,
+  "appendix_quality": "good" | "short_or_no_heading" | "junk_or_nav_page" | "fallback_to_knowledge" | "fetch_failed",
+  "key_quotes": array of strings (max 3),
+  "matched_criteria": array of strings,
+  "is_auxiliary_prompt": true | false,
+  "diagnostic_notes": "one sentence",
+  "final_reason": "one sentence for human reader"
+}
 
-EXAMPLE 2 (SEPARATE_APPENDIX):
-Appendix has "ASCII art prompt template tables" or "Table of jailbreak prompts".
+Few-shot (use these exact patterns):
 
-EXAMPLE 3 (SEPARATE_APPENDIX):
-Appendix contains "Algorithm 1: Dataset Construction" that builds prompts or probe sets.
+EXAMPLE SEPARATE_APPENDIX (primary table present):
+Appendix has "Table 9: Prompt used to ask the target model..." or "Table 4: Examples of the TREx-2p dataset and manual templates" or "Appendix E Prompt Template" with the actual probes fed to the multilingual LLM.
 
-EXAMPLE 4 (MISSING):
-Appendix only says "We use 40 sequences of 300 tokens..." or has a hyperparameter table.
+EXAMPLE MISSING (auxiliary only):
+Appendix has "Auto Interpretation Prompt Design" or "we employ GPT-4o as machine annotator" or corpus-generation prompts with GPT-4o/DeepSeek for TTS evaluation.
 
-EXAMPLE 5 (MISSING):
-Appendix has "Algorithm 1: Activation Patching" or "Table of feature examples".
-
-EXAMPLE 6 (MISSING):
-Appendix is just prose or "Dataset: OpenWebText" with no table/pseudocode for construction.
-
-When in doubt: MISSING.
-Reply in EXACTLY this format, nothing else:
-
-CLASSIFICATION: <SEPARATE_APPENDIX or MISSING>
-EVIDENCE: <exact quote from appendix, max 1 sentence — must contain "Table" or "Algorithm" if SEPARATE_APPENDIX>
-REASONING: <one sentence>"""
+When in doubt → MISSING.
+Always report is_auxiliary_prompt honestly for debugging."""
 
 USER_PROMPT = """Paper title: {title}
 
@@ -108,9 +103,9 @@ def call_gpt(messages):
             max_completion_tokens=16000,
         )
         raw = (resp.choices[0].message.content or "").strip()
-        if not raw:
-            print(f"  [GPT] ERROR: Empty response — "
-                  f"check Azure quota or if the deployment supports this token limit")
+        if not raw or len(raw.strip()) < 50:
+            print("  [GPT] EMPTY or tiny response — forcing MISSING with low confidence")
+            return '{"classification":"MISSING","confidence":10,"appendix_quality":"empty_response","diagnostic_notes":"GPT returned empty or timed out"}'
         else:
             print(f"  [GPT] OK — {len(raw)} chars: {raw[:200]!r}")
         return raw
@@ -196,7 +191,7 @@ def fetch_appendix(title):
             APPENDIX_RE = re.compile(
               r"(?:^|\n\n)(?:Appendix|Supplementary|Appendices|"
               r"A\.?\s*(?:Prompt|Input|Dataset|Template|Construction|"
-              r"Jailbreak|Few-shot|ASCII))",
+              r"Jailbreak|Few-shot|ASCII|Table of))",
               re.IGNORECASE)
             m2 = APPENDIX_RE.search(text)
             if m2:
@@ -221,29 +216,41 @@ def fetch_appendix(title):
 # Parse GPT response
 # ---------------------------------------------------------------------------
 
+import json
+
 def parse(raw):
-    result = {"classification": "MISSING", "evidence": "N/A", "reasoning": "N/A"}
+    result = {
+        "classification": "MISSING",
+        "confidence": 0,
+        "appendix_quality": "unknown",
+        "key_quotes": [],
+        "matched_criteria": [],
+        "is_auxiliary_prompt": False,
+        "diagnostic_notes": "N/A",
+        "final_reason": "N/A",
+        "evidence": "N/A"
+    }
     if not raw:
+        result["diagnostic_notes"] = "EMPTY GPT RESPONSE"
         return result
 
-    for line in raw.splitlines():
-        ls = line.strip()
-        if ls.upper().startswith("CLASSIFICATION:"):
-            val = ls.split(":", 1)[1].strip().upper()
-            if val in ALLOWED:
-                result["classification"] = val
-        elif ls.upper().startswith("EVIDENCE:"):
-            result["evidence"] = ls.split(":", 1)[1].strip()
-        elif ls.upper().startswith("REASONING:"):
-            result["reasoning"] = ls.split(":", 1)[1].strip()
+    try:
+        data = json.loads(raw)
+        result.update(data)
+        result["evidence"] = "; ".join(data.get("key_quotes", [])) or data.get("diagnostic_notes", "N/A")
+    except json.JSONDecodeError:
+        result["diagnostic_notes"] = f"INVALID JSON — raw started: {raw[:100]}"
 
-    # POST-PROCESSING HEURISTIC (kills false positives)
-    evidence = result["evidence"].lower()
+    # STRONGER HEURISTIC (kills the exact false positives we saw)
     if result["classification"] == "SEPARATE_APPENDIX":
-        if not any(kw in evidence for kw in ["table", "algorithm", "prompt template", "ascii", "few-shot", "input construction"]):
-            print("  [HEURISTIC] Forcing MISSING — evidence not structured prompt table")
+        evidence_lower = (result.get("evidence", "") + result.get("diagnostic_notes", "")).lower()
+        bad_phrases = ["auto interpretation", "monosemanticity", "question generation", "feature labeling",
+                       "dataset generation", "corpus creation", "auditing", "auto-interpret"]
+        if any(phrase in evidence_lower for phrase in bad_phrases):
             result["classification"] = "MISSING"
-
+            result["is_auxiliary_prompt"] = True
+            result["diagnostic_notes"] += " [HEURISTIC OVERRIDE: auxiliary prompt detected]"
+    
     return result
 
 # ---------------------------------------------------------------------------
@@ -275,6 +282,7 @@ def process(entry):
     result["source"]            = source
     result["title"]             = title
     result["semanticscholarid"] = entry.get("semanticscholarid", "")
+    print(f"  [DIAGNOSTICS] {json.dumps(result, indent=2)}")
     return result
 
 # ---------------------------------------------------------------------------
