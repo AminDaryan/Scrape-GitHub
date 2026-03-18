@@ -1,12 +1,18 @@
 """
 Question 5.1.3 - Pre-processing & Pipeline Code classifier
 
-Root cause of all empty responses:
-  GPT-5 is a reasoning model. It spends tokens internally thinking before
-  it writes output. max_completion_tokens=768 covered the reasoning budget
-  but left nothing for the actual response — so it returned empty silently.
-  Fix: raise max_completion_tokens to 16000, which covers both reasoning
-  and output for any appendix size.
+Checks ONLY the paper appendix. No repo inspection.
+
+Labels:
+  SEPARATE_APPENDIX — appendix has structured pseudocode/template table for preprocessing
+  MISSING           — everything else
+"""
+
+import json 
+
+"""
+environment_instructions_existance_check_paper_appendix.py
+Question 5.1.3 classifier — preprocessing pseudocode detection
 """
 
 import os, re, sys, time, urllib.parse, requests
@@ -18,7 +24,7 @@ load_dotenv()
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 from openai_client import client, AZURE_OPENAI_DEPLOYMENT
-from papers import PAPERS
+from papers_from_database import PAPERS
 
 PAUSE   = 1.5
 ALLOWED = {"SEPARATE_APPENDIX", "MISSING"}
@@ -30,44 +36,52 @@ ALLOWED = {"SEPARATE_APPENDIX", "MISSING"}
 SYSTEM_PROMPT = """You are classifying ML papers for reproducibility question 5.1.3 (appendix-only version).
 
 CRITICAL DISTINCTION — never forget:
-SEPARATE_APPENDIX = the appendix contains structured artefacts showing HOW THE PRIMARY INPUTS TO THE TARGET LLM WERE BUILT.
-   • Literal tables titled "Prompt Templates", "Jailbreak Prompt Table", "Few-shot Templates", "ASCII Art Prompts", "Refusal Prompts", "Adversarial Prompts", "Probe Templates", "Input Examples"
-   • Algorithm whose title/first line is "Input Construction", "Dataset Construction", "Prompt Template Table"
-   • Even if auxiliary prompts (feature labeling, corpus generation, paraphrasing with GPT-4o) are also present, if a primary table for the main experiment exists → SEPARATE_APPENDIX
+SEPARATE_APPENDIX = the appendix contains ACTUAL PSEUDOCODE BLOCK or EXECUTABLE CODE SNIPPET for one of these three preprocessing types:
+   • Tokenization pipeline
+   • Filtering / deduplication / cleaning pipeline
+   • Prompting wrappers / input construction pipeline
+
+Look for:
+   • Numbered Algorithm / Listing / indented pseudocode that builds the input dataset (e.g. "Algorithm 1 Token Cleaning", "Pseudocode of content list to Markdown", "Algorithm 1 Greedy matching pursuit")
+   • Code showing steps like sampling, n-gram filtering, token cleaning, wrapper construction, etc.
 
 MISSING = everything else, including:
-   • Prompts used only for SAE feature auto-interpretation, monosemanticity scoring, or labeling
-   • Prompts/algorithms only for question generation, corpus creation, or data augmentation (when those are fed to an external model, not the target LLM)
-   • Hyperparameter tables, ablation tables, sample outputs without a full template table
-   • Algorithms for steering, patching, SAE training, circuit discovery
+   • Prompt template tables (even with examples)
+   • Prose descriptions ("we used GPT-4o to generate...")
+   • Steering / patching / SAE-training algorithms
+   • Hyperparameter tables or ablation tables
 
-NEW RULE (decides all borderline cases):
-- If the prompt/table is fed to the TARGET MODEL in the core experiment (jailbreak, probe, refusal test, cross-lingual pair, etc.) → SEPARATE_APPENDIX
-- If the prompt is only to GPT-4o/DeepSeek/etc. to create the dataset or label features → MISSING (even if a template appears)
+NEW RULE:
+- If there is a numbered Algorithm or indented pseudocode block that constructs tokenization / filtering / prompting wrappers → SEPARATE_APPENDIX and set is_primary_input_to_target_llm = true
+- If it is only tables, prose, or method algorithms → MISSING and set is_primary_input_to_target_llm = false
 
 OUTPUT MUST BE VALID JSON ONLY with this exact schema:
 
 {
   "classification": "SEPARATE_APPENDIX" | "MISSING",
   "confidence": integer 0-100,
-  "appendix_quality": "good" | "short_or_no_heading" | "junk_or_nav_page" | "fallback_to_knowledge" | "fetch_failed",
+  "appendix_quality": "...",
   "key_quotes": array of strings (max 3),
   "matched_criteria": array of strings,
   "is_auxiliary_prompt": true | false,
+  "is_primary_input_to_target_llm": true | false,
   "diagnostic_notes": "one sentence",
   "final_reason": "one sentence for human reader"
 }
 
-Few-shot (use these exact patterns):
+Few-shot (use these patterns):
 
-EXAMPLE SEPARATE_APPENDIX (primary table present):
-Appendix has "Table 9: Prompt used to ask the target model..." or "Table 4: Examples of the TREx-2p dataset and manual templates" or "Appendix E Prompt Template" with the actual probes fed to the multilingual LLM.
+EXAMPLE SEPARATE_APPENDIX:
+- "Algorithm 1 Token Cleaning Pipeline: for each token ... filter if ngram overlap > threshold" → is_primary_input_to_target_llm: true
+- "Pseudocode of the content list to Markdown conversion: markdown = [] for element in page ..." → is_primary_input_to_target_llm: true
+- "Algorithm 1 Greedy matching pursuit (MP): ..." → is_primary_input_to_target_llm: true
 
-EXAMPLE MISSING (auxiliary only):
-Appendix has "Auto Interpretation Prompt Design" or "we employ GPT-4o as machine annotator" or corpus-generation prompts with GPT-4o/DeepSeek for TTS evaluation.
+EXAMPLE MISSING:
+- "Table 9: Input format ... Processed Input: choose the most similar entity..." → is_primary_input_to_target_llm: false
+- "We employ GPT-4o as machine annotator..." → is_primary_input_to_target_llm: false
 
 When in doubt → MISSING.
-Always report is_auxiliary_prompt honestly for debugging."""
+Always set both booleans honestly — they drive the final override."""
 
 USER_PROMPT = """Paper title: {title}
 
@@ -79,17 +93,13 @@ Classify this paper now."""
 FALLBACK_PROMPT = """Paper title: {title}
 
 The appendix could not be retrieved from arXiv.
-Use your training knowledge of this paper's appendix.
-If you have no reliable knowledge of it, classify as MISSING.
+Use your training knowledge of this paper's appendix only.
+If you have no reliable knowledge of the appendix, classify as MISSING.
 
 Classify this paper now."""
 
 # ---------------------------------------------------------------------------
 # GPT call
-# max_completion_tokens=768 was the bug: GPT-5 uses reasoning tokens
-# internally before writing output. 768 was exhausted by reasoning alone,
-# leaving nothing for the response. 16000 covers both reasoning + output.
-# max_tokens throws HTTP 400 on GPT-5 - do NOT add it back.
 # ---------------------------------------------------------------------------
 
 def call_gpt(messages):
@@ -103,9 +113,8 @@ def call_gpt(messages):
             max_completion_tokens=16000,
         )
         raw = (resp.choices[0].message.content or "").strip()
-        if not raw or len(raw.strip()) < 50:
-            print("  [GPT] EMPTY or tiny response — forcing MISSING with low confidence")
-            return '{"classification":"MISSING","confidence":10,"appendix_quality":"empty_response","diagnostic_notes":"GPT returned empty or timed out"}'
+        if not raw:
+            print(f"  [GPT] ERROR: Empty response")
         else:
             print(f"  [GPT] OK — {len(raw)} chars: {raw[:200]!r}")
         return raw
@@ -114,7 +123,7 @@ def call_gpt(messages):
         return ""
 
 # ---------------------------------------------------------------------------
-# arXiv fetcher — returns the full appendix, no arbitrary cap
+# arXiv fetcher
 # ---------------------------------------------------------------------------
 
 PAPER_SIGNALS = re.compile(
@@ -122,7 +131,6 @@ PAPER_SIGNALS = re.compile(
     re.IGNORECASE)
 
 def is_junk(text):
-    """True if text is website navigation rather than paper content."""
     junk_phrases = [
         "arXivLabs", "Papers with Code", "Help | Advanced Search",
         "Subscribe to arXiv", "Privacy Policy", "Cornell University",
@@ -130,10 +138,8 @@ def is_junk(text):
     ]
     junk_count = sum(1 for p in junk_phrases if p in text[:3000])
     paper_hits = len(PAPER_SIGNALS.findall(text[:5000]))
-    # A real ML paper after tag stripping is always 20k+ chars.
-    # Anything under 10k is a redirect, stub, or nav page — not the actual paper.
     if len(text) < 10_000:
-        print(f"  [arXiv] JUNK: only {len(text):,} chars — real ML papers are 20k+, this is a stub or nav page")
+        print(f"  [arXiv] JUNK: only {len(text):,} chars — stub or nav page")
         return True
     if junk_count >= 2 and paper_hits < 5:
         print(f"  [arXiv] JUNK: {junk_count} nav phrases, {paper_hits} paper signals")
@@ -141,9 +147,6 @@ def is_junk(text):
     return False
 
 def fetch_appendix(title):
-    """Fetch the full appendix from arXiv HTML. Returns text or None."""
-
-    # Step 1: resolve arXiv ID
     print(f"  [arXiv] Searching: {title[:70]}")
     try:
         query = urllib.parse.quote(f'ti:"{title}"')
@@ -153,8 +156,7 @@ def fetch_appendix(title):
         resp.raise_for_status()
         m = re.search(r"<id>http://arxiv\.org/abs/([^<\s]+)</id>", resp.text)
         if not m:
-            print(f"  [arXiv] ERROR: No paper ID in API response. "
-                  f"Snippet: {resp.text[:200]}")
+            print(f"  [arXiv] ERROR: No paper ID. Snippet: {resp.text[:200]}")
             return None
         arxiv_id = re.sub(r"v\d+$", "", m.group(1).strip())
         print(f"  [arXiv] Resolved ID: {arxiv_id}")
@@ -162,23 +164,17 @@ def fetch_appendix(title):
         print(f"  [arXiv] ERROR during ID lookup: {type(e).__name__}: {e}")
         return None
 
-    # Step 2: fetch HTML
     for url in [f"https://ar5iv.labs.arxiv.org/html/{arxiv_id}",
                 f"https://arxiv.org/html/{arxiv_id}"]:
         print(f"  [arXiv] Fetching: {url}")
         try:
-            resp = requests.get(url, timeout=30,
-                                headers={"User-Agent": "Mozilla/5.0"})
-            print(f"  [arXiv] HTTP {resp.status_code}, "
-                  f"raw HTML: {len(resp.text):,} chars")
+            resp = requests.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
+            print(f"  [arXiv] HTTP {resp.status_code}, raw HTML: {len(resp.text):,} chars")
             if resp.status_code != 200:
                 continue
 
-            # Strip HTML tags
-            text = re.sub(r"<script[^>]*>.*?</script>", " ", resp.text,
-                          flags=re.DOTALL)
-            text = re.sub(r"<style[^>]*>.*?</style>", " ", text,
-                          flags=re.DOTALL)
+            text = re.sub(r"<script[^>]*>.*?</script>", " ", resp.text, flags=re.DOTALL)
+            text = re.sub(r"<style[^>]*>.*?</style>",   " ", text,      flags=re.DOTALL)
             text = re.sub(r"<[^>]+>", " ", text)
             text = re.sub(r"\s{3,}", "\n\n", text).strip()
             print(f"  [arXiv] After tag stripping: {len(text):,} chars")
@@ -187,12 +183,9 @@ def fetch_appendix(title):
                 print(f"  [arXiv] Skipping {url} — junk content")
                 continue
 
-            # Find appendix heading
             APPENDIX_RE = re.compile(
-              r"(?:^|\n\n)(?:Appendix|Supplementary|Appendices|"
-              r"A\.?\s*(?:Prompt|Input|Dataset|Template|Construction|"
-              r"Jailbreak|Few-shot|ASCII|Table of))",
-              re.IGNORECASE)
+                r"(?:^|\n\n)((?:Appendix|Supplementary\s+(?:Material|Notes?)|Appendices)\b)",
+                re.IGNORECASE)
             m2 = APPENDIX_RE.search(text)
             if m2:
                 appendix = text[m2.start():]
@@ -215,8 +208,6 @@ def fetch_appendix(title):
 # ---------------------------------------------------------------------------
 # Parse GPT response
 # ---------------------------------------------------------------------------
-
-import json
 
 def parse(raw):
     result = {
@@ -250,7 +241,16 @@ def parse(raw):
             result["classification"] = "MISSING"
             result["is_auxiliary_prompt"] = True
             result["diagnostic_notes"] += " [HEURISTIC OVERRIDE: auxiliary prompt detected]"
-    
+
+    # <<<=== ADD THE OVERRIDE RIGHT HERE ===>>>
+    # FINAL OVERRIDE — model’s self-reported field decides
+    if result.get("is_primary_input_to_target_llm") is True:
+        result["classification"] = "SEPARATE_APPENDIX"
+        result["diagnostic_notes"] += " [OVERRIDE: primary pseudocode confirmed]"
+    elif result.get("is_primary_input_to_target_llm") is False and result.get("is_auxiliary_prompt") is True:
+        result["classification"] = "MISSING"
+        result["diagnostic_notes"] += " [OVERRIDE: auxiliary only]"
+
     return result
 
 # ---------------------------------------------------------------------------
@@ -269,8 +269,7 @@ def process(entry):
         ]
         source = "ARXIV"
     else:
-        print(f"  [PIPELINE] No appendix retrieved — "
-              f"falling back to GPT training knowledge")
+        print(f"  [PIPELINE] No appendix retrieved — falling back to GPT training knowledge")
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user",   "content": FALLBACK_PROMPT.format(title=title)},
@@ -282,7 +281,6 @@ def process(entry):
     result["source"]            = source
     result["title"]             = title
     result["semanticscholarid"] = entry.get("semanticscholarid", "")
-    print(f"  [DIAGNOSTICS] {json.dumps(result, indent=2)}")
     return result
 
 # ---------------------------------------------------------------------------
@@ -290,8 +288,7 @@ def process(entry):
 # ---------------------------------------------------------------------------
 
 def accuracy_report(results):
-    gt_map = {p["title"]: p["ground_truth"]
-              for p in PAPERS if "ground_truth" in p}
+    gt_map = {p["title"]: p["ground_truth"] for p in PAPERS if "ground_truth" in p}
     correct, total, wrong, per_label = 0, 0, [], {}
     for r in results:
         gt = gt_map.get(r["title"])
@@ -321,8 +318,14 @@ def save_excel(results, path, acc):
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment
 
-    COLOR = {"SEPARATE_APPENDIX": "FFEB9C", "MISSING": "FCE4D6"}
-    LABEL = {"SEPARATE_APPENDIX": "SEPARATE APPENDIX", "MISSING": "MISSING"}
+    COLOR = {
+        "SEPARATE_APPENDIX": "FFEB9C",
+        "MISSING":           "FCE4D6",
+    }
+    LABEL = {
+        "SEPARATE_APPENDIX": "SEPARATE APPENDIX",
+        "MISSING":           "MISSING",
+    }
     gt_map    = {p["title"]: p.get("ground_truth", "") for p in PAPERS}
     gt_reason = {p["title"]: p.get("gt_reason",    "") for p in PAPERS}
 
@@ -336,8 +339,7 @@ def save_excel(results, path, acc):
         c = ws.cell(row=1, column=col, value=h)
         c.font      = Font(bold=True, color="FFFFFF", name="Arial", size=11)
         c.fill      = PatternFill("solid", start_color="2F4F6F")
-        c.alignment = Alignment(horizontal="center", vertical="center",
-                                wrap_text=True)
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     ws.row_dimensions[1].height = 25
 
     for i, r in enumerate(results, 1):
@@ -351,29 +353,25 @@ def save_excel(results, path, acc):
             c = ws.cell(row=row, column=col, value=val)
             c.font      = Font(name="Arial", size=10, bold=bold, color=fg)
             c.alignment = Alignment(
-                horizontal="center" if col in (1, 3, 4, 5, 6) else "left",
+                horizontal="center" if col in (1,3,4,5,6) else "left",
                 vertical="top", wrap_text=True)
             c.fill = PatternFill("solid", start_color=bg_ov or bg)
 
         cell(1, i)
         cell(2, r["title"])
         for col_i, key in [(3, clf), (4, gt)]:
-            c = ws.cell(row=row, column=col_i,
-                        value=LABEL.get(key, key))
+            c = ws.cell(row=row, column=col_i, value=LABEL.get(key, key))
             c.font      = Font(bold=True, name="Arial", size=10)
-            c.alignment = Alignment(horizontal="center", vertical="top",
-                                    wrap_text=True)
-            c.fill      = PatternFill("solid",
-                                      start_color=COLOR.get(key, "F2F2F2"))
+            c.alignment = Alignment(horizontal="center", vertical="top", wrap_text=True)
+            c.fill      = PatternFill("solid", start_color=COLOR.get(key, "F2F2F2"))
         if ok is True:
             cell(5, "✓", bold=True, fg="276221", bg_ov="C6EFCE")
         elif ok is False:
             cell(5, "✗", bold=True, fg="9C0006", bg_ov="FFC7CE")
         else:
             cell(5, "—")
-        src_color = {"ARXIV":     "BDD7EE",
-                     "KNOWLEDGE": "FFE4B5"}.get(r.get("source", ""), bg)
-        c6 = ws.cell(row=row, column=6, value=r.get("source", ""))
+        src_color = {"ARXIV": "BDD7EE", "KNOWLEDGE": "FFE4B5"}.get(r.get("source",""), bg)
+        c6 = ws.cell(row=row, column=6, value=r.get("source",""))
         c6.font      = Font(name="Arial", size=10, bold=True)
         c6.alignment = Alignment(horizontal="center", vertical="top")
         c6.fill      = PatternFill("solid", start_color=src_color)
@@ -386,9 +384,8 @@ def save_excel(results, path, acc):
     ws2["A1"] = "Overall Accuracy"
     ws2["B1"] = f"{acc['accuracy']:.1%}  ({acc['correct']}/{acc['total']})"
     ws2["A1"].font = ws2["B1"].font = Font(bold=True, name="Arial", size=12)
-    for col, h in enumerate(["Label", "Correct", "Total", "Accuracy"], 1):
-        ws2.cell(row=3, column=col,
-                 value=h).font = Font(bold=True, name="Arial")
+    for col, h in enumerate(["Label","Correct","Total","Accuracy"], 1):
+        ws2.cell(row=3, column=col, value=h).font = Font(bold=True, name="Arial")
     r2 = 4
     for lbl, s in sorted(acc["per_label"].items()):
         a = s["correct"] / s["total"] if s["total"] else 0
@@ -398,18 +395,17 @@ def save_excel(results, path, acc):
         ws2.cell(row=r2, column=4, value=f"{a:.1%}")
         r2 += 1
     r2 += 1
-    ws2.cell(row=r2, column=1,
-             value="Wrong predictions").font = Font(bold=True)
+    ws2.cell(row=r2, column=1, value="Wrong predictions").font = Font(bold=True)
     r2 += 1
     for w in acc["wrong"]:
         ws2.cell(row=r2, column=1, value=w["title"])
         ws2.cell(row=r2, column=2, value=w["pred"])
         ws2.cell(row=r2, column=3, value=w["gt"])
         r2 += 1
-    for col, w in [("A", 10), ("B", 22), ("C", 22), ("D", 10)]:
+    for col, w in [("A",10),("B",22),("C",22),("D",10)]:
         ws2.column_dimensions[col].width = w
-    for col, w in [("A", 5), ("B", 48), ("C", 22), ("D", 22),
-                   ("E", 10), ("F", 12), ("G", 50), ("H", 50), ("I", 50)]:
+    for col, w in [("A",5),("B",48),("C",22),("D",22),
+                   ("E",10),("F",12),("G",50),("H",50),("I",50)]:
         ws.column_dimensions[col].width = w
     ws.freeze_panes = "A2"
     wb.save(path)
@@ -446,16 +442,13 @@ if __name__ == "__main__":
     print(f"  Labels:  {dict(Counter(r['classification'] for r in results))}")
     print(f"  Sources: {dict(Counter(r['source']         for r in results))}")
     acc = accuracy_report(results)
-    print(f"\n  Accuracy: {acc['accuracy']:.1%} "
-          f"({acc['correct']}/{acc['total']})")
+    print(f"\n  Accuracy: {acc['accuracy']:.1%} ({acc['correct']}/{acc['total']})")
     for lbl, s in sorted(acc["per_label"].items()):
         a = s["correct"] / s["total"] if s["total"] else 0
         print(f"    {lbl:25s}: {a:.0%} ({s['correct']}/{s['total']})")
     if acc["wrong"]:
         print(f"\n  Wrong ({len(acc['wrong'])}):")
         for w in acc["wrong"]:
-            print(f"    PRED={w['pred']:22s}  GT={w['gt']:22s}  "
-                  f"{w['title'][:55]}")
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                       "results_513.xlsx")
+            print(f"    PRED={w['pred']:25s}  GT={w['gt']:25s}  {w['title'][:50]}")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results_513.xlsx")
     save_excel(results, out, acc)
