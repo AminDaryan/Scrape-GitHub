@@ -1,0 +1,147 @@
+[
+  {
+    "title": "2OMe-LM: predicting 2′-O-methylation sites in human RNA using a pre-trained RNA language model",
+    "repo": "https://github.com/CSUBioGroup/2OMe-LM",
+    "status": "yes",
+    "confidence": "high",
+    "evidence": "README provides a Setup section with conda environment creation/activation and running pip install -r requirements.txt after cloning.",
+    "instruction_types": [
+      "conda environment",
+      "pip install",
+      "requirements file"
+    ],
+    "files_checked": [
+      "README.md",
+      "checkpoints/readme.md",
+      "models_folder/readme.md"
+    ],
+    "note": ""
+  },
+  {
+    "title": "4DLangVGGT: 4D Language-Visual Geometry Grounded Transformer",
+    "repo": "https://github.com/hustvl/4DLangVGGT",
+    "status": "yes",
+    "confidence": "high",
+    "evidence": "README includes an Installation section with pip install commands (including pip install -r requirements.txt) and optional apt-get system packages.",
+    "instruction_types": [
+      "pip install",
+      "requirements file",
+      "system packages"
+    ],
+    "files_checked": [
+      "README.md",
+      "requirements.txt"
+    ],
+    "note": ""
+  },
+  {
+    "title": "90% Faster, 100% Code-Free: MLLM-Driven Zero-Code 3D Game Development",
+    "repo": "https://github.com/yxwan123/UniGen",
+    "status": "yes",
+    "confidence": "medium",
+    "evidence": "README includes an Installation section with prerequisites and the repo provides a requirements.txt, though no explicit pip commands are given.",
+    "instruction_types": [
+      "requirements file",
+      "other"
+    ],
+    "files_checked": [
+      "README.md",
+      "requirements.txt"
+    ],
+    "note": ""
+  },
+  {
+    "title": "Abstract A024: DeepVul: A multi-task transformer model for joint prediction of gene essentiality and drug response",
+    "repo": "https://github.com/alaaj27/DeepVul.git",
+    "status": "yes",
+    "confidence": "high",
+    "evidence": "README includes an Installation section with conda commands to create and activate an environment using condaenv.yml.",
+    "instruction_types": [
+      "conda environment"
+    ],
+    "files_checked": [
+      "README.md"
+    ],
+    "note": ""
+  },
+  {
+    "title": "Accelerated Aggregated D-Optimal Designs for Estimating Main Effects in Black-Box Models",
+    "repo": "https://github.com/cchihyu/A2D2E",
+    "status": "no",
+    "confidence": "medium",
+    "evidence": "The README only contains an abstract and an empty Implementation section with no setup commands or dependency/install guidance.",
+    "instruction_types": [],
+    "files_checked": [
+      "README.md"
+    ],
+    "note": ""
+  },
+  {
+    "title": "AccidentBench: Benchmarking Multimodal Understanding and Reasoning in Vehicle Accidents and Beyond",
+    "repo": "https://github.com/SafeRL-Lab/AccidentBench",
+    "status": "no",
+    "confidence": "medium",
+    "evidence": "In the provided files, no commands or steps for setting up the environment or installing dependencies are shown; only a Table of Contents entry for 'Installation' appears without content.",
+    "instruction_types": [],
+    "files_checked": [
+      "README.md"
+    ],
+    "note": ""
+  },
+  {
+    "title": "A Comprehensive Survey on Trustworthiness in Reasoning with Large Language Models",
+    "repo": "https://github.com/ybwang119/Awesome-reasoning-safety",
+    "status": "no",
+    "confidence": "high",
+    "evidence": "The README is an awesome list/survey with links and citation but contains no environment setup, dependency installation, or commands (pip/conda/docker/etc.).",
+    "instruction_types": [],
+    "files_checked": [
+      "README.md"
+    ],
+    "note": ""
+  },
+  {
+    "title": "A Computational Approach to Visual Metonymy",
+    "repo": "https://github.com/cincynlp/ViMET",
+    "status": "no",
+    "confidence": "high",
+    "evidence": "Repository READMEs only describe the dataset and provide a download link; there are no commands or guidance for installing dependencies or setting up an environment.",
+    "instruction_types": [],
+    "files_checked": [
+      "MCQ_dataset/README.md",
+      "README.md",
+      "Representamens/README.md"
+    ],
+    "note": ""
+  },
+  {
+    "title": "AdamMeme: Adaptively Probe the Reasoning Capacity of Multimodal Large Language Models on Harmfulness",
+    "repo": "https://github.com/Lbotirx/AdamMeme",
+    "status": "yes",
+    "confidence": "high",
+    "evidence": "README includes a setup section with 'pip install -r requirements.txt' and refers to LLaVA for setup details.",
+    "instruction_types": [
+      "pip install",
+      "requirements file",
+      "other"
+    ],
+    "files_checked": [
+      "README.md"
+    ],
+    "note": ""
+  },
+  {
+    "title": "Adaptive Graph Learning with Transformer for Multi-Reservoir Inflow Prediction",
+    "repo": "https://github.com/humphreyhuu/AdaTrip",
+    "status": "yes",
+    "confidence": "medium",
+    "evidence": "README includes a Setup section listing required dependencies and setup steps (prerequisites and directory creation) and shows commands to run the scripts.",
+    "instruction_types": [
+      "other"
+    ],
+    "files_checked": [
+      "README.md"
+    ],
+    "note": ""
+  }
+]
