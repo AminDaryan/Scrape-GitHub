@@ -1,0 +1,791 @@
+papertitle,semanticscholarid,link
+#1880 Novel ai-based recipe recommendation system for dialysis patients using retrieval-augmented generation,4e86254be24e4dcac4d0a0cc2d72d9c0f3e9f6bd,https://www.freseniuskidneycare.com/recipes-and-nutrition/recipes
+2OMe-LM: predicting 2′-O-methylation sites in human RNA using a pre-trained RNA language model,949cab640f543f200ad1fbeed56cc1c9519b1251,https://csuligroup.com:9200/2OMe-LM
+2OMe-LM: predicting 2′-O-methylation sites in human RNA using a pre-trained RNA language model,949cab640f543f200ad1fbeed56cc1c9519b1251,https://github.com/CSUBioGroup/2OMe-LM
+4DLangVGGT: 4D Language-Visual Geometry Grounded Transformer,2841f2f2b548c5f61c06917e07c41caf5c55d414,https://github.com/hustvl/4DLangVGGT
+"90% Faster, 100% Code-Free: MLLM-Driven Zero-Code 3D Game Development",00c2c1e1c1891a958a3e45158d7fe4b3cac8a515,https://github.com/yxwan123/UniGen
+"90% Faster, 100% Code-Free: MLLM-Driven Zero-Code 3D Game Development",00c2c1e1c1891a958a3e45158d7fe4b3cac8a515,https://www.youtube.com/watch?v=xyJjFfnxUx0
+A Benchmark Dataset and Evaluation Framework for Vietnamese Large Language Models in Customer Support,a308f20ee69717f2fd8544234c07706266d14c7f,https://huggingface.co/datasets/ura-hcmut/Vietnamese-Customer-Support-QA
+A Brain Cell Type Resource Created by Large Language Models and a Multi-Agent AI System for Collaborative Community Annotation,ee5014ad91d8d9443e3acc2aa3e88ef84db8437e,https://biodataai.uth.edu/BRAINCELL-AID
+Abstract A024: DeepVul: A multi-task transformer model for joint prediction of gene essentiality and drug response,16fac89388bf55d9c418caf1acacd608560780ef,https://github.com/alaaj27/DeepVul.git
+Abstract A030: Mutation2Text: A unified protein and text language model for explaining mutation effects,6d7f56be14d20152097094fc31a7384b28807ef9,https://anonymous.4open.science/r/mutation2text-94A6/
+Abstract B040: Literature-scaled immunological gene set annotation using AI-powered immune cell knowledge graph (ICKG),9cebc05a613a4ea264e4bccfd67ff86600e86232,https://kchen-lab.github.io/immune-knowledgegraph.github.io/
+Accelerated Aggregated D-Optimal Designs for Estimating Main Effects in Black-Box Models,100bcd9651bc827400b22c227b6eb87fb3dca1ab,https://github.com/cchihyu/A2D2E
+AccidentBench: Benchmarking Multimodal Understanding and Reasoning in Vehicle Accidents and Beyond,b78e056bcdba9447459237e8364ddcf3a22040c4,https://github.com/SafeRL-Lab/AccidentBench
+A Comprehensive Evaluation of LLM Reasoning: From Single-Model to Multi-Agent Paradigms,8184cb4b061efd01f3034b9c4d9f8cb14da0d762,https://gitcode.com/HIT1920/OpenLLMBench
+A Comprehensive Survey of Electronic Health Record Modeling: From Deep Learning Approaches to Large Language Models,be7728e1beb6dd5de8de6b36a2fe561845b7e4c1,https://survey-on-tabular-data.github.io/
+A Comprehensive Survey on Trustworthiness in Reasoning with Large Language Models,2429de2c3f2b7ddcdf1f8b2d34c6eb8b75cc47f9,https://github.com/ybwang119/Awesome-reasoning-safety}{https://github.com/ybwang119/Awesome-reasoning-safety}
+A Computational Approach to Visual Metonymy,5c8bfe851ea4a1a9ec20dd198ddfbe17f133cc7e,https://github.com/cincynlp/ViMET
+ACP-EPC: an interpretable deep learning framework for anticancer peptide prediction utilizing pre-trained protein language model and multi-view feature extracting strategy.,689bb3f20a8b129eae67098367c83118007976bc,http://www.bioai-lab.com/ACP-EPC
+AdamMeme: Adaptively Probe the Reasoning Capacity of Multimodal Large Language Models on Harmfulness,f94f6822c9fe5046a1818e145677352f99799d57,https://github.com/Lbotirx/AdamMeme
+Adaptive Graph Learning with Transformer for Multi-Reservoir Inflow Prediction,2ff0de04f14ea6045ddaf469e2b7e321999a96a1,https://github.com/humphreyhuu/AdaTrip
+Adaptive Obstacle-Aware Task Assignment and Planning for Heterogeneous Robot Teaming,b39e7490bccf708763cb66a599acdf1c4c3a60ed,https://llm-oath.github.io/
+AdaptPNP: Integrating Prehensile and Non-Prehensile Skills for Adaptive Robotic Manipulation,247c95e1073909f468f8ec88f515d4c1451ff3bd,https://sites.google.com/view/adaptpnp/home
+Addressing Logical Fallacies In Scientific Reasoning From Large Language Models: Towards a Dual-Inference Training Framework,5000db4d66e7884114390c88162811b44fe46c7d,https://github.com/hannahdavidsoncollege-maker/ScientificReasoningForEnvironment-MedicineWithLLMs
+A Dual Large Language Models Architecture with Herald Guided Prompts for Parallel Fine Grained Traffic Signal Control,50cbc8bcd56169388637d6ac6e7390879968da45,https://github.com/BUPT-ANTlab/HeraldLight
+Advancing ADMET prediction through multiscale fragment-aware pretraining with MSformer-ADMET,f041717fa0bf230cbce34dc8d2e2a51da7ac6770,https://github.com/ZJUFanLab/MSformer
+Advancing Complex Wide-Area Scene Understanding with Hierarchical Coresets Selection,735e985fe2db5f8b8aa94a8ea2713815193eb58f,https://wangjingyao07.github.io/HCS.github.io/
+"Advancing site-specific disease and pest management in precision agriculture: From reasoning-driven foundation models to adaptive, feedback-based learning",d3d800753aceafe767edcb2e1cd2748f54c29dea,https://github.com/nitin-dominic/AgriPathogenDatabase
+Adversarial Attention Perturbations for Large Object Detection Transformers,8a5e5b5bd4ddf16add90033e8b4394116d71d6d3,https://github.com/zacharyyahn/AFOG
+A First-Order Logic-Based Alternative to Reward Models in RLHF,3fac01d47dcdfcd2d442d3407180cbd66ade9459,https://github.com/ChunjinJiang/sgrpo
+A foundation model for learning genetic associations from brain imaging phenotypes,6681151239348eb3e526b9230ce9d8e1db5f0498,https://github.com/IBM/comical
+A Framework for Analyzing Abnormal Emergence in Service Ecosystems Through LLM-Based Agent Intention Mining,9bb33c4962a76c0841947d23279f23e6aac0da57,https://anonymous.4open.science/r/EAMI-B085
+Agentmandering: A Game-Theoretic Framework for Fair Redistricting via Large Language Model Agents,53415fff609c8b1e9fb2f9f503f016f1b91a8315,https://github.com/Lihaogx/AgentMandering
+AgentSHAP: Interpreting LLM Agent Tool Importance with Monte Carlo Shapley Value Estimation,36da1d21706b746604504e50ef326434822e5b3a,https://github.com/GenAISHAP/TokenSHAP
+A Granular Study of Safety Pretraining under Model Abliteration,cd8f896b943b7b28c65106ef0dc4ff94cb8d164f,https://github.com/shashankskagnihotri/safety_pretraining
+A Highly Clean Recipe Dataset with Ingredient States Annotation for State Probing Task,070ee023f567b9542cb2caafb26c543bf90fbfbb,https://huggingface.co/datasets/mashi6n/nhkrecipe-100-anno-1
+A Human-Centered Mutltimodal AutoML Framework for Discriminative and Generative Tasks with Large Language Models,91121ece43de94693af15fc7ea41fa1a7a200b64,https://github.com/richarf22/UniAutoML
+A HyperGraphMamba-Based Multichannel Adaptive Model for ncRNA Classification,47583dbd910d5815059f9426b21c0614c0e4544d,https://anonymous.4open.science/r/HGMamba-ncRNA-94D0
+AIGVE-MACS: Unified Multi-Aspect Commenting and Scoring Model for AI-Generated Video Evaluation,d6d7c8ab0d295985df258f653b6821e38b6295ff,https://huggingface.co/xiaoliux/AIGVE-MACS
+AI-powered Immune Cell Knowledge Graph (ICKG) with granular immune contexts enables immune program interpretation,18921ce8d451d87bbae6e88056e0af549236de4e,https://kchen-lab.github.io/immune-knowledgegraph.github.io/
+AIP-TranLAC: A Transformer-Based Method Integrating LSTM and Attention Mechanism for Predicting Anti-inflammatory Peptides,afbac5d3cb445dfc8cc7680fe44fdec73b55e886,https://github.com/Renjingyi123/AIP-TranLAC
+Aligned or Apart? Multi-Agent Insights into Consumer and Brand Messaging Discrepancies,4b69f469a595d88bc00d62ca760ebe4e40884c26,https://github.com/htgan-ai/OPIM
+Aligning Deep Implicit Preferences by Learning to Reason Defensively,d93c41e0223fe7f1817a0458ed8ed444f2d78d8f,https://github.com/Zephyrian-Hugh/Deep-pref
+Alpamayo-R1: Bridging Reasoning and Action Prediction for Generalizable Autonomous Driving in the Long Tail,19e96723c98eb4dd58e65e40bb6b9bfb985a4218,https://huggingface.co/nvidia/Alpamayo-R1-10B
+Alpamayo-R1: Bridging Reasoning and Action Prediction for Generalizable Autonomous Driving in the Long Tail,19e96723c98eb4dd58e65e40bb6b9bfb985a4218,https://github.com/NVlabs/alpamayo
+ALPHA: LLM-Enabled Active Learning for Human-Free Network Anomaly Detection,7b245a8a0c3ed01f5d8377d4f1cac8bb28d51fe0,https://github.com/Xuanhao-Luo/ALPHA
+AlphaQuanter: An End-to-End Tool-Orchestrated Agentic Reinforcement Learning Framework for Stock Trading,acf01e45c8caa3de4076da78ecf2aff8adc99dca,https://github.com/AlphaQuanter/AlphaQuanter
+ALyzer3D.AI: a more generalizable deep learning predictor of light chain amyloidogenicity powered by structural and evolutionary Artificial Intelligence.,21ed10badbbf438e44d54c57c9478625c7146a82,https://colab.research.google.com/github/pcmay/ALyzer3D.AI/blob/main/ALyzer3DAI.ipynb
+A model for epileptic EEG detection and recognition based on Multi-Attention mechanism and Spatiotemporal,a6052bc4521d25a28e369a4714fa40ad51c7ef68,https://github.com/Xhuangzhentao/MASF-Model-.git
+AMPred-MFG: Investigating the Mutagenicity of Compounds Using Motif-Based Graph Combined with Molecular Fingerprints and Graph Attention Mechanism.,fb8a5fb6b6eb466a4b40439e753e76abfb95fc36,https://github.com/zhaoqi106/AMPred-MFG
+Analysis of Image-and-Text Uncertainty Propagation in Multimodal Large Language Models with Cardiac MR-Based Applications,fcb83097e532e64dadfee4b082be01b45a0fe1cb,https://github.com/yucheng722/MUPM
+Anatomy-Aware Adaptation of Pre-Trained Models for Medical Difference Visual Question Answering,0cb331a07ec92f75c2c10ec7226fd4a505f6776b,https://github.com/liyiersan/Med-Diff-VQA
+An Efficient Pipeline for Fine-Tuning and Evaluating LLMs to Interpret Medical Expert Knowledge in Pediatrics,b0e8c4abfc48c13a9bcd3985fc60b5bba69d1f56,https://github.com/yaseen28/hypert-ai
+An Embodied AR Navigation Agent: Integrating BIM with Retrieval-Augmented Generation for Language Guidance,b531d1a8b9cc43df973d716f121ad025ce24523e,https://woven-visionai.github.io/ar-navigation-agent-project
+An Explainable Evidence Linking Framework for Automated Fact Verification,ec00961fb7049c0b2272cc47c7eef553953660da,https://www.unb.ca/cic/datasets/index.html
+ANIA: an inception-attention network for predicting minimum inhibitory concentration of antimicrobial peptides,7f48b0718c70aac92a435ee657b125413c7c2f95,https://biomics.lab.nycu.edu.tw/ANIA/
+AnimatedLLM: Explaining LLMs with Interactive Visualizations,469b256b76383ef1fc234369aac1b853c0273689,https://animatedllm.github.io
+An Interpretable Benchmark for Clickbait Detection and Tactic Attribution,e6d4f6b8dfe769464f69bd0d193f4ce151eaffc8,https://github.com/LLM-HITCS25S/ClickbaitTacticsDetection
+An Interpretable Functional-Dynamic Synaptic Graph Neural Network for Major Depressive Disorder Diagnosis from rs-fMRI,d7477dfa19566456f2f7bda9f4cedad3160ceeaf,https://github.com/ZHChen-294/FDSyn-GNN
+Antidepressant and Antipsychotic Drug Use and Cancer Risk: Protocol for an Overview of Systematic Reviews and Meta-Analyses,f31ee7c4ed7da1cd4560aa6ae9aa7bdc67149b37,https://osf.io/5acwh/overview
+APIDA-Chat: Structured Synthesis of API Search Dialogues to Bootstrap Conversational Agents,e272f6d70ce437addc70901b12e9ad69e492aac3,https://github.com/Zeberhart/apida-chat
+APIDA-Chat: Structured Synthesis of API Search Dialogues to Bootstrap Conversational Agents,e272f6d70ce437addc70901b12e9ad69e492aac3,https://youtu.be/YqmZBHyGbPs
+Are All Prompt Components Value-Neutral? Understanding the Heterogeneous Adversarial Robustness of Dissected Prompt in Large Language Models,eedcf1923f01d7b8452c5bf33915261a31b12f30,https://github.com/Yujiaaaaa/PACP
+A Reason-then-Describe Instruction Interpreter for Controllable Video Generation,08ad6ffef9f89d4b8337ac8e2a2b0671ad357048,https://sqwu.top/ReaDe/
+ARROW: Adaptive Reasoning for LLM-based Recommendation with Explainability,f4a2dcd72c93ad2fd6e2decbf7a5e11e83ae822d,https://github.com/yunwooseong/ARROW
+ArtSeek: Deep artwork understanding via multimodal in-context reasoning and late interaction retrieval,072d3ee5861dce8977ff5345697047889ec0a013,https://github.com/cilabuniba/artseek
+A scalable equivariant graph network framework for precise protein function prediction,7b68ee640dda2c9d55682ccbc499a5499feb4b10,https://github.com/ABILiLab/ENGINE
+A scalable equivariant graph network framework for precise protein function prediction,7b68ee640dda2c9d55682ccbc499a5499feb4b10,https://doi.org/10.5281/zenodo.17221153
+ASCIIBench: Evaluating Language-Model-Based Understanding of Visually-Oriented Text,0e5aa6caa6f48c2a0c3cccc93ecf715561ff52c5,https://github.com/ASCIIBench/ASCIIBench
+A Solver‐Aided Hierarchical Language for LLM‐Driven CAD Design,825212a220035b298655ab74c0bd550c88a2ea74,https://github.com/deGravity/aidl
+Assessing Historical Structural Oppression Worldwide via Rule-Guided Prompting of Large Language Models,d765bd70612ed02a5962ef0d93609751d2b972c9,https://github.com/chattergpt/HSO-Bench
+A Structured Framework for Evaluating and Enhancing Interpretive Capabilities of Multimodal LLMs in Culturally Situated Tasks,0f86ce25d87abe348cb220e4942fd119c6bfc707,https://github.com/yha9806/VULCA-EMNLP2025
+A Survey of Reasoning and Agentic Systems in Time Series with Large Language Models,127ab36cee7c8c1b5e7ec4a8cd40963402803825,https://github.com/blacksnail789521/Time-Series-Reasoning-Survey
+A Survey on Latent Reasoning,0ba7e537a1728d6b40d9ff16105f6207900fbb01,https://github.com/multimodal-art-projection/LatentCoT-Horizon/
+A tiny inertial transformer for human activity recognition via multimodal knowledge distillation and explainable AI,326e0b39d843ed7dc7fd77279b53174896cc7a18,https://github.com/Ism-ail11/XTinyHAR
+Atlas-free Brain Network Transformer,2d07715679b58873b10fbf1d03f010756d335d7b,https://github.com/shuai-huang/atlas_free_bnt
+Atomic Diffusion Models for Small Molecule Structure Elucidation from NMR Spectra,2e863fa92c3f6af8221d2a5536bf7a7fa57b3218,https://github.com/ml-struct-bio/chefnmr
+A Tool Bottleneck Framework for Clinically-Informed and Interpretable Medical Image Understanding,6781e86f6e17b8bc6f2347ee36c558f4b6414faa,https://github.com/christinaliu2020/tool-bottleneck-framework
+Attention-Enhanced Hybrid Deep Learning Framework for Accurate Brain Tumor MRI Analysis,72c74706be4bfdf17cac6747a73f49ffd5e3f295,https://github.com/MuhammadAhmad7171/Brain-Tumor
+Attention Grounded Enhancement for Visual Document Retrieval,3970e88d678f482218e14d54e44a1dd9a4347b44,https://anonymous.4open.science/r/AGREE-2025
+AttnTrace: Attention-based Context Traceback for Long-Context LLMs,56e96c75d7c6fe9b35a6166b0b841ad672129035,https://github.com/Wang-Yanting/AttnTrace
+AttriLens-Mol: Attribute Guided Reinforcement Learning for Molecular Property Prediction with Large Language Models,b2ab5820cb3674dc3c0639ea8aa276159f68eb1e,https://github.com/szu-tera/AttriLens-Mol
+AutoEP: LLMs-Driven Automation of Hyperparameter Evolution for Metaheuristic Algorithms,f727446279a030a572a77205746a2e3e87bd480c,https://anonymous.4open.science/r/AutoEP-3E11
+Automated Circuit Interpretation via Probe Prompting,5958ac904b5893b6cf9ac5f248b8e8fd34a78f48,https://github.com/peppinob-ol/attribution-graph-probing
+Automated Circuit Interpretation via Probe Prompting,5958ac904b5893b6cf9ac5f248b8e8fd34a78f48,https://huggingface.co/spaces/Peppinob/attribution-graph-probing
+Automated Grading for Efficiently Evaluating the Dual-Use Biological Capabilities of Large Language Models.,0871df244429f24c4c4abc87f33357b4d573224c,https://www.rand.org/pubs/research_reports/RRA3124-1.html
+Automated Label Placement on Maps via Large Language Models,fceace0f2037f79387138be9ca7d81318993d9d6,https://github.com/HarryShomer/MAPLE
+Autonomous Business System via Neuro-symbolic AI,bf3bb56470443aa17c56c08b5630494987092034,https://github.com/cecilpang/autobus-paper
+A Video Is Not Worth a Thousand Words,bf2e57f849c8755ebd6da5555caee1a997bff55c,https://github.com/sjpollard/a-video-is-not-worth-a-thousand-words
+A Weighted Vision Transformer-Based Multi-Task Learning Framework for Predicting ADAS-Cog Scores,5a1526c6b7b87f01b4a4bd667ad70126e652dd1b,https://github.com/mirahhamid/A-Weighted-Vision-Transformer-Based-Multi-Task-Learning-Framework-for-Predicting-ADAS-Cog-Scores.git
+Behavioral Embeddings of Programs: A Quasi-Dynamic Approach for Optimization Prediction,9a0496a030336383daa01e95d67876e5f2082ccc,https://github.com/Panhaolin2001/PREP/
+"Benchmarking MLLM-based Web Understanding: Reasoning, Robustness and Safety",1562411aef436c06f758e71e84a121563c1c33f2,https://github.com/jinliang-byte/webssrbench
+BeSIM: A Benchmark for Evaluating the Interpretation of Social Interactions in Brazil Using Multimodal Large Language Models,7def74a7b7541efb8b9743e0203b618efcdf08b9,https://github.com/M4Falcao/BeSIM
+Better by Comparison: Retrieval-Augmented Contrastive Reasoning for Automatic Prompt Optimization,4d051e1bfb3143db0d32b94aa981c996c91f6632,https://github.com/GitLeo1/CRPO
+Beyond Accuracy: Evaluating Grounded Visual Evidence in Thinking with Images,d1b192051d29d902f14b500dfe12bbc0e1e7c26c,https://github.com/Xuchen-Li/ViEBench
+Beyond Benchmark: LLMs Evaluation with an Anthropomorphic and Value-oriented Roadmap,4a631dd0d5d7ca63bd08c4055322443f51e0297b,https://github.com/onejune2018/Awesome-LLM-Eval
+Beyond Classification Accuracy: Neural-MedBench and the Need for Deeper Reasoning Benchmarks,5bd967da7fd6ff055134e22da6e414fafe09c707,https://neuromedbench.github.io/
+Beyond Curve Fitting: Neuro-Symbolic Agents for Context-Aware Epidemic Forecasting,6e864a20ffdff98642325b2d618412998f1ff042,https://github.com/jw-chae/forecast_MED
+Beyond Fact Retrieval: Episodic Memory for RAG with Generative Semantic Workspaces,997e7af15ac5d3a46733bdf8817a6a344650350d,https://github.com/roychowdhuryresearch/gsw-memory
+Beyond Interpretability: Exploring the Comprehensibility of Adaptive Video Streaming through Large Language Models,1d68c0c5e0262776ca8bf3593f0d8e4948521c61,https://github.com/thu-media/ComTree
+Beyond Linear Probes: Dynamic Safety Monitoring for Language Models,2e6a281d7aa008f52e48b5001866c05fa0c91bcc,http://github.com/james-oldfield/tpc
+Beyond Static LLM Policies: Imitation-Enhanced Reinforcement Learning for Recommendation,5f41b7a81d11892398ce0d5137000ca2497a3fdc,https://github.com/ArronDZhang/IL-Rec
+Beyond Token Probes: Hallucination Detection via Activation Tensors with ACT-ViT,41617928fb3765298d9b9cfe5355ba4fbbed752a,https://github.com/BarSGuy/ACT-ViT
+Bidirectional Human-Robot Communication for Physical Human-Robot Interaction,cb1f19ed007964a433fdf6736f0b6984aec0d108,https://bidir-comm.github.io/
+BioFusionDTI: Assimilating Graph and Sequence Modalities for Generalizable Drug-Target Interaction Prediction,211c1faff8db0df1bd352f70d0b2a825cb1450e1,https://github.com/QiufenChen/BioFusionDTI
+Biomedical Hypothesis Explainability with Graph-Based Context Retrieval,8e2cf880e872f7185a0d20a928a9656b88a86820,https://github.com/IlyaTyagin/HGCR
+Biomedical reasoning in action: Multi-agent System for Auditable Biomedical Evidence Synthesis,fe3d14f3061df7b96cd7c13385c7d20e15bb6bb8,https://m-reason.digitalecmt.com
+Black-Box Membership Inference Attack for LVLMs via Prior Knowledge-Calibrated Memory Probing,6cb3c9aabb1db9d992aec3876313b38057042591,https://github.com/spmede/KCMP
+BOAD: Discovering Hierarchical Software Engineering Agents via Bandit Optimization,7b5e64c257225ed8f63bbcc92d95b8f62fafd7be,https://github.com/iamxjy/BOAD-SWE-Agent
+Boundary-Aware NL2SQL: Integrating Reliability through Hybrid Reward and Data Synthesis,31ef90de2724bd6ba3462641956ff805e500b270,https://github.com/TianSongS/BAR-SQL
+Box-QAymo: Box-Referring VQA Dataset for Autonomous Driving,f764287db755ea39a9fa023ee8fba56d0208c622,https://djamahl99.github.io/qaymo-pages/
+Breaking Expert Knowledge Limits: Self-Pruning for Large Language Models,b9ffa4bf87ab849a2dc636c58a4f5375b58e626c,https://anonymous.4open.science/r/AutoPrune
+Bridging Graph and State-Space Modeling for Intensive Care Unit Length of Stay Prediction,c438cbb09a31120ab3a15f36dfe7edf35c3cc944,https://github.com/ShuqiZi1/S2G-Net
+Bridging Semantics and Geometry: A Decoupled LVLM-SAM Framework for Reasoning Segmentation in Remote Sensing,bc241f44362ced988cbe1a4288f00af9942b1bcd,https://github.com/Ricardo-XZ/Think2Seg-RS
+Bridging Semantic Understanding and Popularity Bias with LLMs,10524830cdfe0970f895ea14c13742eaf751bef3,https://github.com/LuoRenqiang/FairLRM
+Bridging the behavior-neural gap: A multimodal AI reveals the brain's geometry of emotion more accurately than human self-reports,156e08b32b0191ef6ed1f0e44113f6acb959d216,https://reedonepeck.github.io/ai-emotion.github.io/
+Bridging the gap to real-world language-grounded visual concept learning,0b788ce332427a9d071d26a7c41a438077d51139,https://github.com/whieya/Language-grounded-VCL
+Building Futures: LLM-Guided Career Pathways for Australia’s Construction Graduates,921d9865e1d19f1f2b7b9d94c2ec2c9cb45fb129,http://myconstructioncareer.com.au/
+C2-Cite: Contextual-Aware Citation Generation for Attributed Large Language Models,0903afe22833a5971a9ad668ef2852db28fc300e,https://github.com/BAI-LAB/c2cite
+CADS: A Causal Inference Framework for Identifying Essential Genes to Enhance Drug Synergy Prediction.,2dc3186599161045a65e6d47076fa8d5b2423162,https://github.com/HuaiwuZhang/causalDC
+Can Large Language Models Address Problem Gambling? Expert Insights from Gambling? Expert Insights from Gambling Treatment Professionals.,ebb64e09773f50e4b687f163c9d199fb45277d7c,https://www.unlv.edu/igi/conference/18th/sponsors
+Can Large Language Models Address Problem Gambling? Expert Insights from Gambling? Expert Insights from Gambling Treatment Professionals.,ebb64e09773f50e4b687f163c9d199fb45277d7c,https://www.unlv.edu/igi/advisory-board
+Can Large Language Models Address Problem Gambling? Expert Insights from Gambling? Expert Insights from Gambling Treatment Professionals.,ebb64e09773f50e4b687f163c9d199fb45277d7c,https://www.unlv.edu/igi/research-policy
+Can Large Language Models Address Problem Gambling? Expert Insights from Gambling? Expert Insights from Gambling Treatment Professionals.,ebb64e09773f50e4b687f163c9d199fb45277d7c,https://www.unlv.edu/igi/policies/partnership
+Can Large Vision-Language Models Understand Multimodal Sarcasm?,4dc2c1a707de5d43736bed59f37c41a0d4d25c09,https://github.com/cp-cp/LVLM-MSA
+Can LLMs Lie? Investigation beyond Hallucination,84d49cd34556b01e47b286536c09a2812b438e08,https://llm-liar.github.io/
+Can LLMs Model the Environmental Impact on SSD?,4d9bca7c2cd2e22fdd04ea1cb31abd4eabc5e4af,https://github.com/Damrl-lab/SSD_LLM
+Can Multimodal LLMs Reason About Stability? An Exploratory Study with Insights from the LLMs4PCG Challenge,96428c28c123e54dcb1c02a17700eb1bef7b8503,https://anonymous.4open.science/r/cog2025-game-physics-eval/
+CaptionQA: Is Your Caption as Useful as the Image Itself?,1e24535b78395e4f8ea49f6c6f3009257f32b4be,https://github.com/bronyayang/CaptionQA
+CARScenes: Semantic VLM Dataset for Safe Autonomous Driving,5abd54e3f2b666fa8cf15fb7084ff7dfd30d0004,https://github.com/Croquembouche/CAR-Scenes
+CartoMapQA: A Fundamental Benchmark Dataset Evaluating Vision-Language Models on Cartographic Map Understanding,da4931c4fbd619dbcf60a1d8271099a0c116e67a,https://github.com/ungquanghuy-kddi/CartoMapQA.git
+Causality Matters: How Temporal Information Emerges in Video Language Models,7134bb1a6de5efffa03e492f2096942ac3da8a22,https://github.com/ANDgate99/Causality-Matters
+Causal Mask in Transformer via Transfer Entropy from Vector Autoregressive Learning for Multivariate Time Series Forecasting,46c91469c61d141d5cff99b3541e844ce0e8f119,https://github.com/jancely/ARCausal
+CBMAS: Cognitive Behavioral Modeling via Activation Steering,46c8132c784310ec099471bc6f6ec50b9183b6b7,https://github.com/shimamooo/CBMAS
+Chain-of-Thought Re-ranking for Image Retrieval Tasks,25ac58d15e221944ffc2dd0267c7e99736541b4e,https://github.com/freshfish15/CoTRR
+CHARM: Control-point-based 3D Anime Hairstyle Auto-Regressive Modeling,47e7846eac1c18f1fac124182934a27873be0b7f,https://hyzcluster.github.io/charm
+ChartM3: Benchmarking Chart Editing with Multimodal Instructions,868f3f56a1ea84000e419ff3f5365035eb5a6f89,https://github.com/MLrollIT/ChartM3
+Chem-R: Learning to Reason as a Chemist,b291ea066ee741e2e93fdde37685e3ac95fea8b1,https://github.com/davidweidawang/Chem-R
+Chimera-3X: A Hybrid Cognitive Engine for Retrieval-Augmented Biomedical Consulting,3595b93c155f3ab020c21b765c734ee7d805faee,https://github.com/marwan8086/Chimera-3X
+City Navigation in the Wild: Exploring Emergent Navigation from Web-Scale Knowledge in MLLMs,a9e4c7ef528acb31e7be91eae811ef1e6fbf8e8b,https://dwipddalal.github.io/AgentNav/
+ClaimCheck: Real-Time Fact-Checking with Small Language Models,ee515202cabf1dedfdabd40e3fba77a32f401e55,https://idir.uta.edu/claimcheck
+ClaimVerAgents: A Multi-Agent Retrieval-Augmented Claim Verification Framework,381de4d86f1884d8e863b1d8e378f6d60e35b2cc,https://anonymous.4open.science/r/
+CLINav-GKD: Vision-Language Latent Hyperbolic Geometric Knowledge Distillation for Real-World 6-DOF Echocardiography Probe Navigation*,d95a0583a871bff532eac75e6f797b4b6b911a54,https://github.com/DaisyLi0516/CLINav-GKD
+Clinical Stage Prompt Induced Multi-Modal Prognosis,9bbcc35d4451ad38fc24330743ab5ba75e66ba66,https://github.com/DeepMed-Lab-ECNU/CiMP/
+CNN-TFT explained by SHAP with multi-head attention weights for time series forecasting,3de33eed469e1874339b6c83e9ca0ec51018be8e,https://github.com/SFStefenon/CNN-TFT-SHAP-MHAW
+CoachMe: Decoding Sport Elements with a Reference-Based Coaching Instruction Generation Model,38c0df7a68465cfee20e9a62eac84430c824b0b4,https://motionxperts.github.io/
+Code2Video: A Code-centric Paradigm for Educational Video Generation,9460986f54faae5b8a5068f05728ab3c1d84177d,https://github.com/showlab/Code2Video
+CodeAgents: A Token-Efficient Framework for Codified Multi-Agent Reasoning in LLMs,b8f6b65b49032a8e4c9750fa60c3f1f2e44934f5,https://anonymous.4open.science/r/CodifyingAgent-5A86
+Code Evolution for Control: Synthesizing Policies via LLM-Driven Evolutionary Search,f1289b4284dfd5f625705239631605990a5e3281,https://github.com/pgg3/EvoControl
+Coevolutionary signals in multiple sequence alignments improve virulence factor prediction with an MSA Transformer,908b43e5308eeed5290c5f0f477b56c21051f146,http://bhi4.snu.ac.kr:7978
+CogMAEC'25: The 1st Workshop on Cognition-oriented Multimodal Affective and Empathetic Computing,40a1ececee894b653e3429da0ab2df9d76a8f8ea,https://CogMAEC.github.io/MM2025
+CogRail: Benchmarking VLMs in Cognitive Intrusion Perception for Intelligent Railway Transportation Systems,d40a7d64ac2e56f9895875e2d2fe08eaea7c2986,https://github.com/Hub-Tian/CogRail
+"Collecting language, speech acoustics, and facial expression to predict psychosis and other clinical outcomes: strategies from the AMP® SCZ initiative",9268e99843bd4d49eaca5945517e1b55021ac687,https://vimeo.com/1112291965?fl=pl&fe=sh
+Combining Large Language Models and Gradient-Free Optimization for Automatic Control Policy Synthesis,f4a6c64cb85d0e484fc71e43e4b65886f72433be,https://sites.google.com/berkeley.edu/colmo
+Communication and Verification in LLM Agents towards Collaboration under Information Asymmetry,30e9c2f48435c9919c5f5a62456bb5d834cd6947,https://github.com/Roihn/EinsteinPuzzles
+ComoRAG: A Cognitive-Inspired Memory-Organized RAG for Stateful Long Narrative Reasoning,fb178481bd79c43410930adb2557c486eb38b334,https://github.com/EternityJune25/ComoRAG
+Comparing Knowledge Injection Methods for LLMs in a Low-Resource Regime,1df94dd35eb1a6d6ea2154adeea0b513b7925360,https://github.com/hugoabonizio/knowledge-injection-methods/
+Comparison of traditional vs novel approach to define cancer-associated bleeding,c20320965a4fb4fce7fbdcf268812a4fa411db37,https://nlpmed.demo.angli-lab.com
+CompliantVLA-adaptor: VLM-Guided Variable Impedance Action for Safe Contact-Rich Manipulation,e2f546a19c650a75d9bcca3aa94a7b7c3779e474,https://sites.google.com/view/compliantvla
+Computational Imaging Meets LLMs: Zero-Shot IDH Mutation Prediction in Brain Gliomas,095ec755e23a0c45505093c15012c8aa3b526739,https://github.com/ATPLab-LUMS/CIM-LLM
+Computer-Use Agents as Judges for Generative User Interface,3085e5fce9bb9cde9ddd1acef39cf224138ad0a1,https://github.com/showlab/AUI
+Concepts in Motion: Temporal Bottlenecks for Interpretable Video Classification,432ab5e8e65222c8323282f7db7dcd44342accde,https://github.com/patrick-knab/MoTIF}{github.com/patrick-knab/MoTIF}$
+ConceptViz: A Visual Analytics Approach for Exploring Concepts in Large Language Models,efea100a6ed1eab51e7996098d8a342704b693ab,https://github.com/Happy-Hippo209/conceptViz
+Consistency of Local and Global Flatness for Federated Learning,5b77895198d5a31aa62003c1abd97a08e2f4306a,https://github.com/junkangLiu0/FedNSAM
+Constructing Ophthalmic MLLM for Positioning-diagnosis Collaboration Through Clinical Cognitive Chain Reasoning,2b84882ba1245af6d15dd8d28e0acc89f7b8bac1,https://github.com/MeteorElf/FundusExpert
+Context-Aware Pseudo-Label Scoring for Zero-Shot Video Summarization,82afe8d5cf94a8ef9b2a168a3c13f8078cb95cdb,https://github.com/wuyuanli60-svg/Context-Aware-Pseudo-Label-Scoring-for-Zero-Shot-Video-Summarization
+Continuous Monitoring of Mental Health through Streaming Machine Learning with Counterfactual Explanations,b4dca58060ebd61fd579cc27a5746c6b7831b2aa,https://holaserenia.com/terminos-y-condiciones-de-uso
+Continuous Monitoring of Mental Health through Streaming Machine Learning with Counterfactual Explanations,b4dca58060ebd61fd579cc27a5746c6b7831b2aa,https://holaserenia.com/politica-de-privacidad
+Contrastive Learning-Enhanced Chain-of-Thought Optimization for Complex Table Question Answering,aa19c34ccc890bc745c0c5085fc22995e35ccb57,https://github.com/zixuanzou52-beep/CL-CoT
+Conversational health agents: a personalized large language model-powered agent framework,77a17c8eb3016223da8c7be4c1dcd4d379de63ef,https://github.com/Institute4FutureHealth/CHA
+Conversational health agents: a personalized large language model-powered agent framework,77a17c8eb3016223da8c7be4c1dcd4d379de63ef,https://opencha.com
+Convolutional Set Transformer,c48ffa8ca499062b7d1e7722d1a053688a8bcc51,https://github.com/chinefed/convolutional-set-transformer
+CoPRS: Learning Positional Prior from Chain-of-Thought for Reasoning Segmentation,0548647fbdb4b329e9c1ca883f251f81452161d7,https://github.com/ZhenyuLU-Heliodore/CoPRS.git
+CoTox: Chain-of-Thought-Based Molecular Toxicity Reasoning and Prediction,53094e706741eb16b6b4b12bb9314902edae1217,https://github.comJdmis-lab/CoTox
+CoT-PL: Visual Chain-of-Thought Reasoning Meets Pseudo-Labeling for Open-Vocabulary Object Detection,0b28389f2cae456489254afa4c2391fff5cf475a,https://github.com/hchoi256/cotpl
+Count-Based Approaches Remain Strong: A Benchmark Against Transformer and LLM Pipelines on Structured EHR,9131c2d1e51c2584146192748eb419c7002fd27b,https://github.com/cristea-lab/Structured_EHR_Benchmark
+CPJ: Explainable Agricultural Pest Diagnosis via Caption-Prompt-Judge with LLM-Judged Refinement,f538c19b55113608fc45901196b91b48843a1a3a,https://github.com/CPJ-Agricultural/CPJ-Agricultural-Diagnosis
+Cross-Granularity Representations for Biological Sequences: Insights From ESM and BiGCARP,af672a4753e46a50eae2306690771a0e33de7184,https://github.com/Nugkta/cgrep
+CultureScope: A Dimensional Lens for Probing Cultural Understanding in LLMs,97801a5f25055f449fecdf3b2c8f2847ae7ca85e,https://github.com/HoganZinger/Culture
+Curved Inference: A Guide to Geometric Interpretability,a76febbd4632667769ec6461cdf1e2a88de8a77e,https://github.com/robman/FRESH-model/tree/main/
+CytoSAE: Interpretable Cell Embeddings for Hematology,8cd98974380ae73cd4b8fc9358825ebda32ad24c,https://github.com/dynamical-inference/cytosae
+DANet a lightweight dilated attention network for malaria parasite detection,6f8a310ee2fcc5fa6d29f4e7997c91dab3c22ed3,https://github.com/asfakali/DANet
+DBGT-PLA: Dual-Branch Graph-Transformer Fusion for Interpretable Protein- Ligand Affinity Prediction.,729c7bf004f53bea53bb4efc4e6f71c27f3865f9,https://github.com/wangwying/DBGT-PLA
+DeAR: Dual-Stage Document Reranking with Reasoning Agents via LLM Distillation,82f332471a2ed95224bb35220430b1fe115811a2,https://github.com/DataScienceUIBK/DeAR-Reranking.}
+Debate or Vote: Which Yields Better Decisions in Multi-Agent Large Language Models?,c56be4f1ee454f491470976c3f1dc859e0c668e8,https://github.com/deeplearning-wisc/debate-or-vote
+Decoding Covert Speech from EEG by Functional Areas Spatio-Temporal Transformer.,195f5264303f254584f7c553599f734c7e8bd510,https://github.com/Jiang-Muyun/FAST
+Deductive Chain-of-Thought Augmented Socially-aware Robot Navigation World Model,ac883799544b4bf1abd90b80bd46dcfa60dbcfa7,https://sites.google.com/view/NaviWM
+DeepAries: Adaptive Rebalancing Interval Selection for Enhanced Portfolio Selection,2182f98c7a2d88a3cb32e25d9a3d2ed342cc6094,https://deep-aries.github.io/
+DeepAries: Adaptive Rebalancing Interval Selection for Enhanced Portfolio Selection,2182f98c7a2d88a3cb32e25d9a3d2ed342cc6094,https://github.com/dmis-lab/DeepAries
+DeepDICI: Accurately Predicting Drug-Ion Channel Interactions via Deep Learning with Dynamic Structural Features,dc387e4aeca2409c853c494927fc6fb7873146c0,https://github.com/CSUBioGroup/DeepDICI
+DeepEPI: CNN-transformer-based model for extracting TF interactions through predicting enhancer-promoter interactions,7bebbaee6546599f8b27d5fb14e97282092145aa,https://github.com/nazanintbtb/DeepEPI.git
+Deep Features Based on Contrastive Fusion of Transformer and CNN for Semantic Segmentation,d60bdf4fe997aca9a90e95e8ddfe68472bb23e97,https://github.com/
+DeepLogit: A sequentially constrained explainable deep learning modeling approach for transport policy analysis,b00a81ccf0e9cd2cc6438c427cabf1c4404650e8,https://github.com/jeremyoon/route-choice/
+DeepMoLM: Leveraging Visual and Geometric Structural Information for Molecule-Text Modeling,c041bb61af5ead8b3813a608998a549a824fc61d,https://github.com/1anj/DeepMoLM
+DeepPGDB: A novel paradigm for AI-guided interactive plant genomic database,8754718a9101963bc2007d8e4a852042b537f290,https://www.deeppgdb.chat
+DeepSieve: Information Sieving via LLM-as-a-Knowledge-Router,9b686b1e665bef5588ea587009be14b7dc17c346,https://github.com/MinghoKwok/DeepSieve
+DeepSIX at ACM MM 2025 Grand Challenge: Enhancing Context Text Processing for Multimodal Hallucination Detection and Fact Verification,e1b52a81e5287dffb37d6fb31009e5c55ae271db,https://github.com/JAIST-DeepSIX/ACMMM25
+DeepTx: Real-Time Transaction Risk Analysis via Multi-Modal Features and LLM Reasoning,e15b7f9229830aa7d49cff4c3d5ed4783755de71,https://youtu.be/4OfK9KCEXUM
+Defending Large Language Models Against Jailbreak Attacks via In-Decoding Safety-Awareness Probing,340ff53b72cb3abb0fd7f9ec36cb3a1a2ba21c0a,https://github.com/zyz13590/SafeProbing
+Demo: Statistically Significant Results On Biases and Errors of LLMs Do Not Guarantee Generalizable Results,4cafc240af61879709d35eab897cc03829e1a5ed,https://github.com/BBN-E/medic-neurips-2025-demo
+Detecting Intent Drift in Continuous Conversation via Temporal Transition Accumulation,65e3774515fa9be792d59ebc004dafeb7d821129,https://github.com/FDHTJ/DriftHunter
+DEXTER: Diffusion-Guided EXplanations with TExtual Reasoning for Vision Models,07c7f73f9f291c521603cd9fad514c219fb26d6b,https://github.com/perceivelab/dexter
+DEXTER-LLM: Dynamic and Explainable Coordination of Multi-Robot Systems in Unknown Environments via Large Language Models,83dadecb4090306032e8500fa75bbefc0438543d,https://tcxm.github.io/DEXTER-LLM/
+DFAMS: Dynamic-flow guided Federated Alignment based Multi-prototype Search,033c4bc3bece283efbee144bb16b49d19de9214d,https://anonymous.4open.science/r/DFAMS/
+DiagramEval: Evaluating LLM-Generated Diagrams via Graphs,7b85c652f9751e7ea21959492109866a2d72b3a2,https://github.com/ulab-uiuc/diagram-eval
+DialBench: Towards Accurate Reading Recognition of Pointer Meter using Large Foundation Models,f868781caddba19a3d07c4113882630c24f201b8,https://github.com/Event-AHU/DialBench
+Differential Attention for Multimodal Crisis Event Analysis,1606a8ba6f1e57897cf8e4569059c99d55c54cec,https://github.com/Munia03/Multimodal_Crisis_Event
+Diffusion Beats Autoregressive in Data-Constrained Settings,17f341034ec4437c84e0b66b016d26c8f65fa500,https://diffusion-scaling.github.io
+Dino2-DR: A Trustworthy and Explainable Vision Transformer for Cross-Domain Diabetic Retinopathy Grading,377b858dc138fd629256138506f17b602c12cb77,https://github.com/CASALab-Unisa/Dino2-DR
+Discovering Transformer Circuits via a Hybrid Attribution and Pruning Framework,ba4f571c2c40b0f387abebdce2322b71304945b9,https://anonymous.4open.science/r/HAP-circuit-discovery
+DistillCaps: Enhancing Audio-Language Alignment in Captioning via Retrieval-Augmented Knowledge Distillation,fc91115022e135f573400ea3e13677955ebced56,https://github.com/pgthinh/DistillCaps
+DL3M: A Vision-to-Language Framework for Expert-Level Medical Reasoning through Deep Learning and Large Language Models,a7d57d471898fa6c5d7b3bc5fc60388e45884532,https://github.com/souravbasakshuvo/DL3M
+DNACSE: Enhancing Genomic LLMs with Contrastive Learning for DNA Barcode Identification †,5dfb2c26fdc2f97102e2e8de0d7a76d7cc09f475,https://github.com/Kavicy/DNACSE
+DNA-DetectLLM: Unveiling AI-Generated Text via a DNA-Inspired Mutation-Repair Paradigm,82f2decbb0c3b376366e8b6df42fdef131330063,https://github.com/Xiaoweizhu57/DNA-DetectLLM
+DocThinker: Explainable Multimodal Large Language Models with Rule-based Reinforcement Learning for Document Understanding,699537af7649039c1cb5150baecbadab1f3d0584,https://github.com/wenwenyu/DocThinker
+Domain-Specific Knowledge Graphs in RAG-Enhanced Healthcare LLMs,a4fb1de1031eee2316fb8f7741beb5cb332d7f5d,https://github.com/sydneyanuyah/RAGComparison
+Don't Blind Your VLA: Aligning Visual Representations for OOD Generalization,5444dd08c9b57e0c4dc9d26464af5d2908aa92b6,https://blind-vla-paper.github.io
+Don't Pass@k: A Bayesian Framework for Large Language Model Evaluation,e2b514fa2bbb991fab69024ed5cc40c529a973b2,https://github.com/mohsenhariri/scorio
+Do You Trust Me? Cognitive-Affective Signatures of Trustworthiness in Large Language Models,5575484509011fefca6a3fcae615ee2ea04d216c,https://github.com/GerardYeo/TrustworthinessLLM
+DPAT: Dual-Path Alignment Transformer for Enhanced miRNA-mRNA Target Prediction via Cross-Modal Fusion,6ee54fcc677a356738e0809310ca459981e2c9e2,https://github.com/DPATcodebase/DPAT
+Draft and Refine with Visual Experts,83ea1546d259d3f1058cc85abf3262d8addf2d1f,https://github.com/EavnJeong/Draft-and-Refine-with-Visual-Experts
+"DRPG (Decompose, Retrieve, Plan, Generate): An Agentic Framework for Academic Rebuttal",cd69d1cf236151ea59c9ff042dbd15c280ee9a73,https://github.com/ulab-uiuc/DRPG-RebuttalAgent
+Drug Repositioning Based on Expert Knowledge Augmented Graph Neural Network.,9739eaf3be84ffc33e5277075c3b77ee45f33649,https://github.com/csubigdata-Organization/DReKGNN
+Drug Review Sentiment Analysis: Applying Transformer-Based Models for Enhanced Healthcare,a709fd6585726d48970051d0fac266ad4cd9cd11,https://archive.ics.uci.edu/dataset/461/drug+review+dataset+druglib+com
+Drug Review Sentiment Analysis: Applying Transformer-Based Models for Enhanced Healthcare,a709fd6585726d48970051d0fac266ad4cd9cd11,https://github.com/imabhi01/sentiment-analysis-dissertation
+DTECT: Dynamic Topic Explorer & Context Tracker,99456d0357e7250a4af9a7712af861122f524426,https://github.com/AdhyaSuman/DTECT
+DualSG: A Dual-Stream Explicit Semantic-Guided Multivariate Time Series Forecasting Framework,141f504dcaaa8502463f794a977091ba99831a96,https://github.com/BenchCouncil/DualSG
+Dual vision transformer with bio-inspired optimization for explainable keratoconus classification,ed8f86231c4c9ee3670068161dd5908bd9bcc6ec,https://www.kaggle.com/datasets/elmehdi12/keratoconus-detection
+DV-VLN: Dual Verification for Reliable LLM-Based Vision-and-Language Navigation,822d7398804cd0344878c9152e6196b510714262,https://github.com/PlumJun/DV-VLN
+DyG-RAG: Dynamic Graph Retrieval-Augmented Generation with Event-Centric Reasoning,b5227e675fce4cb8f46564f175ad0d4b2c3e0014,https://github.com/RingBDStack/DyG-RAG
+Dynamic Reflections: Probing Video Representations with Text Alignment,a2884dc4208c2fba6be2430175cb7db070ebd6a6,https://video-prh.github.io/
+Dynamic Scoring with Enhanced Semantics for Training-Free Human-Object Interaction Detection,a9a7bf3bd221e343e19dfd14a3fc492d35cbc5ae,https://github.com/francescotonini/dysco
+DyNAS-DDI: Dynamic Pairwise Architecture Search for Generalizable Drug-Drug Interaction LLM,70720e80305f68389aa8c2279effb5ac777b41f5,https://github.com/EkkoXiao/DyNAS-DDI
+ECG-Expert-QA: A Benchmark for Evaluating Medical Large Language Models in ECG,941fd759ca9798a57b8bed1f20d9a00aa187a4e9,https://github.com/Zaozzz/ECG-Expert-QA
+ECG-FM: an open electrocardiogram foundation model,c464c9bcf18edadc95edd294100fa5f5311948d3,https://github.com/bowang-lab/ECG-FM/
+EduAdapt: A Question Answer Benchmark Dataset for Evaluating Grade-Level Adaptability in LLMs,7f35d10faeb2e7b976b9be56484e87ab00c873f0,https://github.com/NaumanNaeem/EduAdapt
+EduGuardBench: A Holistic Benchmark for Evaluating the Pedagogical Fidelity and Adversarial Safety of LLMs as Simulated Teachers,e30046c263be0dd5d7102c7c6cfb9f5066b2975c,https://github.com/YL1N/EduGuardBench
+EduMod-LLM: A Modular Approach for Designing Flexible and Transparent Educational Assistants,5bbc9928b4bb8210f1992069ead83c52df575337,https://chancharikmitra.github.io/EduMod-LLM-website/
+EDVD-LLaMA: Explainable Deepfake Video Detection via Multimodal Large Language Model Reasoning,03c09d92444ac608eb5920ef95b0f2f757e18be7,https://11ouo1.github.io/edvd-llama/
+Efficiency-Effectiveness Reranking FLOPs for LLM-based Rerankers,ef2c734899525fd172513605559ac2c9209c2cd8,https://github.com/zhiyuanpeng/EER-FLOPs.}
+Efficient Knowledge Probing of Large Language Models by Adapting Pre-trained Embeddings,691a98d12b1a15e3bac08554c9fa9c8a12b5d9cb,https://github.com/claws-lab/peek
+Efficiently Reconstructing Dynamic Scenes One D4RT at a Time,cdfc8b7ca3cdfe8fab34dce9b60d33433f557dfe,https://d4rt-paper.github.io/
+EH-Benchmark Ophthalmic Hallucination Benchmark and Agent-Driven Top-Down Traceable Reasoning Workflow,771a09af06c85acb60c01939f08f4de7ff079ed3,https://github.com/ppxy1/EH-Benchmark
+Embodied Assistant: Robot Mobility Operations Guided by Open Vocabulary in Open Environments Utilizing LLM,363a3c445e37cfa657e315cc4f82d5c06c2630b4,https://embodied-assistant.github.io/embodied-assistant.github.io
+"EMMM, Explain Me My Model! Explainable Machine Generated Text Detection in Dialogues",1e989e87df03233888413292e1e4d1e5697e2c9d,https://github.com/AngieYYF/EMMM-explainable-chatbot-detection
+EMMPREDMLsub: multi-label prediction of mRNA subcellular localization based on the ESM2 large language model and MMDO-MDPU resampling strategy.,917b23d52521490a797a14acec8df464a27d2a0c,http://www.emmpredmlsub.com
+"EmoDETective: Detecting, Exploring, and Thinking Emotional Cause in Videos",0216321fce6bad6b228bab21068ddeb2a9c332c2,https://github.com/Listever/EmoDETective/
+Emotion-Qwen-VL: A Fully Fine-Tuned Multimodal Large Language Model for Micro-Expression Visual Question Answering,9fcc27c91f7ef5fa9e2a2d7f2437046499c4a9b5,https://github.com/2308623956/MEGC2025
+EmotionThinker: Prosody-Aware Reinforcement Learning for Explainable Speech Emotion Reasoning,97ec5ad7a58f9318b1ca4d14e3533add47c9ac5b,https://github.com/dingdongwang/EmotionThinker
+Enabling Stroke-Level Structural Analysis of Hieroglyphic Scripts without Language-Specific Priors,ce6273dd64d3d63ccafe32cf90723a01c3e64034,https://github.com/THUNLP-MT/HieroSA
+EndoFinder: Online Lesion Retrieval for Explainable Colorectal Polyp Diagnosis Leveraging Latent Scene Representations,cf95d2e0e0b05630e818b2a61b4b32744e7cc140,https://github.com/ku262/EndoFinder-Scene
+Enhancing accuracy and explainability in colorectal lesion classification with attention-supervised Vision Transformers.,b2986a1ecdc7e6c8a9f10e13d46b4bb9a98a7585,https://github.com/LucaCarlini/SUNDatasetPretraining
+Enhancing Agentic Autonomous Scientific Discovery with Vision-Language Model Capabilities,0e969ba73605d381204e951b70c38dc2b13ffbb9,https://github.com/CMBAgents/cmbagent
+Enhancing Interpretability of Ocular Disease Diagnosis: A Zero-Shot Study of Multimodal Large Language Models.,b9c421008bc52002f8b6a331f0a6a21301094550,https://github.com/YatingPan/ocular-llm-explainability
+Enhancing Navigational Scene Understanding using Integrated Language Models in Maritime Environments,311df022ac91af78cd2489e80b82456fa9961635,https://yeongha-shin.github.io/vlmllm-maritime/
+Enhancing the Interpretation of Skin Lesion Diagnosis: Concept Adaptive Fine-Tuning of Vision-Language Models.,2b72ce56c43d26cbe1db76d871df07745022b10e,https://github.com/zjmiaprojects/CptAFT
+EnrichGT: a comprehensive R-based tool for functional genomics enrichment analysis based on large language models,52bf546035b76d16447d3a17d1898b24511ce350,https://github.com/saezlab/CollecTRI
+EnrichGT: a comprehensive R-based tool for functional genomics enrichment analysis based on large language models,52bf546035b76d16447d3a17d1898b24511ce350,https://saezlab.github.io/progeny/
+Enzyme Engineering Database (EnzEngDB): a platform for sharing and interpreting sequence–function relationships across protein engineering campaigns,d6757c183cbbbbe353afdf532c0fe0284022a8b9,http://enzengdb.org/
+ESTR-CoT: Towards Explainable and Accurate Event Stream based Scene Text Recognition with Chain-of-Thought Reasoning,31f2cc6899755fc70ba61cf575817e5ee368b3d2,https://github.com/Event-AHU/ESTR-CoT
+EUP: Enhanced cross-species prediction of ubiquitination sites via a conditional variational autoencoder network based on ESM2,7108d876ef888096ec8355bf28fc20402ecedbd1,https://eup.aibtit.com/
+Evaluating Large Language Models for Detecting Antisemitism,cc132c140e5434f0f5e96219f0a020661ee42315,https://github.com/idramalab/quantify-llm-explanations
+Evaluation Awareness Scales Predictably in Open-Weights Large Language Models,5f45af291865524bf992d921bfdff76dfb354d90,https://anonymous.4open.science/r/evaluation-awareness-scaling-laws/README.md
+Evaluation of Vision-LLMs in Surveillance Video,9200574f2b8e142c1da32efcad40ac03c9544e29,https://github.com/pascalbenschopTU/VLLM_AnomalyRecognition
+Even Heads Fix Odd Errors: Mechanistic Discovery and Surgical Repair in Transformer Attention,73ea7ad527f875b1c3610f3030fd53f05f45bbe3,https://github.com/gussand/surgeon
+Evolutionary Profiles for Protein Fitness Prediction,5e43a9f29bb5ad66f1bdfb7f75a571aedccdd51b,https://github.com/aim-uofa/EvoIF
+Explainable AI-Generated Image Detection RewardBench,b007b46605eb19cd92f352709cc469a5a9eaf02d,https://github.com/RewardBench/XAIGID-RewardBench
+Explainable Deepfake Detection with RL Enhanced Self-Blended Images,038fb68ee9e308e13c125e66b71cafef48eb7174,https://github.com/deon1219/rlsbi
+Explainable deep learning for rainfall prediction: A CNN-XGBoost hybrid approach in the northern region of Bangladesh,615b1ca97a7752dd657cb5ef1f000e4876a7f303,https://github.com/Shafi3397/Rainfall-Prediction-using-CNN-XGBoost
+Explainable Machine Learning for Characterizing Unknown Molecular Structures in Infrared Spectra.,7dbb453a06036710a06276d582efffac66cbd1ed,https://github.com/ngs00/SSIN
+Explainable Parkinsons Disease Gait Recognition Using Multimodal RGB-D Fusion and Large Language Models,0026867568c9b83f720b3a8a9f628ff6e215f9c8,https://github.com/manaralnaasan/RGB-D_parkinson-LLM
+Explaining care need assessment surveys: qualitative and quantitative evaluation of state-of-the-art local and global explainable artificial intelligence methods,2a5ebb392b84cd72d292835aa552b6dd06bdd85c,https://github.com/oguzserbetci/explainer
+Explaining the Unseen: Multimodal Vision-Language Reasoning for Situational Awareness in Underground Mining Disasters,e253683e27d7d3022536a329fc04e91f31c7d2cd,https://github.com/mizanJewel/Multimodal-Disaster-Situation-Explainer
+Exploratory Analysis of the Regulation of Long Non-Coding RNA Transcription with Nucleotide Large Language Models,5b96af02d8a169b660234c8f0f43d48a4e542545,https://github.com/wangwe90/IncRNA-promoter-sequence-detection-dataset
+Explore-Execute Chain: Towards an Efficient Structured Reasoning Paradigm,aa475f7900389f242dbe344c46e3474043759398,https://github.com/yks23/Explore-Execute-Chain.git
+Exploring Layer-wise Information Effectiveness for Post-Training Quantization in Small Language Models,8d26a984287636848f801af78bea6b19a9259ac3,https://github.com/HeXiao-55/LieQ-official.git
+Extracting Interaction-Aware Monosemantic Concepts in Recommender Systems,96d72a226dfaa48f2132eb6ed63a1ca26cb5ab2d,https://github.com/DeltaLabTLV/Monosemanticity4Rec
+Extractive Fact Decomposition for Interpretable Natural Language Inference in one Forward Pass,c93448fa05eea835a3a08474fa1b2d95e67cf87c,https://jedi.nicpopovic.com
+FACE: A General Framework for Mapping Collaborative Filtering Embeddings into LLM Tokens,28a321bbf2402c2668c2bbaafa2bc360d4914842,https://github.com/YixinRoll/FACE
+Fake-in-Facext: Towards Fine-Grained Explainable DeepFake Analysis,4f4ad9d1c31d8bad6d4d242b96c73b2d827565c8,https://github.com/lxq1000/Fake-in-Facext
+False Sense of Security: Why Probing-based Malicious Input Detection Fails to Generalize,b5611668b0cda3a8152ddb42e7aba33a00d659e1,https://github.com/WangCheng0116/Why-Probe-Fails
+Falsifying Sparse Autoencoder Reasoning Features in Language Models,c10d8deb21b7d5c66a58d4b9dae8f97a2731ca15,https://github.com/GeorgeMLP/reasoning-probing
+FAVOR 2.0: A reengineered functional annotation of variants online resource for interpreting genomic variation,71040a654fe0842556bfe19ef60db6f334bf51fe,http://favor.genohub.org
+FedAdamW: A Communication-Efficient Optimizer with Convergence and Generalization Guarantees for Federated Large Models,e0e81f09d9c2c48640bc086339a140eec50e7187,https://github.com/junkangLiu0/FedAdamW
+FGBench: A Dataset and Benchmark for Molecular Property Reasoning at Functional Group-Level in Large Language Models,30ec8e7ff4731232fd17f604bf88938d4ee32c36,https://github.com/xuanliugit/FGBench
+FinGPT Agents: Reinforcement-Fine-Tuned LLMs for Financial Analytics,9e18384432103df407bd22d3c3fbd3ff13f9c35b,https://github.com/SatishChandraPhD/FinAI2025
+FITS: Towards an AI-Driven Fashion Information Tool for Sustainability,f9f6c0dd8e2b4212e7a00ae2ad60a01c79949ab6,https://github.com/daphne12345/FITS
+Following the Clues: Experiments on Person Re-ID using Cross-Modal Intelligence,b1cc1be91a5cbac5aefa0706c141328578af03be,https://github.com/RAufschlaeger/cRID
+Following the TRACE: A Structured Path to Empathetic Response Generation with Multi-Agent Models,df3c046bd0472cf5f69b4aaeb5e68dbb6bcd3b21,https://anonymous.4open.science/r/TRACE-18EF/README.md
+Foundation-Model-Based Action Selection for Behavior Trees in Navigation,45555a4a4ec425ad66c9aa091b06b8422d69110b,https://fab-nav.github.io/
+Fractal Dimension of Resting-State EEG as a Biomarker for Autonomous Sensory Meridian Response (ASMR),c6e6b3a94069336e5554e926e205baea9f49518c,https://github.com/Shyamal-Dharia/Fractal-Dimension-of-Resting-State-EEG-as-a-Biomarker-for-Autonomous-Sensory-Meridian-Response-ASMR-GitHub
+FRIT: Using Causal Importance to Improve Chain-of-Thought Faithfulness,eb6cfd141ac9e622354b363264b3755325328e05,https://github.com/Anut-py/frit}
+From Explainable to Explained AI: Ideas for Falsifying and Quantifying Explanations,67ba4be6fd21ca37d5ab840000be6d672d7da269,https://github.com/nki-ai/x2x
+From Fuzzy Speech to Medical Insight: Benchmarking LLMs on Noisy Patient Narratives,7d65085669857859363513628bcdbe77c9efdc84,https://github.com/lielsheri/PatientSignal
+From Parameters to Performance: A Data-Driven Study on LLM Structure and Development,9c6e86d7709c42438102217ee7fb5f74189e9ea7,https://huggingface.co/datasets/DX0369/LLM-Structure-Performance-Dataset
+From radiomics to transformers in pancreatic cancer detection and prognosis,05549c8dd814f8df72b41ed251caffd2be5f4125,https://doi.org/10.17605/OSF.IO/2DVHJ
+From segmentation to explanation: Generating textual reports from MRI with LLMs,d6669aedcb75fa681f094dc285a1b729f1b28c2c,https://github.com/albertovalerio/from-segmentation-to-explanation
+From Unlearning to UNBRANDING: A Benchmark for Trademark-Safe Text-to-Image Generation,a57b5abd20633d087feb3870ee09d174ee26657b,https://gmum.github.io/UNBRANDING/
+FronTalk: Benchmarking Front-End Development as Conversational Code Generation with Multi-Modal Feedback,438e5e441d6c55de517273aa99bbd19f56dbd786,https://github.com/shirley-wu/frontalk
+FRONTIER-RevRec: A Large-scale Dataset for Reviewer Recommendation,4cefad8ad8904c626ca67614e75e4098702003e5,https://www.frontiersin.org/
+FRONTIER-RevRec: A Large-scale Dataset for Reviewer Recommendation,4cefad8ad8904c626ca67614e75e4098702003e5,https://anonymous.4open.science/r/FRONTIER-RevRec-5D05
+Fusing Learning and Non-Learning: Hybrid CNN-Transformer Cooperative-Competitive Network for Underwater Image Enhancement,98d4f055100684ff8b75fc31487b7923c2ed9b67,https://github.com/jixun-dmu/Co2Net
+Fusion_f5C-Pred: a dual-branch feature fusion framework for 5-formylcytosine modification sites prediction,c908f94008e0e2ceb1660acf3a65f2326f3d32b2,https://github.com/HuiCong123/Fusion_f5C-Pred
+GaussianDWM: 3D Gaussian Driving World Model for Unified Scene Understanding and Multi-Modal Generation,82455a03ae9c51d78ecdbe026523b96982fa3590,https://github.com/dtc111111/GaussianDWM
+GContextFormer: A global context-aware hybrid multi-head attention approach with scaled additive aggregation for multimodal trajectory prediction,bb39d2a4e80e31c13334827511d56967ef513b36,https://fenghy-chen.github.io/sources/
+Generate to Ground: Multimodal Text Conditioning Boosts Phrase Grounding in Medical Vision-Language Models,a401b5d43df3467e585b5cf865d35696b1384264,https://github.com/Felix-012/generate_to_ground
+Generative AI–Powered clinical decision support in germline predisposition to myeloid neoplasms,b5506efedd065ab5bf48f83ca9ec41b075c437ae,https://chatbot.codigorojo.tech/chatbots/26/
+Generative Multi-modal Feedback for Singing Voice Synthesis Evaluation,827a4bd47c73abfa74e7b92cee7067c11505bd6a,https://github.com/opendilab/VocalCritic](https://github.com/opendilab/VocalCritic
+Geo3DVQA: Evaluating Vision-Language Models for 3D Geospatial Reasoning from Aerial Imagery,015998f1dc216d1e9e950ea707093aac850cd273,https://github.com/mm1129/Geo3DVQA
+Geometric Deep Learning for Protein-Ligand Affinity Prediction with Hybrid Message Passing Strategies.,0ccce4effad28d135cc5da542b500510011531c3,https://github.com/anxiangbiye1231/HybridGeo
+Geo-R1: Improving Few-Shot Geospatial Referring Expression Understanding with Reinforcement Fine-Tuning,44ecf9a42eed36aecd4969df2ed6d72c0c8db856,https://github.com/Geo-R1/geo-r1
+GeoSR: Cognitive-Agentic Framework for Probing Geospatial Knowledge Boundaries via Iterative Self-Refinement,c5ebffcea40e56d31d84879ae2630a7015663766,https://github.com/JinfanTang/GeoSR
+GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning,f1c0aad419cd942d5a135b47fcce58d101dbb3bd,https://github.com/gepa-ai/gepa
+Gestura: A LVLM-Powered System Bridging Motion and Semantics for Real-Time Free-Form Gesture Understanding,5308e76f1948b3be3fc903efbb8862a686a4cfc2,https://evans-lx.github.io/Gestura/
+GIR-Bench: Versatile Benchmark for Generating Images with Reasoning,dff73478cf4ba5368909ff9e795ac5c964909a53,https://hkust-longgroup.github.io/GIR-Bench}{https://hkust-longgroup.github.io/GIR-Bench}
+GLACIA: Instance-Aware Positional Reasoning for Glacial Lake Segmentation via Multimodal Large Language Model,348b5d9c3eae66f7ad1c1a5d4ee6d66147873ff9,https://github.com/lalitmaurya47/GLACIA
+GLEAM: Learning to Match and Explain in Cross-View Geo-Localization,0fa83764b0eb5da0f3dc6e95e7baacc16caf2416,https://github.com/Lucky-Lance/GLEAM
+GlySitePred: Identification of Glycation Modification Sites Based on Deep Feature Fusion and NCR-CC Sampling Technology,03573f79a4b543b5381e597b40ed897ac64d24eb,https://github.com/CaptainC0C0C0/GlySitePred
+GRACE: Generative Representation Learning via Contrastive Policy Optimization,d6d4357823aa132dddcb055b2124fb3eb4f11eee,https://github.com/GasolSun36/GRACE
+GRAFT: a graph-aware fusion transformer for cancer driver gene prediction,a4e0f16da5bde4e0d05369ef0c037a7f42884fec,https://github.com/spcho-dev/GRAFT
+Graph-Anchored Knowledge Indexing for Retrieval-Augmented Generation,b4e30e65eb036d1789b32db4ce1c5a3db163ec7a,https://github.com/NEUIR/GraphAnchor
+Graph-based deep learning for integrating single-cell and bulk transcriptomic data to identify clinical cancer subtypes,97a9c877116b0897d34d1a592e8e1dabe41f8065,https://github.com/NEFLab/scBGDL
+Graph Triple Attention Networks: A Decoupled Perspective,f4d1ca79d45729b388789ece1bbe36c1fe5748d6,https://github.com/wangxiaotang0906/DeGTA
+GrifFinNet: A Graph-Relation Integrated Transformer for Financial Predictions,772ffebc1a63ab5eb33c5bdbdce832b4c68a18b7,https://www.healthinformaticslab.org/supp/
+GROKE: Vision-Free Navigation Instruction Evaluation via Graph Reasoning on OpenStreetMap,9277ac98dd7d14db6f4367fd194c3ce5fb978c20,https://anonymous.4open.science/r/groke
+Group Relative Attention Guidance for Image Editing,13acbb5afa034bfe788844b8f67649d3aae53652,https://github.com/little-misfit/GRAG-Image-Editing
+GS-DTI: a graph-structure-aware framework leveraging large language models for drug–target interaction prediction,48d04ee6cf93c5c84a092ebd433e40af19c9cd02,https://github.com/purvavideha/GSDTI
+GUISpector: An MLLM Agent Framework for Automated Verification of Natural Language Requirements in GUI Prototypes,27490c62dc391328e80d450713b0bf9c0e4a3d6b,https://youtu.be/JByYF6BNQeE
+GUITester: Enabling GUI Agents for Exploratory Defect Discovery,a54f1de6b3c87e23c4067944879787dc2c9819f2,https://github.com/ADaM-BJTU/GUITestBench}{https://github.com/ADaM-BJTU/GUITestBench}}
+HADSF: Aspect Aware Semantic Control for Explainable Recommendation,5a296132e24f14030ae43281a75ce63c8459e54c,https://github.com/niez233/HADSF
+Hallucination Detection via Internal States and Structured Reasoning Consistency in Large Language Models,26fde05cd9ec1d3f58f2f3e570849dde99e38b51,https://github.com/peach918/HalluDet
+HealthcareNLP: where are we and what is next?,51c393cbefdbb9c2e093aee9d5858ad24f04354a,https://github.com/4dpicture/HealthNLP
+Hidden Dynamics of Massive Activations in Transformer Training,3f3fb8421dd5f615b9c5f2d7333bd40ec4c9deaa,https://github.com/Aimpoint-Digital/massive-activations-fork
+Hidden State Poisoning Attacks against Mamba-based Language Models,d430b152527115cf92f5c44236844d561675e382,https://anonymous.4open.science/r/hispa_anonymous-5DB0
+Hierarchical Frequency Tagging Probe (HFTP): A Unified Approach to Investigate Syntactic Structure Representations in Large Language Models and the Human Brain,2199edcabec63276f3ba153c8708ea15bc6e75ae,https://github.com/LilTiger/HFTP
+Hierarchical Reasoning with Vision-Language Models for Incident Reports from Dashcam Videos,595cfdcfca2579376ded88b07e57027b3282bf48,https://github.com/riron1206/kaggle-2COOOL-2nd-Place-Solution
+HookMIL: Revisiting Context Modeling in Multiple Instance Learning for Computational Pathology,7f746ed45eec6dae538ceaad401c090530212f61,https://github.com/lingxitong/HookMIL
+How Does India Cook Biryani?,73521db977d2f08bdca2be18e66ae0d3d1e315bc,https://farzanashaju.github.io/how-does-india-cook-biryani/
+How Language Directions Align with Token Geometry in Multilingual LLMs,5c6eb70270c13983f9ee503edcb9c9f940dd3b4f,https://github.com/thisiskorea/How-Language-Directions-Align-with-Token-Geometry-in-Multilingual-LLMs
+HSKBenchmark: Modeling and Benchmarking Chinese Second Language Acquisition in Large Language Models through Curriculum Tuning,f5c77dda1cd2a61c1e2ddc7b1352cd5b6483e633,https://github.com/CharlesYang030/HSKB
+HUME: Measuring the Human-Model Performance Gap in Text Embedding Tasks,61e7166035ed3742fa9611c2c5a1eecd81e7e48e,https://github.com/embeddings-benchmark/mteb
+HydroGAT: Distributed Heterogeneous Graph Attention Transformer for Spatiotemporal Flood Prediction,f0526ba105c05a517cf9c9218b712df823b4148a,https://github.com/swapp-lab/HydroGAT
+HyMaTE: A Hybrid Mamba and Transformer Model for EHR Representation Learning,e23885d06cd2864134aaa7aa8520170a4aab14af,https://github.com/healthylaife/HyMaTE
+HyPepTox-Fuse: An interpretable hybrid framework for accurate peptide toxicity prediction fusing protein language model-based embeddings with conventional descriptors,2cb20633f63726256ef9377db6cde3784da66c5e,https://balalab-skku.org/HyPepTox-Fuse/
+HyPepTox-Fuse: An interpretable hybrid framework for accurate peptide toxicity prediction fusing protein language model-based embeddings with conventional descriptors,2cb20633f63726256ef9377db6cde3784da66c5e,https://github.com/cbbl-skku-org/HyPepTox-Fuse/
+Hyperbolic Genome Embeddings,c9d4ff0140e09667bc0d73c3a163669ac17b5d6b,https://github.com/rrkhan/HGE
+HypoSpace: Evaluating LLM Creativity as Set-Valued Hypothesis Generators under Underdetermination,9a37bfb60ac970c2072caf0aaad9d340dd09a706,https://github.com/CTT-Pavilion/_HypoSpace
+IAD-GPT: Advancing Visual Knowledge in Multimodal Large Language Model for Industrial Anomaly Detection,a18ca3fd62df14fb00353bf67a53e3702e405beb,https://github.com/LiZeWen1225/IAD-GPT
+ICX360: In-Context eXplainability 360 Toolkit,e72da23f930be1859670216c221e4a772664b4c8,https://github.com/IBM/ICX360
+Identifying Critical Segments Affecting Piano Performance Evaluation,34248e9eb2292f6fcd0d7c2b01b435a86c5a2de0,https://github.com/Hyerim-Jeon/critical_segments
+ID-RAG: Identity Retrieval-Augmented Generation for Long-Horizon Persona Coherence in Generative Agents,35d992fd33278b601ecf1bb977bcc9ab965d490f,https://github.com/flybits/humanai-agents
+IGCLAPS: an interpretable graph contrastive learning method with adaptive positive sampling for scRNA-seq data analysis,f44d48b10bfbc102e2affb903c76b54d4ad31ef0,https://github.com/ZhengWeihuaYNU/IGCLAPS
+IHIT-BED: an interpretable transformer approach using unbiased hematology analyzer impedance data for early identification of bacteremia in emergency department,4243e7fcb5e06b4c8e785c24a9bf09c4609c0878,https://github.com/appleRtsan/IHIT-BED
+Illusions of Confidence? Diagnosing LLM Truthfulness via Neighborhood Consistency,d0febac274f836e72639a4832b4a631c684fc936,https://github.com/zjunlp/belief
+Improving the Computational Efficiency and Explainability of GeoAggregator,d4dd318baaa57353b5c194c678926b0cd8c00b1b,https://github.com/ruid7181/GA-sklearn
+Improving the performance of multimodal large language models on histopathology images classification,89c30cb489ddbc4b31352d965c5d3300034d36c8,https://github.com/jjsierramo/SIPAIM
+In AI Sweet Harmony: Sociopragmatic Guardrail Bypasses and Evaluation-Awareness in OpenAI gpt-oss-20b,4901765e0b36c44a4bc8ceec3bfa94665eee0ab2,https://github.com/ndurner/gpt-oss-rt-run
+Insight Miner: A Time Series Analysis Dataset for Cross-Domain Alignment with Natural Language,82b754b722216ab3b73b21d7216a555b1d578984,https://huggingface.co/datasets/zhykoties/time-series-language-alignment}{https://huggingface.co/datasets/zhykoties/time-series-language-alignment}.}
+Insights into a radiology-specialised multimodal large language model with sparse autoencoders,d400508bbba6140b260761024ac63180499f9582,https://huggingface.co/microsoft/maira-2-sae
+InstructCrop: Teaching Multimodal Large Language Models to Crop Aesthetic Images,bd13ff17670052a606126e688f49ee9a54d12b74,https://github.com/sxfly99/InstructCrop
+Integrating Cause-Awareness for Improving Emotional Support in Conversational AI,b0ee80d6f7a859a59cffbee732aecee3a5c4e8cc,https://anonymous.4open.science/r/CESCoT-7B9F/
+InteractScience: Programmatic and Visually-Grounded Evaluation of Interactive Scientific Demonstration Code Generation,559aec026ffa28fee84a96cd1bc2d5eff3d9c857,https://github.com/open-compass/InteractScience
+Internal Value Alignment in Large Language Models through Controlled Value Vector Activation,c264e326bf7cac8ade6e7c3850ec3043c56744d7,https://github.com/hr-jin/ConVA
+International Trade Demand Forecasting Model Based on Transformer-XGBoost-LightGBM,0eea352fb32884289ff7b28a1ba2b7a3031721d9,https://github.com/Tianwen-Zhao/AIA25.10.30
+Interpretable Audio Editing Evaluation via Chain-of-Thought Difference-Commonality Reasoning with Multimodal LLMs,33a427acc931d896101bd24462588da4d79fae73,https://github.com/NKU-HLT/Eval_Reasoning
+Interpretable Multi-View Fusion Network for Alzheimer's Disease Diagnosis with Large-Scale Pre-Trained Vision-Language Model,3f6c24f9160b7523461af6e2aa9f89b36be235c8,https://github.com/MakimaSasha/LaCA
+Interpretable Open-Vocabulary Referring Object Detection with Reverse Contrast Attention,ec600da6b0651ba126c4385febac5a6fe4868b0d,https://github.com/earl-juanico/rca
+Interpretable Oracle Bone Script Decipherment through Radical and Pictographic Analysis with LVLMs,29d7eb33c2eb4a807493b0029fe0eb14bf09a3f3,https://github.com/PKXX1943/PD-OBS
+Interpretable Reward Model via Sparse Autoencoder,473ab2cd396ad8ad5048704d7c68f64f32651f19,https://github.com/schrieffer-z/sarm
+Interpretable Robot Control via Structured Behavior Trees and Large Language Models,3f5635678693c6b73cc8e5e045c471183f19abeb,https://github.com/snt-arg/robot_suite
+In the Eye of MLLM: Benchmarking Egocentric Video Intent Understanding with Gaze-Guided Prompting,2f7b4389ac8cba5a0937bd2d136a5d1d85071b3e,https://taiyi98.github.io/projects/EgoGazeVQA
+Investigating Self-Contradiction in Large Language Models for Hate Speech Detection,1a0b7ff56b6887280861f7c181e01886a21793bb,https://github.com/AmitDasRup123/LLM_Self_Contradiction/
+IPGPhormer: Interpretable Pathology Graph-Transformer for Survival Analysis,8bfc1354e7550c01e026d824f1683cb8df60af14,https://anonymous.4open.science/r/IPGPhormer-6EEB
+Is External Information Useful for Stance Detection with LLMs?,5da5c2c910c9b566959c337f647af92ffc3f36da,https://github.com/ngqm/acl2025-stance-detection
+Is your VLM Sky-Ready? A Comprehensive Spatial Intelligence Benchmark for UAV Navigation,a0e135431bd3c6acd9f8f454d8c76aee9b164304,https://github.com/linglingxiansen/SpatialSKy
+Iterated Agent for Symbolic Regression,a9751c4118678e9a5b3a2afb7a6e6508c826ebd5,https://www.ideasearch.cn/
+IVCR-200K: A Large-Scale Multi-turn Dialogue Benchmark for Interactive Video Corpus Retrieval,1fb567eb566fc33d1adaf9acafc335729b49f63f,https://ivcr200k.github.io/IVCR
+Jacobian Scopes: token-level causal attributions in LLMs,d38af0e3958d257f8817a55b075f64021a57b659,https://github.com/AntonioLiu97/JacobianScopes
+KALFormer: Knowledge-augmented attention learning for long-term time series forecasting with transformer,ac919cce4397f750bb09bde27fb8912f6c7398ca,https://github.com/dxpython/KALFormer
+Kardia-R1: Unleashing LLMs to Reason toward Understanding and Empathy for Emotional Support via Rubric-as-Judge Reinforcement Learning,ee722ba546ab6ee5808060a05fe23451bffe5ca7,https://github.com/JhCircle/Kardia-R1
+KeyframeFace: From Text to Expressive Facial Keyframes,75e75c95eabad156ab264bbb3c50851c94684c56,https://github.com/wjc12345123/KeyframeFace
+KnobTuneX:LLM-Enhanced Automatic Database Tuning via Structured Reasoning*,da354bf7399b7605874808d72b872b6d633d7439,https://github.com/vjwww/KnobTuneX
+Knowledge-based Citation Reasoning for Biomedical Domain.,14c55f2e290d28a2c31cf4c048ee3a0e4fbc9fe6,https://github.com/zhongxiangboy/Knowledge-based-Citation-Reasoning-for-Biomedical-Domain
+Knowledge to Sight: Reasoning over Visual Attributes via Knowledge Decomposition for Abnormality Grounding,d383f267b2b189a92c7dbfcd76a4a5d4bdf70ceb,https://lijunrio.github.io/K2Sight/}{\textcolor{SOTAPink}{https://lijunrio.github.io/K2Sight/}}
+Know-Show: Benchmarking Video-Language Models on Spatio-Temporal Grounded Reasoning,ace1291b8ddbcc2974cd5514706f00a71ff16d43,https://github.com/LUNAProject22/Know-Show
+Kolmogorov–Arnold Networks for Robust Multivariate Forecasting of Indian Stock Indices,f377331dd4cebd4a56299d18883b69a3089a84ba,https://shorturl.at/Mp2LL
+LACY: A Vision-Language Model-based Language-Action Cycle for Self-Improving Robotic Manipulation,6320c9edc10e61a692419625b7c1be45e692bbbf,https://vla2026.github.io/LACY/
+LA-MARRVEL: A Knowledge-Grounded and Language-Aware LLM Reranker for AI-MARRVEL in Rare Disease Diagnosis,6e54e0ad2effcd35afec714f1da9633a8e89c7cc,https://ai.marrvel.org
+LAMP-PRo: Label-aware Attention for Multi-label Prediction of DNA- and RNA-binding Proteins using Protein Language Models,018029e4f67cf833e540e2a2ac11098c0cdb648f,http://bliulab.net/iDRBP\_MMC
+LAMP-PRo: Label-aware Attention for Multi-label Prediction of DNA- and RNA-binding Proteins using Protein Language Models,018029e4f67cf833e540e2a2ac11098c0cdb648f,https://github.com/NimishaGhosh/LAMP-PRo
+LangLasso: Interactive Cluster Descriptions through LLM Explanation,fccd654e4e7615ea5dce66c94ad9dabe5243bbaa,https://langlasso.vercel.app
+LangMamba: A Language-driven Mamba Framework for Low-dose CT Denoising with Vision-language Models,0fbd4043cd587cbdef0f1c9983d43a4b1b31cc97,https://github.com/hao1635/LangMamba
+Language as Cost: Proactive Hazard Mapping using VLM for Robot Navigation,994a929367bb66d5dc873ca7f637e3f36a140db5,https://github.com/Taekmino/LaC
+Language-Enhanced Mobile Manipulation for Efficient Object Search in Indoor Environments,3f8b80f3452a3ac73c2a813a930bf0e785d8ca2c,https://drapandiger.github.io/GODHS
+Large Language Models in Critical Care Medicine: Scoping Review,96a6dc4b13b6757da59e3ef5b6a61f7984138f9b,https://osf.io/yn328/
+Large VLM-based Vision-Language-Action Models for Robotic Manipulation: A Survey,dce821cddbf6a3eb435de04d9353681925aaaecf,https://github.com/JiuTian-VL/Large-VLM-based-VLA-for-Robotic-Manipulation
+Latent Chain-of-Thought? Decoding the Depth-Recurrent Transformer,eaa0bdf0b8a235971cf2dc70218854acf487f453,https://github.com/wenquanlu/huginn-latent-cot
+Latent Neural Coupling of Risk and Time Preferences in LLMs Mirrors Human Biases,64c18c2ad568d2d6299bd8fe5fd4444802231b44,https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5284661
+Latent Sketchpad: Sketching Visual Thoughts to Elicit Multimodal Reasoning in MLLMs,60ede7464454260a047fae294c928a73405180f7,https://latent-sketchpad.github.io/
+LaV-CoT: Language-Aware Visual CoT with Multi-Aspect Reward Optimization for Real-World Multilingual VQA,6346715af7c939253d1d4a19578c9775467395f9,https://github.com/HJNVR/LaV-CoT
+Layer-Order Inversion: Rethinking Latent Multi-Hop Reasoning in Large Language Models,82eda0fcb922cc9bf0cac280fcf2ff75b4a411f7,https://github.com/laquabe/Layer-Order-Inversion
+"Learn Globally, Speak Locally: Bridging the Gaps in Multilingual Reasoning",db53c4be0ecd3d267b8dfc7d6f23ac2dc83ad04a,https://jd730.github.io/projects/M2A_GeoFact-X
+Learning to Tune Like an Expert: Interpretable and Scene-Aware Navigation via MLLM Reasoning and CVAE-Based Adaptation,38ebdd35a7c84a9f8e8c3f1e2bc266a7d0a8efd2,https://github.com/Cavendish518/LE-Nav
+LegalΔ: Enhancing Legal Reasoning in LLMs via Reinforcement Learning with Chain-of-Thought Guided Information Gain,0d0b49360decd82c912420b151f3e7903b2b658f,https://github.com/NEUIR/LegalDelta
+Legal experts disagree with rationale extraction techniques for explaining ECtHR case outcome classification,6a5c07e21481e86c4d9782245115023793e3b1ba,https://github.com/trusthlt/IntEval
+LERa: Replanning with Visual Feedback in Instruction Following,39a4293a91bb43d0b9ed712766d2f5ac7a50af1e,https://lera-robo.github.io
+Lightweight Vision Transformer with transfer learning for interpretable Alzheimer’s disease severity assessment,d27a6862f96b0d37bbd182abfbc7138da512de56,https://github.com/RuhikaSharma/enhanced-alzheimer-risk-assessment
+Linear Mechanisms for Spatiotemporal Reasoning in Vision Language Models,f11bffd00b495346d7a621f904177ca8b3d070da,https://github.com/Raphoo/linear-mech-vlms
+Linguistic Neuron Overlap Patterns to Facilitate Cross-lingual Transfer on Low-resource Languages,c9029860c58cd3b299475332691169586ba9498f,https://github.com/xuyuemei/BridgeX-ICL
+LL3M: Large Language 3D Modelers,dfabdf96c18f535d4a55012d91c6cab213d2b28f,https://threedle.github.io/ll3m
+LLM-as-a-Judge in Entity Retrieval: Assessing Explicit and Implicit Relevance,e2181585037924493ea130d3af46eba92a13e340,https://github.com/17shiraz/ClickLLM
+LLM-Based Explainable Detection of LLM-Generated Code in Python Programming Courses,e52f71ec6f9e9d6fce76beffdd83c22df92e18b2,https://github.com/ku21fan/LLM-code-detector
+LLM-DWA: a hybrid path planning framework combining large language models with the dynamic window approach.,ea9a072bcc8838bc548d3a3f0f620c5c5b45d044,https://youtu.be/Otn53HS4KC4
+LLM Microscope: What Model Internals Reveal About Answer Correctness and Context Utilization,33015aacba8e65380ee30729ddba5b69a72635d6,https://github.com/jiarui-liu/LLM-Microscope
+LLMSDH: An Integrated Software-assisted Development Tool Based on Large Language Models,edff7e0d1b401e8904976eef2c720120a7a2982b,http://123.207.10.218:8501
+LLMSDH: An Integrated Software-assisted Development Tool Based on Large Language Models,edff7e0d1b401e8904976eef2c720120a7a2982b,https://github.com/NICERTYU/LLMSDH.git
+LLMSDH: An Integrated Software-assisted Development Tool Based on Large Language Models,edff7e0d1b401e8904976eef2c720120a7a2982b,https://space.bilibili.com/1155790507?spm_id_from=333.788.0.0
+LLMs Don't Know Their Own Decision Boundaries: The Unreliability of Self-Generated Counterfactual Explanations,156d890219f3ed2e393516ee56db5ed95fd8b115,https://github.com/HarryMayne/SCEs
+LMM-IQA: Image Quality Assessment for Low-Dose CT Imaging,71ed05a35147217ce26eeea7c4dfd346d13707a4,https://github.com/itu-biai/lmms_ldct_iqa
+"Locate, Steer, and Improve: A Practical Survey of Actionable Mechanistic Interpretability in Large Language Models",d98d266057bb752884368e714e9516cf8d9d73fd,https://github.com/rattlesnakey/Awesome-Actionable-MI-Survey
+LongT2IBench: A Benchmark for Evaluating Long Text-to-Image Generation with Graph-structured Annotations,ed242e4999c3c274a9526b48530bed46f217e5ad,https://welldky.github.io/LongT2IBench-Homepage/
+LongVideoAgent: Multi-Agent Reasoning with Long Videos,607f6d553d24db3b227f4ff36a4f52555fbdc53b,https://longvideoagent.github.io/
+Lost in Tokenization: Context as the Key to Unlocking Biomolecular Understanding in Scientific LLMs,d93828c2d042e8d7c115b3cc6e55e422674fafaa,https://github.com/opendatalab-raiser/CoKE
+LRGD: Low-Rank Guided Diffusion for Robust Image Transmission in Semantic Communication,5e452233fbdff6864e0316b917b72e0ae8c10b25,https://github.com/mokiaca/LRGD
+"M^3-Bench: Multi-Modal, Multi-Hop, Multi-Threaded Tool-Using MLLM Agent Benchmark",97b7ff9037aaaff220f8e7528a4a660571142f96,https://github.com/EtaYang10th/Open-M3-Bench
+Machine Learning for Fingerprint Ridge Counting,2cb26b0b783f65946f71d806b75f4845b46f13b5,https://github.com/Bonacim/ridge-count
+M-AIDE: Mechanistic Agentic Interpretability for Decoding Empathy in Language Models,60bf86289fb968e8de2efb1b4e452c191f7ca8a6,https://github.com/ai-voyage/M-AIDE.git
+Malo in the Code Jungle: Explainable Fault Localization for Decentralized Applications,00b950562496b4bf09f1859c1eb6985986e3a101,https://github.com/SodalimeZero/Malo_Code.git
+Mammo-CLIP Dissect: A Framework for Analysing Mammography Concepts in Vision-Language Models,4b7eb1d71b868d221578cdef2b619754b968a017,https://github.com/Suaiba/Mammo-CLIP-Dissect
+Mapillary Vistas Validation for Fine-Grained Traffic Signs: A Benchmark Revealing Vision-Language Model Limitations,4a7524d7c0b3c3a184961bc7eaca179586a417d1,https://github.com/nec-labs-ma/relabeling
+Map the Flow: Revealing Hidden Pathways of Information in VideoLLMs,568f025463fb7b6defe2ad7e1a7953a39725875a,https://map-the-flow.github.io
+MARVIS: Modality Adaptive Reasoning over VISualizations,47a49867d38d68bc18964dab31a2a9e985891f0d,https://github.com/penfever/marvis
+Matching and Linking Entries in Historical Swedish Encyclopedias,185fe72706cb58a5091550f5e3f8f122fca20af8,https://github.com/sibbo/nordisk-familjebok
+MathMist: A Parallel Multilingual Benchmark Dataset for Mathematical Problem Solving and Reasoning,48b695033e93071edac9e109594129f6301617b2,https://github.com/mahbubhimel/MathMist
+Measuring Social Media Polarization Using Large Language Models and Heuristic Rules,628980e50b676976b09490835869e1dd5200633a,https://github.com/hasanjawad001/llm-social-media-polarization
+Measuring the Effect of Disfluency in Multilingual Knowledge Probing Benchmarks,53af1832c365791dd502efb0a9f0e4532db2a0d0,https://github.com/ZurichNLP/Fluent-mLAMA
+"Mechanics of Learned Reasoning 1: TempoBench, A Benchmark for Interpretable Deconstruction of Reasoning System Performance",66a5dd1717ce61367986513af26a63d566cbf77a,https://github.com/nik-hz/tempobench}{GitHub
+Mechanisms of Matter: Language Inferential Benchmark on Physicochemical Hypothesis in Materials Synthesis,d6bb61aff8352eec55165fab1b435e4c388b5eaa,https://github.com/amair-lab/MatterMech}{GitHub}
+Mechanistic Interpretability for Neural TSP Solvers,348028ab7cc778981fc7dbba1225df57070ee441,https://reubennarad.github.io/TSP_interp
+MEDAKA: Construction of Biomedical Knowledge Graphs Using Large Language Models,a3cc8efc06a994bf26a537a404bcb961c9872c1e,https://github.com/medakakg/medaka
+Med-Banana-50K: A Cross-modality Large-Scale Dataset for Text-guided Medical Image Editing,7f23e94d6cc73b1ef6e6b0b7286cd85b30a782d3,https://github.com/richardChenzhihui/med-banana-50k
+Medical Vision-Language Modeling With Semantic Interaction and Adaptive Refinement Prompting for Bias Mitigation.,bf9c2f82807c81147eb2dc62ac8bec7cbb4bc0cc,https://github.com/SZUHvern/Unified-Medical-Vision-Language-Modeling
+MedKCoT: A Knowledge-Guided Multi-Modal Chain-of-Thought Generation Framework for Medical Visual Question Answering,c59effc25579cc323c7bb2d09c9e86f03896acbf,https://github.com/EnjoyFailure/MedKCoT
+MemeArena: Automating Context-Aware Unbiased Evaluation of Harmfulness Understanding for Multimodal Large Language Models,603f3166ef1e3d0c65338f5a65ce10d71c37a279,https://github.com/Lbotirx/MemeArena
+MesaTask: Towards Task-Driven Tabletop Scene Generation via 3D Spatial Reasoning,4bf87fe3052bf77e29c1d4028702c3975d8fd292,https://mesatask.github.io/
+MGHFT: Multi-Granularity Hierarchical Fusion Transformer for Cross-Modal Sticker Emotion Recognition,98f2409da4617d3abce2812efffc1c41b1c9a1e0,https://github.com/cccccj-03/MGHFT\_ACMMM2025
+Mimicking the Physicist's Eye:A VLM-centric Approach for Physics Formula Discovery,352728394f6873bacca3f0e92c8b4e6af879a3a6,https://jiaaqiliu.github.io/VIPER-R1/
+Mind2Report: A Cognitive Deep Research Agent for Expert-Level Commercial Report Synthesis,ff3bfe3bcf9c0264e975b384d7b324837e0d95e1,https://github.com/Melmaphother/Mind2Report
+Mind the Ambiguity: Aleatoric Uncertainty Quantification in LLMs for Safe Medical Question Answering,53a56e183b97d086a3b33d3068a0c3b1ae8f4292,https://github.com/yaokunliu/AU-Med.git
+Mind the Ambiguity: Aleatoric Uncertainty Quantification in LLMs for Safe Medical Question Answering,53a56e183b97d086a3b33d3068a0c3b1ae8f4292,https://huggingface.co/datasets/yaokunl/CV-MedBench
+Mind the (Language) Gap: Towards Probing Numerical and Cross-Lingual Limits of LVLMs,09a3de12b28d09ee2b2237b44eedc468af0ab6c9,https://huggingface.co/datasets/DIALab/MMCricBench
+Mining Legal Arguments to Study Judicial Formalism,79df18ca527c593f0d8305b3aa873917e7f4e087,https://github.com/trusthlt/madon
+Mint: A Simple Test-Time Adaptation of Vision-Language Models against Common Corruptions,e89682a5d96c7f34c30ff37679f2deb6f0dee4d2,https://github.com/baowenxuan/Mint
+MisSpans: Fine-Grained False Span Identification in Cross-Domain Fake News,83dbe6b3a975dbb06f2c08b679d95b889aa646a8,https://github.com/lzw108/MisSpans
+MiT Loss: medical image-aware transfer-calibrated loss for enhanced classification,6ae44d5bf21fe0b7350c1ce0aab76ed61202c393,https://github.com/JEFfersusu/MiT_loss
+MLA: A Multisensory Language-Action Model for Multimodal Understanding and Forecasting in Robotic Manipulation,19e7d97f0863cf6d519e1904e604d11ce3a3ec33,https://sites.google.com/view/open-mla
+MMESGBench: Pioneering Multimodal Understanding and Complex Reasoning Benchmark for ESG Tasks,777e781a7835fec7d9c91320e1670dec640abe3f,https://github.com/Zhanglei1103/MMESGBench
+MobQA: A Benchmark Dataset for Semantic Understanding of Human Mobility Data through Question Answering,bed3cc51306c1dddf082a646280c34e80c8db38f,https://github.com/CyberAgentAILab/mobqa.}
+MoCA-Dialog: A Benchmark for Fine-Grained Evaluation of Large Language Models in Clinical Cognitive Assessment Dialogues,f7168c7a35b47e29aa627fea586192f9932c2deb,https://mocadialogue.github.io
+Modeling Student Learning with 3.8 Million Program Traces,b6f96979e86bd569ec6c3fd7bb93941ca9a7e8ac,https://github.com/meghabyte/pencilcode-public
+Modeling Time-Lapse Trajectories to Characterize Cranberry Growth,d5ebcd2c99a2a04f3833a6bd01fa41d739762f6d,https://github.com/ronan-39/tlt/
+MoE-MSC: Mixture of Experts with Multi-Stream Connector for Modality-Aware Medical Image Captioning,748b4295703d92027c23bb00d49c0cb738eba489,https://github.com/alshahriarrubel/MoE-MSC
+MolCL-SP: a multimodal contrastive learning framework with non-overlapping substructure perturbations for molecular property prediction,3e64af377e2bea5a37e213ae13e66d1a32683a2a,https://github.com/lylikeeMoon/MolCL-SP
+MotifGT-DTI: Pivotal Motif-Based Graph Transformer Model Improves Drug-Target Interaction Prediction.,e5fe54f373101500af682d0d56abe206dd514d18,https://github.com/Dimpleney/MotifGT-DTI
+Motion2Meaning: A Clinician-Centered Framework for Contestable LLM in Parkinson's Disease Gait Interpretation,2a927fe4121d4f5b5b0864011ea9e816975b0b61,https://github.com/hungdothanh/motion2meaning
+MoveFM-R: Advancing Mobility Foundation Models via Language-driven Semantic Reasoning,b597960869a26a4bbc6408f830358d87a00a0b76,https://anonymous.4open.science/r/MoveFM-R-CDE7/
+MovieCORE: COgnitive REasoning in Movies,83b6dc3cbc6d0fcefbcae9299df22a85eb9488e8,https://joslefaure.github.io/assets/html/moviecore.html
+MSGM: A Multi-Scale Spatiotemporal Graph Mamba for EEG Emotion Recognition,8a9745e07126d04ac151c5c9e19c7ae8f9e9a6c3,https://github.com/liuguangyunjizero/MSGM
+Multi-agent Undercover Gaming: Hallucination Removal via Counterfactual Test for Multimodal Reasoning,62a5da033220b7b579ea2d5ae6521bfc36a2e381,https://github.com/YongLD/MUG.git
+Multi-Faceted Attack: Exposing Cross-Model Vulnerabilities in Defense-Equipped Vision-Language Models,03098d3ce18e781d916375cea3bc5d190b0801cb,https://github.com/cure-lab/MultiFacetedAttack
+"Multilinguality in Language Modeling: Tasks, Data, and Opportunities for Typological Resources",6ba3440b4706bde7468818b5a06cdabbc80463a7,https://github.com/al-the-eigenvalue/RAG-on-grammars
+Multimodal Large Language Models for End-to-End Affective Computing: Benchmarking and Boosting with Generative Knowledge Prompting,f6964a29d91fb6db2807f8670488963d346128a3,https://github.com/LuoMSen/MLLM-MAC
+Multimodal Spatial Reasoning in the Large Model Era: A Survey and Benchmarks,b19445c894634e1fbb2c61e3b6fd51a2a7fd47ae,https://github.com/zhengxuJosh/Awesome-Spatial-Reasoning
+Multi-scale spatial-temporal transformer for traffic flow prediction,1bf5b48bfa39b93330d731457de49914ae37b1b6,https://github.com/whaaaa123/MSSTFormer
+Multi-stage knowledge distillation with layer fusion-based deep learning approach for skin cancer classification,d378ead9219e4f567b89d437ffc48d971152236c,https://github.com/codewith-pavel/Optimizations
+MUSON: A Reasoning-oriented Multimodal Dataset for Socially Compliant Navigation in Urban Environments,80ac9636bf9f36b269d70f6927f60d4b0a329dcf,https://huggingface.co/datasets/MARSLab/MUSON
+MVQA-68K: A Multi-dimensional and Causally-annotated Dataset with Quality Interpretability for Video Assessment,bd11806dc6f9e62c3baa57558e9e58a8debce228,https://github.com/Controller01-ai/MVQA-68K
+NeurIDA: Dynamic Modeling for Effective In-Database Analytics,3444d434b616d98b41ee6c561d11f78c6410fef6,https://github.com/Zrealshadow/NeurIDA
+NeuroSleepNet: An Explainable Multi-Head Attention-Based Framework With Spatial and Multi-Scale Independent Temporal Context Learning for Automatic Sleep Stage Scoring,05bd13927a725b11bdd217c0e1386995314bab66,https://github.com/SiamDip/NeuroSleepNet
+NeuS-QA: Grounding Long-Form Video Understanding in Temporal Logic and Neuro-Symbolic Reasoning,fa3f458226f84e6c5046b5b3ca2343e9e8d1507d,https://utaustin-swarmlab.github.io/NeuS-QA/
+NLI4VolVis: Natural Language Interaction for Volume Visualization via LLM Multi-Agents and Editable 3D Gaussian Splatting,156b48a7a937fce1d66120c7bec47b218cbc50fa,https://nli4volvis.github.io/
+Norm-Q: Effective Compression Method for Hidden Markov Models in Neuro-Symbolic Applications,1bde267ee59d121eda10ed37d75d7f0c7479ca85,https://github.com/superstarghy/Norm-Q
+Object-Centric Vision Token Pruning for Vision Language Models,f028f9bb661b886eaba2e5fbcd4503d926f6878e,https://github.com/GarryLarry010131/OC-VTP
+Oedipus and the Sphinx: Benchmarking and Improving Visual Language Models for Complex Graphic Reasoning,aa19653224e7988058ea6e39d76e8deb3ac6715e,https://huggingface.co/datasets/cistine/ReasonBench
+OIG-Bench: A Multi-Agent Annotated Benchmark for Multimodal One-Image Guides Understanding,628a57d036e2f234cf1173b11d198691e95a0f4b,https://github.com/XiejcSYSU/OIG-Bench
+OmniBench-RAG: A Multi-Domain Evaluation Platform for Retrieval-Augmented Generation Tools,7d9d05ddfc2937ccfc2ac3051db888ea97de7148,https://www.youtube.com/watch?v=BZx83QFcTCI
+OmniBench-RAG: A Multi-Domain Evaluation Platform for Retrieval-Augmented Generation Tools,7d9d05ddfc2937ccfc2ac3051db888ea97de7148,https://github.com/Garnett-Liang/Omnibench-RAG
+OmniHuman-1.5: Instilling an Active Mind in Avatars via Cognitive Simulation,c69cb39e8f8d822c23e2af7abfcb0378d48ad078,https://omnihuman-lab.github.io/v1_5/}
+OmniPlay: Benchmarking Omni-Modal Models on Omni-Modal Game Playing,bc31fe1912f595a074328e6062cbc60cc0782ba1,https://github.com/fuqingbie/omni-game-benchmark
+One Battle After Another: Probing LLMs' Limits on Multi-Turn Instruction Following with a Benchmark Evolving Framework,6ee31f84df04e402d1ee69154426b036bc5a669a,https://github.com/JiaQiSJTU/EvolIF
+On Imbalance in Case Types: Evaluating and Enhancing PLMs for Criminal Court View Generation.,f1a1f0f865cecada8bf5caf35f80888d276513d4,https://yuquanle.github.io/Case-type-oriented-metrics-homepage/
+On the Faithfulness of Visual Thinking: Measurement and Enhancement,e1fccc7225b6570d46441cb91ae065c8e5eaeaaf,https://github.com/EugeneLiu01/Faithful_Thinking_with_Image
+OpenNav: Open-World Navigation with Multimodal Large Language Models,7b029ee31a511461c9d9e27e12aa068e0fc63aa4,https://trailab.github.io/OpenNav-website/
+Open Source Planning & Control System with Language Agents for Autonomous Scientific Discovery,bd0e152fb1dacf857077d2390f8816d81c6c06bb,https://github.com/CMBAgents/cmbagent
+OpenView: Empowering MLLMs with Out-of-view VQA,016b124d152099e35edc44f32fe3e814585261b0,https://github.com/q1xiangchen/OpenView
+Open-World Fine-Grained Fashion Retrieval with LLM-based Commonsense Knowledge Infusion,026f4dbf16ca1ea69cb047e2eaf65b464c1dd442,https://github.com/HuiGuanLab/CoKi
+Organ-Aware Attention Improves CT Triage and Classification,dde39fe19fd16ee4467ed58798ee7ff596531f5a,https://github.com/lavsendahal/oracle-ct
+PAHQ: Accelerating Automated Circuit Discovery through Mixed-Precision Inference Optimization,37da23167c32291cd8e91fe415d11a324b9a1223,https://github.com/626619403/PAHQ
+ParaStyleTTS: Toward Efficient and Robust Paralinguistic Style Control for Expressive Text-to-Speech Generation,e3ec2740668cc28126516aa77dc2dfaa97574c8b,https://parastyletts.github.io/ParaStyleTTS_Demo/
+ParaStyleTTS: Toward Efficient and Robust Paralinguistic Style Control for Expressive Text-to-Speech Generation,e3ec2740668cc28126516aa77dc2dfaa97574c8b,https://github.com/haoweilou/ParaStyleTTS
+Parkinson's disease diagnostic support based on voxel fusion of resting BOLD signals and DTI features using multimodal pretraining.,0321bab771d1df63cf1cb95a8829c3a060551682,https://github.com/MAOmgg/DSTFP
+"Parse, Align and Aggregate: Graph-driven Compositional Reasoning for Video Question Answering.",f5b448d713e0aba059b8b9317e82624dd33cf340,https://github.com/QPVA3/QPVA3-PAMI
+PaTaRM: Bridging Pairwise and Pointwise Signals via Preference-Aware Task-Adaptive Reward Modeling,488bff49b04587b410caeeb587874a0fdde5e8a5,https://github.com/JaneEyre0530/PaTaRM
+PathoRM: Computational inference of pathogenic RNA methylation sites by incorporating multi-view features,ffb9af3bda5f1aae3b939dc23d0f18a44460ffaa,https://github.com/jianiM/PathoRM
+Performance of AI Chatbots on Head and Neck Pathology Board-Style Exam Questions and Guidelines for Responsible Use,784c39aab1aa8e2d16938243a7ab8be9f0431a32,https://eli5a.com/docs
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1037/bul0000219
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1037/0003-066X.55.5.469
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1007/s00127-008-0345-x
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1080/03075070903216643
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1146/annurev.psych.55.090902.141913
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1017/S0954579410000359
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1176/foc.8.2.foc165
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1037/0022-3514.93.6.1080
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1038/s41562-018-0307-6
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.3389/fpsyg.2022.854736
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.11648/j.ajtas.20160501.11
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1037/0003-066X.55.6.647
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1146/annurev.psych.55.090902.141456
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1016/j.paid.2011.02.018
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.7717/peerj.1
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://worldhappiness.report
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.63544/ijss.v4i3.163
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1016/j.jad.2011.03.023
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1007/s10902-013-9431-1
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1177/0022022105275959
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.5114/cipp.2021.107337
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.7717/peerj.18379
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.63544/ijss.v4i2.131
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.63544/ijss.v2i3.43
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1080/17439760701756946
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1016/S0191-8869(01)00087-3
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1080/00050067.2010.482109
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1037/0033-2909.134.1.138
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1037/hea0000475
+Personality Traits and Life Satisfaction: The Mediating Role of Coping Styles among Pakistani University Students,81c483e8845a4259e12f2e3506ca02a303f1ad67,https://doi.org/10.1007/s11205-005-8208-2
+PG3D-ViT: A Prompt-Guided 3D Vision Transformer for Medical Image Classification,81da2902d27ff67b4bff2cf62540ddf72ad9135a,https://github.comJUMED-P/PG3D-ViT
+PhyDetEx: Detecting and Explaining the Physical Plausibility of T2V Models,286499ea8cf05560294d92cd1fcba8ce1ba2167d,https://github.com/Zeqing-Wang/PhyDetEx}{https://github.com/Zeqing-Wang/PhyDetEx}
+Phys2Real: Fusing VLM Priors with Interactive Online Adaptation for Uncertainty-Aware Sim-to-Real Manipulation,4cb14d1979a171295bde972f7591a47b24be26bb,https://phys2real.github.io/
+Physics-Informed Mobility Perception Networks for Origin-Destination Flow Prediction,3e6220bd578a106dfaa7c9f3a5ee9213b5f0a67e,https://github.com/xuesong-wu/PI-MPN
+piRNA-Disease Association Prediction via the Fusion of BERT and Graph Neural Network,c305b499f11a9db480ff704e0499281c3e3bb9eb,https://github.com/He-EugeneIPDFBG
+PIST-Net: A Multimodal Deep Learning Framework for Red Giant Stellar Parameter Estimation,9d5c4ca943fd37d3178b5ac9fdfcdf24d9e7f009,https://github.com/yuexiuya1/PIST-Net
+Pi-Transformer: A Physics-informed Attention Mechanism for Time Series Anomaly Detection,d7e0678f2e7eb39a7f38edd1bb2839d9f0c7fad1,https://github.com/sepehr-m/Pi-Transformer}
+PixFoundation 2.0: Do Video Multi-Modal LLMs Use Motion in Visual Grounding?,b3c73f41bdd35002ef08923a501e7de1da50403f,https://github.com/MSiam/PixFoundation-2.0.git
+Play by the Type Rules: Inferring Constraints for LLM Functions in Declarative Programs,2c3e3cf4ceb9d235b128273d549fe0b11525b811,https://github.com/parkervg/blendsql
+PLiCat: decoding protein–lipid interactions by large language model,6b81e54ca7aa1603f413335a47b51d3e8f806c52,https://github.com/Noora68/PLiCat
+PLiSAGE: enhancing protein-ligand interaction prediction with multimodal surface and geometry encoding,a5dfbe429db9d114e696f226ece5aad0c36ea922,https://github.com/catly/PLiSAGE
+Pluggable Pruning with Contiguous Layer Distillation for Diffusion Transformers,f0e6d61fb3501eddb40fe1e7643c8f8d2255ccd3,https://github.com/OPPO-Mente-Lab/Qwen-Image-Pruning
+‘Plugging the gap’: development of a plain language glossary for statistical methodology research,d704081d4a96439f48b07cab9e3be88841bde607,https://leicesterbrc.nihr.ac.uk/ppismart/ppismart-definitions/
+‘Plugging the gap’: development of a plain language glossary for statistical methodology research,d704081d4a96439f48b07cab9e3be88841bde607,https://leicesterbrc.nihr.ac.uk/ppismart/ppismart-definitions/
+Polarity-Aware Probing for Quantifying Latent Alignment in Language Models,b28926c7309c55473dde14330eb70f4035242931,https://github.com/SadSabrina/polarity-probing
+Predicting and Reducing Wireless Customer Churn Using the AI2-Sriya Expert Index (SXI),4ead33af1a3cd6788d5056720103831755c83b5c,https://www.kaggle.com/datasets/abhinav89/telecom-customer
+Predicting Task Performance with Context-aware Scaling Laws,43c2103fdb18b5782161f8c96fa98118c4899bd0,https://github.com/wang-research-lab/context-scaling
+Predicting the Future by Retrieving the Past,42c1a4ce1a53d8ecb200305ae70f9ff0f546d624,https://github.com/ddz16/PFRP
+PricingLogic: Evaluating LLMs Reasoning on Complex Tourism Pricing Tasks,0562c0556f84897a02c79edc83462e912b361200,https://github.com/EIT-NLP/PricingLogic
+PRiSM: Benchmarking Phone Realization in Speech Models,ffc3b4c5d00fa1a3b1a34c19bcad59915954bd74,https://github.com/changelinglab/prism
+Probabilistic Token Alignment for Large Language Model Fusion,4af359d06a1c750da0eb1bf11708a818ec17c263,https://runjia.tech/neurips_pta-llm/
+Probing Latent Knowledge Conflict for Faithful Retrieval-Augmented Generation,0a266223efe4303e6b12c1f1810c868057715794,https://github.com/LinfengGao/CLEAR
+Probing the Difficulty Perception Mechanism of Large Language Models,6866580f4106a0b0ee0b003ea41ae2cc9a085b75,https://github.com/Aegis1863/Difficulty-Perception-of-LLMs
+Probing the effectiveness of World Models for Spatial Reasoning through Test-time Scaling,8f1f628cdeb7bc7ab6be70b7843063323592e0ac,https://github.com/chandar-lab/visa-for-mindjourney
+PROTAC-Splitter: a machine learning framework for automated identification of PROTAC substructures,98e3a1eab3f185a607b0ef2b8a44529b98c19248,https://github.com/ribesstefano/PROTAC-Splitter
+Protein Structure Tokenization via Geometric Byte Pair Encoding,24f6f71b8a0df8fd99fbcc92aea1ccb8c89d118a,https://github.com/shiningsunnyday/PT-BPE/
+ProtFPreDTI: Drug-Target Interaction Prediction Study and LIME Interpretability Analysis Based on the ProtBERT Deep Language Model with Adaptive Fuzzy Sampling Strategy.,4bb06f49ab354b02f8606ef84fbe745fdfbe2567,https://github.com/flying-peanut/ProtFPreDTI
+ProtGO: universal protein function prediction utilizing multi-modal gene ontology knowledge,86a50a2c574b4a5829fe7fe132b7ed51e89599bc,https://github.com/sunyatawang/ProtGO
+ProtoMol: enhancing molecular property prediction via prototype-guided multimodal learning,89c780653b80c374b3c6c3bd755c81ba34dd901b,https://github.com/zky04/Protomol
+Pursuing Minimal Sufficiency in Spatial Reasoning,37d8f66a10e437098252c98e4f51177dfe7a94cf,https://github.com/gyj155/mssr
+PyFi: Toward Pyramid-like Financial Image Understanding for VLMs via Adversarial Agents,21c8f3c47dcf6d0fbe010fe44283654791c9da79,https://github.com/AgenticFinLab/PyFi
+Q-Doc: Benchmarking Document Image Quality Assessment Capabilities in Multi-modal Large Language Models,34afe98291c04427f6b0576f8835797f2281c0a3,https://github.com/cydxf/Q-Doc
+Qimai: a multi-agent framework for zero-shot DNA-protein interaction prediction,87a65cf0035bedfb9f618da7d992dca1110941a3,https://qimai.wanglab.ucsd.edu/
+Quantum-Inspired Stacked Integrated Concept Graph Model (QISICGM) for Diabetes Risk Prediction,77ec69b35f95d69c30e3c6a96790960ac78128e8,https://github.com/keninayoung/QISICGM
+QuickLAP: Quick Language-Action Preference Learning for Autonomous Driving Agents,7c4594bfe3634ae3b63bd443b0c98766467cd820,https://github.com/MIT-CLEAR-Lab/QuickLAP
+RAD: Towards Trustworthy Retrieval-Augmented Multi-modal Clinical Diagnosis,8d0c3386130f31e215422ffa80c4ac69af192098,https://github.com/tdlhl/RAD
+RAISE: A Unified Framework for Responsible AI Scoring and Evaluation,8ce7595e9df3cb6e9b48e0e295a2dc8f9fc3802a,https://github.com/raise-framework/raise
+R-Capsule: Compressing High-Level Plans for Efficient Large Language Model Reasoning,15406a81820e157ebeb49ff8f92523b46220528a,https://anonymous.4open.science/r/Reasoning-Capsule-7BE0
+ReAG: Reasoning-Augmented Generation for Knowledge-based Visual Question Answering,dc59c42a203475849383bfacde9855614fb4cb2a,https://github.com/aimagelab/ReAG
+ReAL-AD: Towards Human-Like Reasoning in End-to-End Autonomous Driving,8e4b1d086301ff3a32d78ed5c883674ccb8a9f40,https://4dvlab.github.io/project_page/realad}{\texttt{4dvlab.github.io/project\_page/realad}}
+REALM: An MLLM-Agent Framework for Open World 3D Reasoning Segmentation and Editing on Gaussian Splatting,f9543e18443878017fddfc5f93ea4f152457642e,https://ChangyueShi.github.io/REALM
+Reasoning Beyond Literal: Cross-style Multimodal Reasoning for Figurative Language Understanding,4857971a354dbee181603e8d8306dcbed183f86b,https://github.com/scheshmi/CrossStyle-MMR
+Reasoning-Enhanced Large Language Models for Molecular Property Prediction,5167a6ce7ebf3363f681f9a4c7e2ed9a7ab0ca44,https://anonymous.4open.science/r/MPPReasoner-12687
+Reasoning Like Experts: Leveraging Multimodal Large Language Models for Drawing-based Psychoanalysis,dfae8c21d0d76a2cc008ed36ec0e011caaa2c4d3,https://github.com/YanbeiJiang/PICK
+Reasoning Path and Latent State Analysis for Multi-view Visual Spatial Reasoning: A Cognitive Science Perspective,37551eb6269bd1b84b7c39d29654c5b0f0ad0011,https://huggingface.co/datasets/Xue0823/ReMindView-Bench
+Reasoning Path and Latent State Analysis for Multi-view Visual Spatial Reasoning: A Cognitive Science Perspective,37551eb6269bd1b84b7c39d29654c5b0f0ad0011,https://github.com/pittisl/ReMindView-Bench
+RedNote-Vibe: A Dataset for Capturing Temporal Dynamics of AI-Generated Text in Social Media,638a54dc637908afb4d32dffe94820c18bb93bdd,https://github.com/testuser03158/RedNote-Vibe
+Regression in Earth Observation: Are vision–language models up to the challenge?,eabdd9fa9c8e29ebfaa251973f509d7e6af00027,https://github.com/zhu-xlab/VLM-for-EO-regression.git
+RegScore: Scoring Systems for Regression Tasks,ca619f4b7771698c6414b9546b919a64911244ac,https://github.com/SanoScience/RegScore
+Reinforcement Learning Fine-Tuning Enhances Activation Intensity and Diversity in the Internal Circuitry of LLMs,55963337e0e983130045eca9dafd13701db41000,https://github.com/tsinghua-fib-lab/llm_rl_probing_analysis
+Reinforcement Learning-Guided Chain-of-Draft for Token-Efficient Code Generation,07529b3b3df643faf2a8461100bc548f9b3feef9,https://anonymous.4open.science/r/MultiCoD
+"Reproducibility Study of ""XRec: Large Language Models for Explainable Recommendation""",3ea0937b2bfc1eea4893a755ac99dac80b3507fc,https://github.com/julianbibo/xrec-reproducibility
+ResLysEmbed: a ResNet-based framework for succinylated lysine residue prediction using sequence and language model embeddings,572d018f635a7b92002ca0ee912279475c32af05,https://github.com/Sheldor7701/ResLysEmbed
+Responsible Agentic Reasoning and AI Agents: A Critical Survey,32f6bdfec09376e8796def1c8129892da7f6d2a9,https://github.com/shainarazavi/Responsible-reasoning-agents
+Rethinking Jailbreak Detection of Large Vision Language Models with Representational Contrastive Scoring,62c5dc650d49a8227a479bacbf416a20b072133f,https://github.com/sarendis56/Jailbreak_Detection_RCS
+Rethinking LLM Human Simulation: When a Graph is What You Need,1aa59aa2c1570306bb5fe1fed4d105e6673ff6fc,https://github.com/schang-lab/gems
+Retrieval-Augmented Generation Enhanced Domain-Adaptive Question Answering System for Radiation Biology,0999bf27089282983055588ef8c617e3e54f264f,https://www.biosino.org/radiation/
+ReviewGraph: A Knowledge Graph Embedding Based Framework for Review Rating Prediction with Sentiment Features,d8f7259e3fdd8251a88f7be94af005382f223fe2,https://github.com/aaronlifenghan/ReviewGraph
+ReViewQwen: An Explainable Vision-Language Model for Discrepancy Detection in Multimodal E-Commerce Reviews,51bc7fc1d8e8a80555ecfbd7aea3730d6382f459,https://github.com/domsoos/reviewqwen
+ReVSeg: Incentivizing the Reasoning Chain for Video Segmentation with Reinforcement Learning,8b4abb949182d5c42ccf699f360463d364749600,https://clementine24.github.io/ReVSeg/
+REX-RAG: Reasoning Exploration with Policy Correction in Retrieval-Augmented Generation,7cfd0d4507416b0843a9722ee7461ea4ff03f123,https://github.com/MiliLab/REX-RAG
+RISE: Enhancing VLM Image Annotation with Self-Supervised Reasoning,e48878dcb77a6774838f86aa6b22fe402d2729ed,https://github.com/HSH55/RISE
+Risk Assessment of Large Language Model Implementation in the Electric Power Sector of Ukraine,ee66082e6c30fd6eb37b7eb79582176b99dcd197,https://github.com/oleksandrkravchukatpimee/LLM-risks-evaluation/blob/3443a610d9b2f9a9f8db52b280f2f4fb247525c1/AHP.xlsx
+Risk Assessment of Large Language Model Implementation in the Electric Power Sector of Ukraine,ee66082e6c30fd6eb37b7eb79582176b99dcd197,https://gist.github.com/taranowskiatpimee/174973d140a84da2b5c3b365a34f949c
+RLBFF: Binary Flexible Feedback to bridge between Human Feedback & Verifiable Rewards,2bd466db24a0902268cf605860f41bb235d60ff1,https://huggingface.co/collections/nvidia/reward-models-10-2025
+RMDNet: RNA-aware dung beetle optimization-based multi-branch integration network for RNA–protein binding sites prediction,b0960836570fc114fb6e70b549ac5d8a832dcbbb,https://github.com/cskyan/RMDNet
+RottenReviews: Benchmarking Review Quality with Human and LLM-Based Judgments,3b045a4aafe6e15f0edf455d5aba97c79597e120,https://github.com/Reviewerly-Inc/RottenReviews
+RRSECS: Referring remote sensing expression comprehension and segmentation,6e935bbef72e28ea16365661efc1f05d2e88c38b,https://github.com/IPIU-XDU/RSFM
+RSCC: A Large-Scale Remote Sensing Change Caption Dataset for Disaster Events,b29d9127d3d357f83f20bdabfa109abd9db2b3c5,https://github.com/Bili-Sakura/RSCC
+RSVLM-QA: A Benchmark Dataset for Remote Sensing Vision Language Model-based Question Answering,3f701e620517e38d0547fc569a8de943255932cb,https://github.com/StarZi0213/RSVLM-QA
+RTGMFF: Enhanced fMRI-Based Brain Disorder Diagnosis via ROI-Driven Text Generation and Multimodal Feature Fusion,d1213aeb4ab310458a649b02e477233d85442878,https://github.com/BeistMedAI/RTGMFF
+Rule2Text: A Framework for Generating and Evaluating Natural Language Explanations of Knowledge Graph Rules,ee9fd3a0258742d9126fdd21531262bf846f8554,https://github.com/idirlab/KGRule2NL
+Safe-FedLLM: Delving into the Safety of Federated Large Language Models,59dd0d5d67aef2ecc5f1c141ade97a788c0e86ed,https://github.com/dmqx/Safe-FedLLM
+SafeFix: Targeted Model Repair via Controlled Image Generation,d7682ab4e79c908190f897fcf5105b08e4895e6d,https://github.com/oxu2/SafeFix
+SAFER: Probing Safety in Reward Models with Sparse Autoencoder,38a858d491358347fabdbdeea7d517116c3fa9b9,https://github.com/xzy-101/SAFER-code
+SaFeR-VLM: Toward Safety-aware Fine-grained Reasoning in Multimodal Models,f3576fe0eef3c50077108c11a2a33a0f5a97aa2f,https://github.com/HarveyYi/SaFeR-VLM
+SAGE: A Visual Language Model for Anomaly Detection via Fact Enhancement and Entropy-aware Alignment,9e35522b4650864058381cc79f2ecd9877e3acca,https://github.com/amoreZgx1n/SAGE
+SAKGR:Structure-Augmented Knowledge Graph Representations for Reasoning Over Large Language Models in Medical Question Answering,44db536b74f4cbc85ca35c1f48e23858ffc1952f,https://github.com/deeomnjobs/sakgr
+SAR-PMAE: Phase-Modulation-Guided Adversarial Example Generation for SAR Images,30ada34fda92259924a0811e1a242fc1c02136bf,https://github.com/muzhengcui/SAR-PMAE
+SATrans-Net: Sparse Attention Transformer for EEG-based motor imagery decoding,1d085ff93aab9545c294798456a54f4c1933160f,https://github.com/Jasmin-Tianhua/EEG-research_SATrans-Net
+SAVE: Sparse Autoencoder-Driven Visual Information Enhancement for Mitigating Object Hallucination,e64ce2a17674441490216c1227dce0de5fc32f57,https://github.com/wiarae/SAVE
+scIMGCN: an Automatic Single-Cell Type Annotation Method Based on Interpretable Graph Convolutional Network.,0e6478432b00c0fc4c8458f39a64c99eb84b7038,https://github.com/gladex/scIMGCN
+scMapNet: Marker-based cell type annotation of scRNA-seq data via vision transfer learning with tabular-to-image transformations.,0e7e3eac15378ec221577af9453ca007fc6df262,https://github.com/Yuz7/scMapNet
+SCRA-VQA: Summarized Caption-Rerank for Augmented Large Language Models in Visual Question Answering,11c5bf956262f40e7d647508e6330bc703aa9d7e,https://github.com/HubuKG/SCRA-VQA
+ScreenCoder: Advancing Visual-to-Code Generation for Front-End Automation via Modular Multimodal Agents,3aa4a9184a2787b4a26a4f32949a868157c065ae,https://github.com/leigest519/ScreenCoder
+Screen Detection from Egocentric Image Streams Leveraging Multi-View Vision Language Model.,58a37d39e3dbe74a33807a3c143dabc42206e97e,https://github.com/YGanLab/MV-VLM
+SCVBench: A Benchmark with Multi-turn Dialogues for Story-Centric Video Understanding,d139f86fd8fe2524381a0d34192fea0c66e1e338,https://github.com/yuanrr/SCVBench
+Seeing clearly with artificial intelligence: Brand and video measurement in focus,2f6f4930f55aa09bbbefc61b24dfdd455b2e84af,https://hstalks.com/business/
+Semantic-Metric Bayesian Risk Fields: Learning Robot Safety from Human Videos with a VLM Prior,d2273a8709117a47648d715f288153a421088f31,https://riskbayesian.github.io/bayesian_risk/
+Semantic Similarity in Radiology Reports via LLMs and NER,058bcbeee98b5723d6d51206c1c061e0faa2c235,https://github.com/otmive/llama_reports
+ShopSimulator: Evaluating and Exploring RL-Driven LLM Agent for Shopping Assistants,dcf6f1a01a3d9ef5ebb6f6852d6cb6753bc52cf1,https://github.com/ShopAgent-Team/ShopSimulator
+SIM-CoT: Supervised Implicit Chain-of-Thought,114d36118ab5ce4b06c63fd95cd79d86aef40f85,https://github.com/InternLM/SIM-CoT
+Simulation to Rules: A Dual-VLM Framework for Formal Visual Planning,39b9880bd29a89a0af1d3718eb8a3c045c8e9a69,https://sites.google.com/view/vlmfp
+SingLEM: Single-Channel Large EEG Model,6241da9f404b74891a91c2a1d9f33d6840808b7d,https://github.com/ttlabtuat/SingLEM
+Singular Value Few-shot Adaptation of Vision-Language Models,dd9368c90f3f9e8440425c8d1c476eef1a7409d2,https://github.com/HealthX-Lab/CLIP-SVD
+SMARTAPS: Tool-augmented LLMs for Operations Management,7e8ba01fcf8435512b75391fc78c155a130184ca,https://youtu.be/KtIrJjlDbyw
+Smart Eyes for Silent Threats: VLMs and In-Context Learning for THz Imaging,136e93e24008502cd35e76096505ef631ca8edb9,https://github.com/Nicolas-Poggi/Project_THz_Classification/tree/main}{GitHub
+SoK: a Comprehensive Causality Analysis Framework for Large Language Model Security,d9c9d3a06179155bbe94b8163082bbcc11e3bebe,https://github.com/Amadeuszhao/SOK_Casuality
+SPAR: Scholar Paper Retrieval with LLM-based Agents for Enhanced Academic Search,eb65a050c41465502bd9bbb0f66eb033a364ed36,https://github.com/xiaofengShi/SPAR
+Sparse Autoencoders Can Capture Language-Specific Concepts Across Diverse Languages,172f90c67ab9c4ccadee43d0d65218532b76b85b,https://github.com/LyzanderAndrylie/language-specific-features
+SpatialGeo: Boosting Spatial Reasoning in Multimodal LLMs via Geometry-Semantics Fusion,9f066732a0ad6ae6ad44d8ca6b22b469603dafbd,https://ricky-plus.github.io/SpatialGeoPages/
+Spatial-VLN: Zero-Shot Vision-and-Language Navigation With Explicit Spatial Perception and Exploration,494268ee399026c513812febc309a4fd2bff15f3,https://yueluhhxx.github.io/Spatial-VLN-web/
+SPEX: A Vision-Language Model for Land Cover Extraction on Spectral Remote Sensing Images,90a2ffbaa8e6953052d03e791ba9f7e45d76de45,https://github.com/MiliLab/SPEX
+Spherical Vision Transformers for Audio-Visual Saliency Prediction in 360-Degree Videos,7f8c7ff3ead0cf7764b1e040fbd5caae215d0cf5,https://cyberiada.github.io/SalViT360
+SPOT: Sparsification with Attention Dynamics via Token Relevance in Vision Transformers,958c90507771413314322fe139fc96c31b27d1fd,https://github.com/odedsc/SPOT
+SSR: Socratic Self-Refine for Large Language Model Reasoning,1df24e17ae1bd9e20fec4f200296e4de5ecaeea8,https://github.com/SalesforceAIResearch/socratic-self-refine-reasoning
+Step-by-Step Causality: Transparent Causal Discovery with Multi-Agent Tree-Query and Adversarial Confidence Estimation,03b0815074056c32d3626634891db2a2933a9e81,https://anonymous.4open.science/r/Repo-9B3E-4F96
+Step Potential Advantage Estimation: Harnessing Intermediate Confidence and Correctness for Efficient Mathematical Reasoning,1f6d279e86c8f1495b52a4a2465e3930b98905bb,https://github.com/cii030/SPAE-RL
+STLSP: Integrating Structure and Text with Large Language Models for Link Sign Prediction of Networks,5fdb0287d912b84ea6ed301431fd127bc706c1f4,https://github.com/sss483/STLSP
+ST-Raptor: LLM-Powered Semi-Structured Table Question Answering,38380170ee31390501a99fd7e6aef9f74dbd9dfc,https://github.com/weAIDB/ST-Raptor
+StreamingCoT: A Dataset for Temporal Dynamics and Multimodal Chain-of-Thought Reasoning in Streaming VideoQA,d582c2b0a9636a988df90440af673b335ca8402b,https://github.com/Fleeting-hyh/StreamingCoT
+Stream: Scaling up Mechanistic Interpretability to Long Context in LLMs via Sparse Attention,e1e2fceba9089e083a391212e7c60574188e12c8,https://anonymous.4open.science/r/stream-03B8/
+StreetMath: Study of LLMs' Approximation Behaviors,595547a93ab142dfb964f20ed8e19389b10fcc3a,https://github.com/ctseng777/StreetMath
+Studying Disinformation Narratives on Social Media with LLMs and Semantic Similarity,7b175b2aa5f0ab85e384dfb73cae31a36ad71a50,https://chaytanc.github.io/projects/disinfo-research
+StyleDecipher: Robust and Explainable Detection of LLM-Generated Texts with Stylistic Analysis,e6eade5309068deb0087ed01ed6fbcdad6312d08,https://github.com/SiyuanLi00/StyleDecipher
+Styx: A multi-language API Generator for Command-Line Tools,a7867fc18390a7f016a69d4332cb2c9a80785da1,https://github.com/styx-api
+SurgViVQA: Temporally-Grounded Video Question Answering for Surgical Scene Understanding,111da5fb76fc5fbd600607587432213b22722305,https://github.com/madratak/SurgViVQA
+SURPRISE3D: A Dataset for Spatial Understanding and Reasoning in Complex 3D Scenes,9fcfe6cfd5e6a16406e901b36502a8eb612277d7,https://github.com/liziwennba/SUPRISE
+SVGen: Interpretable Vector Graphics Generation with Large Language Models,c5b7ba98421af24c1b7b377e9500d7f660b3f404,https://github.com/gitcat-404/SVGen
+SynthGuard: An Open Platform for Detecting AI-Generated Multimedia with Multimodal LLMs,d452428f36975c4a68813db24cfd4d099cbec447,https://in-engr-nova.it.purdue.edu/
+Take That for Me: Multimodal Exophora Resolution with Interactive Questioning for Ambiguous Out-of-View Instructions,7b1def1f68b2101fcd2e86049deb12592bd17a9b,https://emergentsystemlabstudent.github.io/MIEL/
+Target and biomarker exploration portal for drug discovery,5ac68c772200b2ee43b4af5f31e1ef132a07fd22,https://tbep.missouri.edu
+Target and biomarker exploration portal for drug discovery,5ac68c772200b2ee43b4af5f31e1ef132a07fd22,https://github.com/mizzoudbl/tbep
+TARNET: A Framework for Text-Aware Retrieval of Network Events Tracking Using Instruction-Tuned Language Models,5e5e87d270fab687258fa41dc53dd176fe935380,https://github.com/Abishethvarman/ContextNetLLM
+Task automation and instructional planning support with large language models: a systematic review,4efd98c9fe027c84966123966b08c860096bd4cf,https://osf.io/v63nj/
+TCM-VisResolve: Multimodal Recognition of Dried Herbs and Clinical MCQ Answering in Traditional Chinese Medicine,8324e43d78126ed2b0bd5f5d9aadd920a880a485,https://huggingface.co/dylanyang963/TCM-VR
+TET Loss: A Temperature-Entropy Calibrated Transfer Loss for Reliable Medical Image Classification.,c3e0319620836fc3c8986c203eb82be704eb4f83,https://github.com/JEFfersusu/TET_loss
+Text-Guided Multi-Instance Learning for Scoliosis Screening via Gait Video Analysis,49cc88f1409ce56b00e22506682a465e0fca0ef9,https://github.com/lhqqq/TG-MILNet
+The Achilles' Heel of LLMs: How Altering a Handful of Neurons Can Cripple Language Abilities,29c1ffacc2f8a8fda5ab724b1f5156cbc6adba84,https://github.com/qqqqqqqzx/The-Achilles-Heel-of-LLMs
+The Gaining Paths to Investment Success: Information-Driven LLM Graph Reasoning for Venture Capital Prediction,79da23d856daac76b4f051523b8f09abd903e31f,https://anonymous.4open.science/r/MIRAGE-VC-323F
+The Harder The Better: Maintaining Supervised Fine-tuning Generalization with Less but Harder Data,e271765fd2060e6f088f09475daed4812a3054ef,https://github.com/DYJG-research/THTB
+The impact of tokenizer selection in genomic language models,2dd89664211440997a5c5531cd5689288254bae2,https://github.com/leannmlindsey/DNAtokenization
+The impact of tokenizer selection in genomic language models,2dd89664211440997a5c5531cd5689288254bae2,https://huggingface.co/datasets/leannmlindsey
+The Other Mind: How Language Models Exhibit Human Temporal Cognition,d6c30a8484c630344671969829ea01704a61810a,https://TheOtherMind.github.io
+The Paradigm Shift: A Comprehensive Survey on Large Vision Language Models for Multimodal Fake News Detection,6d3d68cf713f62048cf3849cf2a3612fd1abe11d,https://github.com/Tan-YiLong/Overview-of-Fake-News-Detection}{https://github.com/Tan-YiLong/Overview-of-Fake-News-Detection}
+The Reasoning Boundary Paradox: How Reinforcement Learning Constrains Language Models,82a1759629f4ec4b55b3326e86e5cf328d24cc64,https://github.com/mail-research/SELF-llm-interference
+The Why Behind the Action: Unveiling Internal Drivers via Agentic Attribution,0abb07ddd6b0d121c13d67cb41ac9648905e33b6,https://github.com/AI45Lab/AgentDoG
+The World According to LLMs: How Geographic Origin Influences LLMs' Entity Deduction Capabilities,3b57fe191542846461f1acb6789accda02dbecb9,https://sites.google.com/view/llmbias20q/home
+Think3D: Thinking with Space for Spatial Reasoning,3a2355e0d059b363989134812fab5af796a87daf,https://github.com/zhangzaibin/spagent
+Think Before You Segment: An Object-aware Reasoning Agent for Referring Audio-Visual Segmentation,f89f6b06fb8b2013f0d6f433cfafd70d6261dcb5,https://github.com/jasongief/TGS-Agent
+Thinking Like a Cardiologist: Unifying Patient Context and Spatiotemporal Dynamics via Heterogeneous Graph,e81f1c45ebe35f642e142056f9a3fbdffd6cd0b3,https://github.com/Cryostars/HeteroCardio
+Think-Reflect-Revise: A Policy-Guided Reflective Framework for Safety Alignment in Large Vision Language Models,152d32c896f35d8fa094917cf0d02ef9c526a9bd,https://think-reflect-revise.github.io/
+Tibetan-LLaMA 2: Large Language Model for Tibetan,1123cb119723e866d379da39e6501964bfda159a,https://github.com/Shajiu/Tibetan-LLaMA-2
+TIME: Temporally Intelligent Meta-reasoning Engine for Context Triggered Explicit Reasoning,3f7b17b1119173a4dd16e2aaa3b9be1fea680a83,https://github.com/The-Coherence-Initiative/TIME
+TIME: Temporally Intelligent Meta-reasoning Engine for Context Triggered Explicit Reasoning,3f7b17b1119173a4dd16e2aaa3b9be1fea680a83,https://github.com/The-Coherence-Initiative/TIMEBench
+To Case or Not to Case: An Empirical Study in Learned Sparse Retrieval,c56ebc74a1e5a6e568570f41b8acb42e729d2820,https://github.com/lionisakis/Uncased-vs-cased-models-in-LSR
+ToC: Tree-of-Claims Search with Multi-Agent Language Models,cbeaffb90e2bae84ffc2003a846f8139c1bf619b,https://github.com/ysy2003/ToC
+Toward Explaining Large Language Models in Software Engineering Tasks,10b7c5656f642cb5a3df236ab7a302433dc36198,https://github.com/deviserlab/FeatureSHAP
+Toward Faithful Retrieval-Augmented Generation with Sparse Autoencoders,2d92189149387769a68d4a2554ee84f268e831bd,https://github.com/Teddy-XiongGZ/RAGLens
+"Toward high-efficiency, low-resource, and explainable neuropeptide prediction with MSKDNP",b7bfddad264ec8326882ec6f4690034752ee6fc7,https://awi.cuhk.edu.cn/∼biosequence/MSKDNP/index.php
+Towards Comprehensive Benchmarking of Medical Vision Language Models,d514a6cddf5b2da9d4c8f1288c8f79fc5a6ba972,https://github.com/dimplek0424/MedVLMBenchPhase1
+Towards Explainable Educational QA: A Chain-of-Thought and Retrieval-Augmented Approach,a0dfd238892e17e3f3b17b0587d8407c69b71c3d,https://github.com/TranVanTinhUIT/xAI_EducationalQA_25
+Towards practical AI for agriculture: A self-supervised attention framework for Spinach leaf disease detection,0cc34858332c7dc0c9f2587b9a492f2d4adba94b,https://huggingface.co/datasets/saifullah03/malabar_spinach_leaf_disease_dataset
+Towards Real-Time Fake News Detection under Evidence Scarcity,4d5ba573e74d746a08fd4f7036ff6cd9d26f7ba7,https://github.com/wgyhhhh/EASE
+Towards Safeguarding LLM Fine-tuning APIs against Cipher Attacks,cf21a22f83e3530dbb819b531780ba3e70246be2,https://github.com/JackYoustra/safe-finetuning-api
+Towards Safer and Understandable Driver Intention Prediction,c287e6dbb78048e1f27ccb5f2c8dd4d250d8eb7e,https://mukil07.github.io/VCBM.github.io/
+Towards Unified Vision Language Models for Forest Ecological Analysis in Earth Observation,e423279d0f99c2214c83c44da5f16af0e6465e68,https://github.com/zhu-xlab/REO-Instruct}{REO-Instruct}
+Toxicity Red-Teaming: Benchmarking LLM Safety in Singapore's Low-Resource Languages,67f79d117aac1fc2b020435cd9c31130a9ed00de,https://github.com/Social-AI-Studio/SGToxicGuard.}
+TRACE: Textual Reasoning for Affordance Coordinate Extraction,fc404a7ddde0f8f87037dfb445cd3cf13c1e9a03,https://github.com/jink-ucla/TRACE
+Tracing Multilingual Representations in LLMs with Cross-Layer Transcoders,84e43009486077350eedcfe7688def19772fa518,https://huggingface.co/collections/CausalNLP/multilingual-clts
+Tracing Multilingual Representations in LLMs with Cross-Layer Transcoders,84e43009486077350eedcfe7688def19772fa518,https://huggingface.co/collections/CausalNLP/multilingual-gpt2-models
+Tracing Multilingual Representations in LLMs with Cross-Layer Transcoders,84e43009486077350eedcfe7688def19772fa518,https://github.com/abirharrasse/MultilingualCLTs
+Trading-R1: Financial Trading with LLM Reasoning via Reinforcement Learning,d9cb5bb3ef2a2f352ac571b7ead452a4256da192,https://github.com/TauricResearch/Trading-R1
+TrafficNetQA: Question Answering Datasets for Evaluating LLM Performance on Traffic Network Files,b720a88e5a8370ec07131dbf174700b97768d32e,https://github.com/UMN-Choi-Lab/TrafficNetQA
+Traffic-R1: Reinforced LLMs Bring Human-Like Reasoning to Traffic Signal Control Systems,95d8c3e6b48ce53bfc645bacac254fdf9429dbf4,https://huggingface.co/Season998/Traffic-R1
+Training-Free and Interpretable Hateful Video Detection via Multi-stage Adversarial Reasoning,9ccec4c2d934a093ab02051b1b12525b8ab7a0d7,https://github.com/Multimodal-Intelligence-Lab-MIL/MARS
+Training-Free Time Series Classification via In-Context Reasoning with LLM Agents,84fd0f0b9e1f9c4f7bcc55913aadcad7e213fc54,https://github.com/SongyuanSui/FETATSC
+Training Language Models to Explain Their Own Computations,2f967d2b86217368a36511d082ae465de04980c2,https://github.com/TransluceAI/introspective-interp
+TrajEvo: Trajectory Prediction Heuristics Design via LLM-driven Evolution,215440b63079e0a3bcd931d482fee039a110f731,https://github.com/ai4co/trajevo
+TransFactor—prediction of pro-viral SARS-CoV-2 host factors using a protein language model,db4d20e531a0143337f21adffcafde819b91c622,https://github.com/marsico-lab/TransFactor
+TransFactor—prediction of pro-viral SARS-CoV-2 host factors using a protein language model,db4d20e531a0143337f21adffcafde819b91c622,https://doi.org/10.5281/zenodo.16793684
+Trans-XFed: An Explainable Federated Learning for Supply Chain Credit Assessment,a8fbae333a2d049f0d385b3890a7915dff8cda44,https://github.com/JieJieNiu/Trans-XFed
+Tree of Agents: Improving Long-Context Capabilities of Large Language Models through Multi-Perspective Reasoning,4e62794c40bd51c7c9b015270adb1ae7c9b42f23,https://github.com/Aireduce952/Tree-of-Agents
+TriAgent: Automated Biomarker Discovery with Deep Research Grounding for Triage in Acute Care by LLM-Based Multi-Agent Collaboration,ad263de3d074a43ac99936071271eaafe5289fd0,https://github.com/CellFace/TriAgent
+TRIDE: A Text-assisted Radar-Image weather-aware fusion network for Depth Estimation,55231bf205e00db4e4081c9a31bac76a2b3c8eab,https://github.com/harborsarah/TRIDE
+TRivia: Self-supervised Fine-tuning of Vision-Language Models for Table Recognition,6cf405437b06c72146ad710f671ec856a645e575,https://github.com/opendatalab/TRivia
+Truth or Trick? A Vietnamese Dataset of Adversarial Logic in Geometry,ef5eecbab8b2ebe9f6f17e2a8f5faa16fef40ce4,https://huggingface.co/datasets/longndh/ViGeoTrap
+TruthTensor: Evaluating LLMs through Human Imitation on Prediction Market under Drift and Holistic Reasoning,a3846e88d8f7aa7d19b1ec6b7d90b5fac704b007,https://truthtensor.com
+TULIP: Contrastive Image-Text Learning with Richer Vision Understanding,debfeb4ffe62675727cb6eb56cd4fe6095bb2000,https://tulipberkeley.github.io
+TurnBack: A Geospatial Route Cognition Benchmark for Large Language Models through Reverse Route,e7844d3bf3530a932ecbcf8ebc6a7fb114b7d537,https://github.com/bghjmn32/EMNLP2025_Turnback}{TurnBack.}
+UAVBench: An Open Benchmark Dataset for Autonomous and Agentic AI UAV Systems via LLM-Generated Flight Scenarios,eee9d9d095cd54df6b05532087dcce1d0e8d7e06,https://github.com/maferrag/UAVBench
+UGTformer: a pretrained graph transformer model for predicting UDP-glucuronosyltransferase-mediated drug metabolism.,858ba0fe1427fcedeec49353b8b919025b547fa9,https://lmmd.ecust.edu.cn/UGTformer/
+UIL-AQA: Uncertainty-Aware Clip-Level Interpretable Action Quality Assessment,e1178f30ffca60a60b1502fafe496989e2293b0c,https://github.com/dx199771/Interpretability-AQA
+UME-R1: Exploring Reasoning-Driven Generative Multimodal Embeddings,a71465a257a96eec8547215918d466e6208f6b94,https://github.com/XMUDeepLIT/UME-R1
+Uncovering the Fragility of Trustworthy LLMs through Chinese Textual Ambiguity,2ec4bc0586b0959e2240ab7ba8f6aa4a784aa7e6,https://github.com/ictup/LLM-Chinese-Textual-Disambiguation
+Understanding Multi-View Transformers,af20eb81ac52a6622a00329f78c2c50daf5472d7,https://github.com/JulienGaubil/und3rstand
+Uni3R: Unified 3D Reconstruction and Semantic Understanding via Generalizable Gaussian Splatting from Unposed Multi-View Images,2bb06d819613740b14a36c9f665cbe12eeaf2fbb,https://github.com/HorizonRobotics/Uni3R
+UniCog: Uncovering Cognitive Abilities of LLMs through Latent Mind Space Analysis,bef78c3473d981c49cc332257c66b1c5054389ac,https://github.com/milksalute/unicog
+Uni-cot: Towards Unified Chain-of-Thought Reasoning Across Text and Vision,369129607bd707a6232435c55f231c5d39c4574b,https://sais-fuxi.github.io/projects/uni-cot/
+UniECG: Understanding and Generating ECG in One Unified Model,098592c202dea9615b58e2c486a193926b5482ac,https://github.com/PKUDigitalHealth/UniECG
+UniLumos: Fast and Unified Image and Video Relighting with Physics-Plausible Feedback,177cadbc69eb91cfd45c54e35ef1333cd956022d,https://github.com/alibaba-damo-academy/Lumos-Custom
+UniVA: Universal Video Agent towards Open-Source Next-Generation Video Generalist,c33f21fd4872f5842a7abc8a028811debb7ec8bb,https://univa.online/
+Unlocking Interpretability for RF Sensing: A Complex-Valued White-Box Transformer,168f363d8544c176a96b41d624b6907fc96d40b5,https://github.com/rfcrate/RF_CRATE
+Untangling Input Language from Reasoning Language: A Diagnostic Framework for Cross-Lingual Moral Alignment in LLMs,a933b18e05bae45a78001645ccdf83fbaa24d883,https://anonymous.4open.science/r/CrossCulturalMoralJudgement
+Unveiling Fine-grained Deceptive Patterns in Multi-modal Fake News: An Explainable Neuro-Symbolic Framework with LVLMs.,3a90bcf703b8b760e121dde41fb5abfe8dc93079,https://github.com/hedongxiao-tju/GE-NSLM
+Unveiling the Vulnerability of Graph-LLMs: An Interpretable Multi-Dimensional Adversarial Attack on TAGs,70034b4f42b0e06b82a6663e8d62c482b0baf97d,https://anonymous.4open.science/r/IMDGA-7289
+UQ: Assessing Language Models on Unsolved Questions,9b02185225b405bc08785a2cc048df611328e6ff,https://uq.stanford.edu
+Urban Perception Analysis via Transformer-Based Image Segmentation: A Deep Dive Into City Understanding,cd2fa23cdfa16842bf9496ee8b7f1c4fad35294e,https://github.com/danhntd/UPFormer
+UXSim: Towards a Hybrid User Search Simulation,2266fd7a0b0590c61e38c95506e81356fd6e235f,https://searchsim.org/uxsim
+VADTree: Explainable Training-Free Video Anomaly Detection via Hierarchical Granularity-Aware Tree,820d2d211c94d483b5f6f6554a4c0d40a60e7775,https://github.com/wenlongli10/VADTree
+V-Agent: An Interactive Video Search System Using Vision-Language Models,f245389d7284e6effa2d5d0fbcf4d59c4258d948,https://huggingface.co/NCSOFT/multimodal-embedding
+Variational Reasoning for Language Models,51357ff32df3924f29e550aaf71c9882c2b99348,https://github.com/sail-sg/variational-reasoning
+Vector Symbolic Algebras for the Abstraction and Reasoning Corpus,0f85193fc9cf6a89b4bfb4a0c4581dde89a3226d,https://github.com/ijoffe/ARC-VSA-2025
+ViConEx-Med: Visual Concept Explainability via Multi-Concept Token Transformer for Medical Image Analysis,da8dff5f85d03031d99302717c8c7c024b80a48a,https://github.com/CristianoPatricio/viconex-med
+Video-CoM: Interactive Video Reasoning via Chain of Manipulations,fdb0219b1e3daa0e8a29d11ca2e2951353e6283b,https://github.com/mbzuai-oryx/Video-CoM
+Video-LevelGauge: Investigating Contextual Positional Bias in Large Video Language Models,708557b322446c70a72d49e3775e036fea70d160,https://github.com/Cola-any/Video-LevelGauge
+Video-MSR: Benchmarking Multi-hop Spatial Reasoning Capabilities of MLLMs,40355950adf88a7c0945e4eac4b1290ca7dca926,https://github.com/ruiz-nju/Video-MSR
+VidGuard-R1: AI-Generated Video Detection and Explanation via Reasoning MLLMs and RL,c2cf8a8206a6c7045aed0a2799c3ab20d8311f17,https://VidGuard-R1.github.io
+ViralQuest: A user-friendly interactive pipeline for viral-sequences analysis and curation,e30bb46633c76803abae684b7d9a02436634df79,https://github.com/gabrielvpina/viralquest/
+Vision-Language Agents for Interactive Forest Change Analysis,64e8943bebfd7b81b84985eda80c90bb6902a809,https://github.com/JamesBrockUoB/ForestChat
+Vision-language model approach for few-shot learning of attention deficit hyperactivity disorder using EEG connectivity-based featured images,5564b982704100ff0149c644eba12ef7af10d998,https://github.com/miralab-ai/vlm-few-shot-eeg
+Vision-Language Model-Based Semantic-Guided Imaging Biomarker for Lung Nodule Malignancy Prediction,6267387c787c59451b779728daca75922d804d8a,https://github.com/luotingzhuang/CLIP_nodule
+Vision-Language-Policy Model for Dynamic Robot Task Planning,ff8efb7913ea595217fde0876dc18247043be8ee,https://robovlp.github.io/
+Vision-skeleton dual-modality framework for generalizable assessment of Parkinson's disease gait,5990f5edaee056dced8c7f08fd9b713299d5f941,https://github.com/FJNU-LWP/PD-gait-VSDF
+Visualizing LLM Latent Space Geometry Through Dimensionality Reduction,70b931fe9d71b3c16aa177402f3fd3e38a799940,https://github.com/Vainateya/Feature_Geometry_Visualization
+VisualTrans: A Benchmark for Real-World Visual Transformation Reasoning,60278b88a4bd8ffb67d478da827d6cc3cedea225,https://github.com/WangYipu2002/VisualTrans
+VLA-Touch: Enhancing Vision-Language-Action Models with Dual-Level Tactile Feedback,090f7a90906b23d7ecfa990122a97b5c2f5122be,https://github.com/jxbi1010/VLA-Touch}{this
+VLegal-Bench: Cognitively Grounded Benchmark for Vietnamese Legal Reasoning of Large Language Models,6b1584fd2b0835b06e792268ab3cdf1515dffb97,https://vilegalbench.cmcai.vn/
+VLM-SlideEval: Evaluating VLMs on Structured Comprehension and Perturbation Sensitivity in PPT,e2017a159a15c9d13b2bd5965c230c44d5c6051c,https://huggingface.co/datasets/Forceless/Zenodo10K/viewer/default/pptx
+VLM-UDMC: VLM-Enhanced Unified Decision-Making and Motion Control for Urban Autonomous Driving,3949de687b3a93ea2748b11bada160bca45ae3ea,https://github.com/henryhcliu/vlmudmc.git
+VL-SAE: Interpreting and Enhancing Vision-Language Alignment with a Unified Concept Set,2885ee24025446678e44ab1eea2f6d59c5329a32,https://github.com/ssfgunner/VL-SAE
+VLSM-Ensemble: Ensembling CLIP-based Vision-Language Models for Enhanced Medical Image Segmentation,6a43afafc6aa96a76a98661281135d7355444685,https://github.com/juliadietlmeier/VLSM-Ensemble
+Vocabulary-Free Fine-Grained Visual Recognition via Enriched Contextually Grounded Vision-Language Model,33a16bc4ffc20d9bde55545ae5a80b757f6cb1a4,https://github.com/demidovd98/e-finer
+VOST-SGG: VLM-Aided One-Stage Spatio-Temporal Scene Graph Generation,542de85f4ed8c612a5534cb467cd619081687d4e,https://github.com/LUNAProject22/VOST
+VQArt-Bench: A Semantically Rich VQA Benchmark for Art and Cultural Heritage,acccc7ef0f33f234ecd0e5e339619f715548ef39,https://github.com/AlfaranoAndrea/VQArt-Bench
+V-SEAM: Visual Semantic Editing and Attention Modulating for Causal Interpretability of Vision-Language Models,2f0465b80c67e22a303fb01521af783d5abc2a11,https://github.com/petergit1/V-SEAM
+VTimeCoT: Thinking by Drawing for Video Temporal Grounding and Reasoning,8fb861935909c9f4bbd1841208d39bcd31c0967e,https://vtimecot.github.io
+Watch the Weights: Unsupervised monitoring and control of fine-tuned LLMs,94e242b24818f181d73778f45446d05d5b5d0460,https://github.com/fjzzq2002/WeightWatch
+What do you see? An XAI approach for VLM-generated map descriptions,aa5a562dd0a905d7f28a7debc339b7d6e94e8dad,https://github.com/grndng/CartoXAI
+What Generative Search Engines Like and How to Optimize Web Content Cooperatively,22d796264cd6fedb401827eef3d509dbaf4d14d0,https://github.com/cxcscmu/AutoGEO
+What If : Understanding Motion Through Sparse Interactions,5a250f47b27949aac01be3b8fcc17bbbbb3c1672,https://compvis.github.io/flow-poke-transformer
+"What Makes ""Good"" Distractors for Object Hallucination Evaluation in Large Vision-Language Models?",a9bfd181fcf11d70b383f1143dbf2b844eae9efb,https://github.com/xiemk/HOPE
+When Judgment Becomes Noise: How Design Failures in LLM Judge Benchmarks Silently Undermine Validity,0823483fa9cde0aaa04c1c1ae9696ee0e273430e,https://github.com/penfever/judgment-to-noise
+"When Large Language Models Meet Law: Dual-Lens Taxonomy, Technical Advances, and Ethical Governance",95a95f498fc3dacdfd61cb32c52603fb6c188386,https://github.com/Kilimajaro/LLMs_Meet_Law
+When to Invoke: Refining LLM Fairness with Toxicity Assessment,e1dcea7dc35ff8cfd223f1a91839196a12e11b0e,https://aisuko.github.io/fair-tot/
+When Tone and Words Disagree: Towards Robust Speech Emotion Recognition under Acoustic-Semantic Conflict,efecd2e76e854403a4d18429aa47d4f59ea16761,https://github.com/24DavidHuang/FAS
+When to Trust the Answer: Question-Aligned Semantic Nearest Neighbor Entropy for Safer Surgical VQA,d0fd5995715bbdef2f253f6c3ad101b3ee46e041,https://github.com/DennisPierantozzi/QASNNE
+When Words Can't Capture It All: Towards Video-Based User Complaint Text Generation with Multimodal Video Complaint Dataset,6fd52d612da8e7b7bc10152d21336598d70571f3,https://github.com/sarmistha-D/CoD-V
+Where on Earth? A Vision-Language Benchmark for Probing Model Geolocation Skills Across Scales,ff94e361063226245fc5547ead5983fb1e7e2ed5,https://github.com/UCSC-VLAA/EarthWhere
+WP-CLIP: Leveraging CLIP to Predict Wölfflin's Principles in Visual Art,e8f3373157aa12d324c15468d201c43cec06c749,https://github.com/abhijay9/wpclip
+XBench: A Comprehensive Benchmark for Visual-Language Explanations in Chest Radiography,d4a370176e5324020e2775c61ad47f7f2af4428c,https://github.com/Roypic/Benchmarkingattention
+xBitterT5: an explainable transformer-based framework with multimodal inputs for identifying bitter-taste peptides,bbffee4aaf78fd0813b83b0d003171a1687ce39a,https://balalab-skku.org/xBitterT5/
+xBitterT5: an explainable transformer-based framework with multimodal inputs for identifying bitter-taste peptides,bbffee4aaf78fd0813b83b0d003171a1687ce39a,https://github.com/cbbl-skku-org/xBitterT5/
+X-CoT: Explainable Text-to-Video Retrieval via LLM-based Chain-of-Thought Reasoning,fc5ec22f155294b1569d3bb8f0f88ffa39b44630,https://github.com/PrasannaPulakurthi/X-CoT
+X-MuTeST: A Multilingual Benchmark for Explainable Hate Speech Detection and A Novel LLM-consulted Explanation Framework,24149130263244fddf9d3ab95456cda0cc4c9934,https://github.com/ziarehman30/X-MuTeST
+X-Node: Self-Explanation is All We Need,1a3b72dcab13e3ba78595706e42a7124a9cdfdba,https://github.com/basiralab/X-Node
+"XRepair - Unifying Retrieval, Repair, and Evaluation for Explainable LLM-Based Vulnerability Fixes",00aa1543e8f9435d1ec16d79804536d8e924e3c7,https://youtu.be/5IcGzNJXAY
+X-Teaming Evolutionary M2S: Automated Discovery of Multi-turn to Single-turn Jailbreak Templates,0e5a4c20eaf092b72ece78a13fbe32849f3719d2,https://github.com/hyunjun1121/M2S-x-teaming
+X-Troll: eXplainable Detection of State-Sponsored Information Operations Agents,f05c9543a49528dc8996d2efa25c206e5ea23b1e,https://github.com/ltian678/xtroll_source/
+YaPO: Learnable Sparse Activation Steering Vectors for Domain Adaptation,72ab4cba2f2ea7feb7721510fc5abd63ad1cdbe1,https://github.com/MBZUAI-Paris/YaPO}
+YingVideo-MV: Music-Driven Multi-Stage Video Generation,07d0d3c3ece5967342d2b70c8ce26160f2ebd430,https://giantailab.github.io/YingVideo-MV/
+ZARA: Zero-shot Motion Time-Series Analysis via Knowledge and Retrieval Driven LLM Agents,fcdc680b8e8b1d11177c6a10b4aacd708a563c14,https://github.com/zechenli03/ZARA
+Zero-Effort Image-to-Music Generation: An Interpretable RAG-based VLM Approach,780154545a4799ca880dc7c3d561a97f5296b94b,https://github.com/RS2002/Image2Music
+Zero-Shot Multimodal Compound Expression Recognition Approach Using Off-the-Shelf Large Visual-Language Models,e6a54b0db221a8c9b1593106658c2abac0a9e704,https://github.com/SMIL-SPCRAS/ICCVW_25
+Zero-Shot Sparse Mixture of Low-Rank Experts Construction From Pre-Trained Foundation Models,e7e87f88c84c5af5d3102ab8c94ec833ba4c7976,https://github.com/tanganke/fusion_bench
+ZhiFangDanTai: Fine-tuning Graph-based Retrieval-Augmented Generation Model for Traditional Chinese Medicine Formula,bdf3e94f52ea99a40d5790c62ce0dd4d8e4eb4f8,https://huggingface.co/tczzx6/ZhiFangDanTai1.0
