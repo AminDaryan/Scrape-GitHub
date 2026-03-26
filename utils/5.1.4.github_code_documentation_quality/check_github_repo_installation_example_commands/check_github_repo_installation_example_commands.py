@@ -1,0 +1,1166 @@
+# =============================================================================
+# usage_examples_checker.py
+#
+# PURPOSE:
+#   For each academic paper in your database, this script visits the paper's
+#   GitHub repository and finds ALL usage examples present (Jupyter notebooks,
+#   demo scripts, README code snippets, tutorial files, etc.).
+#
+#   Each found example is recorded individually with:
+#     - its file path inside the repo
+#     - the example type (notebook / example script / README code snippet / …)
+#     - a one-line description of what it demonstrates
+#     - a direct clickable GitHub link
+#
+# HOW IT WORKS — high-level flow:
+#   1. Read the list of papers (title + GitHub URL) from papers_from_database.py
+#   2. For each repo, download the README, docs, ALL notebooks, and any
+#      example/tutorial/demo files via the GitHub API (no cloning needed).
+#   3. Send that content to an LLM and ask it to list EVERY usage example found.
+#   4. If the LLM is unsure, fetch more files and retry automatically.
+#   5. Save two Excel sheets:
+#        "Results"      — one row per paper (summary + all example links)
+#        "All Examples" — one row per individual example file (for easy browsing)
+#
+# REQUIREMENTS:
+#   pip install openai openpyxl python-dotenv
+#
+# ENVIRONMENT VARIABLES (put these in a .env file next to this script):
+#   GITHUB_TOKEN   — optional but strongly recommended (raises GitHub rate limit
+#                    from 60 to 5,000 API requests per hour).
+#   OPENAI_API_KEY — only needed if you are NOT using Azure OpenAI.
+#   OPENAI_MODEL   — only needed if you are NOT using Azure OpenAI.
+# =============================================================================
+
+import os
+import re
+import sys
+import time
+import base64
+import json
+import urllib.parse
+from pathlib import Path
+from collections import Counter
+from urllib.request import urlopen, Request
+from urllib.error import HTTPError, URLError
+from dotenv import load_dotenv
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
+
+load_dotenv()
+
+# =============================================================================
+# IMPORTS — papers list and LLM client
+# =============================================================================
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+from papers_from_database import PAPERS
+
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
+
+try:
+    sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
+    from openai_client import client, AZURE_OPENAI_DEPLOYMENT as DEPLOYMENT
+except ImportError:
+    import openai
+    client     = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
+    DEPLOYMENT = os.getenv("OPENAI_MODEL", "gpt-4o")
+
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+# Named documentation files we always want to fetch (compared in lowercase).
+TARGET_FILENAMES = {
+    "readme.md", "readme.rst", "readme.txt", "readme",
+    "usage.md", "usage.rst", "usage.txt",
+    "quickstart.md", "quick_start.md", "quick-start.md",
+    "tutorial.md", "tutorials.md",
+    "examples.md", "example.md",
+    "demo.md",
+    "getting_started.md", "getting-started.md",
+    "docs/usage.md", "docs/quickstart.md", "docs/tutorial.md",
+    "docs/examples.md", "docs/demo.md", "docs/getting_started.md",
+    "pyproject.toml", "setup.cfg",
+}
+
+# File extensions that are always usage examples by definition — we fetch ALL
+# of them regardless of where they live in the repo (not capped like before).
+USAGE_EXTENSIONS = {".ipynb", ".rmd", ".qmd"}
+
+# Extensions of plain example/demo scripts we also want to collect
+SCRIPT_EXTENSIONS = {".py", ".r", ".sh", ".bash", ".m", ".jl"}
+
+# Folder names whose entire contents are example/usage material
+EXAMPLE_FOLDER_PREFIXES = ("examples/", "tutorials/", "demo/", "demos/",
+                            "notebooks/", "notebook/", "scripts/", "sample/", "samples/")
+
+# Maximum characters sent to the LLM per request
+MAX_CONTENT_CHARS = 120_000
+
+# Maximum number of notebooks to fully fetch (summarised) in one pass.
+# We raised this from 5 → 20 so fewer notebooks are "skipped".
+MAX_NOTEBOOKS = 20
+
+# Maximum number of example scripts to fetch per pass
+MAX_SCRIPTS = 15
+
+
+# =============================================================================
+# GITHUB API HELPERS
+# =============================================================================
+
+def parse_github_repo(url):
+    """
+    Extract (owner, repo) from a GitHub URL.
+    Returns (None, None) if the URL is not a recognisable GitHub repo URL.
+    """
+    match = re.search(r"github\.com/([^/]+)/([^/?.#]+)", url)
+    if match:
+        owner = match.group(1)
+        repo  = match.group(2).rstrip("/")
+        if repo.endswith(".git"):
+            repo = repo[:-4]
+        return owner, repo
+    return None, None
+
+
+def is_github(url):
+    return "github.com" in url
+
+
+def github_get(path):
+    """
+    GET a GitHub REST API endpoint and return parsed JSON, or None on error.
+    Raises RuntimeError when the rate limit is hit so the caller can bail out.
+    """
+    url     = f"https://api.github.com/{path.lstrip('/')}"
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    if GITHUB_TOKEN:
+        headers["Authorization"] = f"token {GITHUB_TOKEN}"
+    req = Request(url, headers=headers)
+    try:
+        with urlopen(req, timeout=10) as r:
+            return json.loads(r.read().decode())
+    except HTTPError as e:
+        if e.code == 403:
+            raise RuntimeError(
+                "GitHub API rate limit hit. Set GITHUB_TOKEN in .env or wait an hour."
+            )
+        return None
+    except URLError:
+        return None
+
+
+def list_all_repo_files(owner, repo):
+    """
+    Return every file blob in the repo using the recursive Git Trees API.
+    This is a single API call regardless of repo size.
+    """
+    data = github_get(f"repos/{owner}/{repo}/git/trees/HEAD?recursive=1")
+    if not data or "tree" not in data:
+        return []
+    return [item for item in data["tree"] if item.get("type") == "blob"]
+
+
+def fetch_file_content(owner, repo, file_path):
+    """Download one file and return its UTF-8 text, or None on failure."""
+    data = github_get(f"repos/{owner}/{repo}/contents/{file_path}")
+    if not data or "content" not in data:
+        return None
+    try:
+        return base64.b64decode(data["content"]).decode("utf-8", errors="ignore")
+    except Exception:
+        return None
+
+
+def summarise_notebook(raw_json_text, max_chars=8_000):
+    """
+    Distil a Jupyter notebook JSON into a compact plain-text block containing
+    only code cells, markdown cells, and short text outputs.
+
+    This strips base64-encoded images, widget state, and kernel metadata that
+    would waste context-window tokens without helping the LLM.
+    """
+    try:
+        nb = json.loads(raw_json_text)
+    except Exception:
+        return raw_json_text[:max_chars]
+
+    lines = []
+    for cell in nb.get("cells", []):
+        ct  = cell.get("cell_type", "")
+        src = "".join(cell.get("source", []))
+        if not src.strip():
+            continue
+        if ct == "code":
+            lines.append(f"[CODE]\n{src}")
+            for out in cell.get("outputs", []):
+                text = "".join(out.get("text", []))
+                if text and len(text) < 500:
+                    lines.append(f"[OUTPUT]\n{text}")
+        elif ct == "markdown":
+            lines.append(f"[MARKDOWN]\n{src}")
+
+    return "\n\n".join(lines)[:max_chars]
+
+
+def collect_repo_content(owner, repo):
+    """
+    Download all files that could contain usage examples and combine them into
+    one large text string for the LLM.
+
+    What we collect (in priority order so the most important files get the most
+    character budget):
+        1. Root README
+        2. Other named documentation files (usage.md, quickstart.md, …)
+        3. ALL markdown/rst files inside docs/, examples/, tutorials/, demo/, …
+        4. ALL notebooks (.ipynb / .Rmd / .qmd) — up to MAX_NOTEBOOKS
+        5. Example/demo Python/shell scripts — up to MAX_SCRIPTS
+
+    Returns:
+        content_string   — everything joined into one big string for the LLM
+        fetched_paths    — list of paths successfully downloaded
+        all_example_meta — list of dicts describing every example-like file
+                           found in the repo tree (even ones not fetched due
+                           to the char budget), used later to build links.
+                           Each dict: {"path": str, "kind": "notebook"|"script"|"doc"}
+    """
+    all_files = list_all_repo_files(owner, repo)
+    if not all_files:
+        return "", [], []
+
+    docs_paths     = []   # named documentation files
+    notebook_paths = []   # .ipynb / .Rmd / .qmd files
+    script_paths   = []   # example/demo scripts
+
+    for f in all_files:
+        fpath     = f["path"]
+        fpath_low = fpath.lower()
+        basename  = fpath_low.split("/")[-1]
+        ext       = "." + basename.rsplit(".", 1)[-1] if "." in basename else ""
+
+        # Notebooks anywhere in the tree
+        if ext in USAGE_EXTENSIONS:
+            notebook_paths.append(fpath)
+
+        # Named doc files
+        elif fpath_low in TARGET_FILENAMES or basename in TARGET_FILENAMES:
+            docs_paths.append(fpath)
+
+        # Markdown inside special folders
+        elif any(fpath_low.startswith(p) for p in EXAMPLE_FOLDER_PREFIXES):
+            if ext in (".md", ".rst", ".txt"):
+                docs_paths.append(fpath)
+            elif ext in SCRIPT_EXTENSIONS:
+                script_paths.append(fpath)
+
+        # Script files whose name suggests they are examples
+        elif ext in SCRIPT_EXTENSIONS and any(
+            kw in basename for kw in
+            ["example", "demo", "tutorial", "quickstart", "sample", "run_", "test_usage"]
+        ):
+            script_paths.append(fpath)
+
+    # Sort docs: root README first, then other root-level files, then nested
+    def doc_sort(p):
+        pl = p.lower()
+        if pl in ("readme.md", "readme.rst", "readme.txt", "readme"):
+            return 0
+        if "/" not in pl:
+            return 1
+        return 2
+
+    docs_paths.sort(key=doc_sort)
+
+    # Sort notebooks and scripts: shallowest first (root-level ones are most
+    # likely to be the "main" usage example)
+    notebook_paths.sort(key=lambda p: (p.count("/"), p.lower()))
+    script_paths.sort(key=lambda p: (p.count("/"), p.lower()))
+
+    # Build the metadata list for ALL example-like files (even unfetched ones),
+    # so we can produce GitHub links for every one of them later.
+    all_example_meta = (
+        [{"path": p, "kind": "notebook"} for p in notebook_paths] +
+        [{"path": p, "kind": "script"}   for p in script_paths]
+    )
+
+    # Cap how many we actually fetch to stay within the character budget
+    notebooks_to_fetch = notebook_paths[:MAX_NOTEBOOKS]
+    scripts_to_fetch   = script_paths[:MAX_SCRIPTS]
+
+    fetched     = []
+    combined    = []
+    total_chars = 0
+
+    # ── 1. Fetch documentation files ─────────────────────────────────────────
+    for file_path in docs_paths:
+        if total_chars >= MAX_CONTENT_CHARS:
+            break
+        content = fetch_file_content(owner, repo, file_path)
+        if content:
+            snippet = content[: MAX_CONTENT_CHARS - total_chars]
+            combined.append(f"### FILE: {file_path}\n{snippet}")
+            total_chars += len(snippet)
+            fetched.append(file_path)
+        time.sleep(0.15)
+
+    # ── 2. Fetch and summarise notebooks ─────────────────────────────────────
+    remaining     = MAX_CONTENT_CHARS - total_chars
+    budget_per_nb = min(8_000, remaining // max(len(notebooks_to_fetch), 1))
+
+    for nb_path in notebooks_to_fetch:
+        if total_chars >= MAX_CONTENT_CHARS:
+            break
+        raw = fetch_file_content(owner, repo, nb_path)
+        if raw:
+            summary = summarise_notebook(raw, max_chars=budget_per_nb)
+            combined.append(f"### NOTEBOOK: {nb_path}\n{summary}")
+            total_chars += len(summary)
+            fetched.append(nb_path)
+        time.sleep(0.15)
+
+    # ── 3. Fetch example scripts ──────────────────────────────────────────────
+    for sc_path in scripts_to_fetch:
+        if total_chars >= MAX_CONTENT_CHARS:
+            break
+        content = fetch_file_content(owner, repo, sc_path)
+        if content:
+            snippet = content[: min(4_000, MAX_CONTENT_CHARS - total_chars)]
+            combined.append(f"### SCRIPT: {sc_path}\n{snippet}")
+            total_chars += len(snippet)
+            fetched.append(sc_path)
+        time.sleep(0.15)
+
+    return "\n\n".join(combined), fetched, all_example_meta
+
+
+# =============================================================================
+# LLM PROMPTS
+# =============================================================================
+# KEY CHANGE: every prompt now asks for `example_files` — a LIST of objects,
+# one per example found — instead of a single `example_file` string.
+# Each object has: path, type, description.
+
+SYSTEM_PROMPT = """\
+You are an expert code reviewer analysing GitHub repositories for academic papers.
+
+Your task: find ALL usage examples in the repository — content that shows HOW
+TO USE the code or model, beyond just installing it.
+
+Usage examples include:
+  - Jupyter / R Markdown / Quarto notebooks (.ipynb / .Rmd / .qmd)
+  - Example or demo scripts (example.py, demo.py, run_example.sh, …)
+  - Code snippets in the README that demonstrate the API or CLI
+  - A "Quick-start" or "Usage" section in the README containing runnable code
+  - Command-line usage examples with flags/arguments shown
+  - Tutorial files or a tutorials/ / examples/ / demo/ folder
+
+Does NOT count as a usage example:
+  - Installation instructions alone (pip install X)
+  - Abstract or paper description
+  - Citation / BibTeX blocks
+  - API reference lists with no example calls
+
+CONFIDENCE RULES:
+  - Use "high"   in almost all cases.
+  - Use "medium" ONLY if the content was clearly truncated mid-sentence.
+  - Use "low"    ONLY if absolutely no files were fetched.
+
+Respond with a JSON object ONLY — no extra text, no markdown fences:
+{
+  "has_usage_examples": true | false,
+  "confidence": "high" | "medium" | "low",
+  "evidence": "<one sentence summarising what you found overall>",
+  "example_types": ["distinct", "types", "found"],
+  "example_files": [
+    {
+      "path": "<exact file path as it appears in the ### FILE / ### NOTEBOOK / ### SCRIPT header>",
+      "type": "<one of: notebook | example script | README code snippet | CLI usage | tutorial file | quickstart guide | other>",
+      "description": "<one sentence: what this specific file demonstrates>"
+    }
+  ]
+}
+
+IMPORTANT rules for example_files:
+  - List EVERY individual example file you found — do not stop at one.
+  - For a README that contains multiple distinct usage sections, list it once
+    with type "README code snippet".
+  - For each notebook or script file, list it as its own entry.
+  - If no examples exist, use an empty list [].
+  - Paths must be copied EXACTLY from the file headers above (e.g. "README.md",
+    "examples/demo.ipynb") — do not invent or guess paths.
+
+Return ONLY valid JSON. No explanation, no markdown, no preamble.
+"""
+
+RETRY_SYSTEM_PROMPT = """\
+You are an expert code reviewer. A previous analysis of this repository returned
+uncertain confidence. Re-examine the content and list ALL usage examples found.
+
+Hard rules:
+  - Every .ipynb / .Rmd / .qmd file IS a usage example — list each one.
+  - A README code block (``` fences) showing how to call the library → list it.
+  - An examples/, tutorials/, or demo/ directory mentioned in the README → list
+    the folder as one entry of type "demo folder".
+  - A purely abstract / citation README with zero runnable content → empty list.
+  - You MUST return "high" confidence. Only "medium" if genuinely mid-truncation.
+
+Respond with a JSON object ONLY:
+{
+  "has_usage_examples": true | false,
+  "confidence": "high",
+  "evidence": "<one decisive sentence>",
+  "example_types": ["list", "of", "found", "types"],
+  "example_files": [
+    {"path": "<exact path>", "type": "<type>", "description": "<one sentence>"}
+  ]
+}
+Return ONLY valid JSON.
+"""
+
+TARGETED_README_PROMPT = """\
+You are an expert code reviewer. The README was previously truncated; you now
+have a larger portion. List ALL usage examples — code blocks, CLI examples,
+references to notebooks or example files.
+
+Respond with a JSON object ONLY:
+{
+  "has_usage_examples": true | false,
+  "confidence": "high",
+  "evidence": "<one decisive sentence>",
+  "example_types": ["list", "of", "found", "types"],
+  "example_files": [
+    {"path": "<exact path>", "type": "<type>", "description": "<one sentence>"}
+  ]
+}
+Return ONLY valid JSON.
+"""
+
+DEEP_SCAN_PROMPT = """\
+You are an expert code reviewer. Additional files (notebooks, scripts, example
+folders) have been fetched. List EVERY usage example you find in the content.
+
+Respond with a JSON object ONLY:
+{
+  "has_usage_examples": true | false,
+  "confidence": "high",
+  "evidence": "<one decisive sentence>",
+  "example_types": ["list", "of", "found", "types"],
+  "example_files": [
+    {"path": "<exact path>", "type": "<type>", "description": "<one sentence>"}
+  ]
+}
+Return ONLY valid JSON.
+"""
+
+
+# =============================================================================
+# LLM CALL WRAPPER
+# =============================================================================
+
+def llm_check_usage(repo_content, paper_title, system_prompt=None):
+    """
+    Send the combined repo content to the LLM and parse its structured response.
+
+    Returns a dict with:
+        has_usage_examples  bool | None
+        confidence          "high" | "medium" | "low"
+        evidence            str
+        example_types       list[str]
+        example_files       list[{"path", "type", "description"}]
+    """
+
+    def _call(content, token_budget=None):
+        user_message = (
+            f"Paper: {paper_title}\n\n"
+            "Below are the contents of key files from its GitHub repository.\n"
+            "Find ALL usage examples present.\n\n"
+            + (content if content else "[No relevant files found in the repository]")
+        )
+        # Scale output budget with input size: large repos can have many examples
+        # and the JSON list grows accordingly.  Cap at 4 000 to stay safe.
+        if token_budget is None:
+            token_budget = 4000 if len(content) > 50_000 else 2000
+        return client.chat.completions.create(
+            model=DEPLOYMENT,
+            messages=[
+                {"role": "system", "content": system_prompt or SYSTEM_PROMPT},
+                {"role": "user",   "content": user_message},
+            ],
+            max_completion_tokens=token_budget,
+            response_format={"type": "json_object"},
+        )
+
+    response    = _call(repo_content)
+    raw_content = response.choices[0].message.content
+
+    # Empty response = context window overflow → retry with truncated content
+    # Also raise the output budget on the retry: the empty response may be caused
+    # by truncated JSON being silently discarded, not just by input overflow.
+    if not raw_content:
+        truncated = repo_content[:15_000] if repo_content else ""
+        print(f"\n  [empty response — retrying with {len(truncated):,} chars]",
+              end=" ", flush=True)
+        response    = _call(truncated, token_budget=4000)
+        raw_content = response.choices[0].message.content
+
+    if not raw_content:
+        return {
+            "has_usage_examples": None,
+            "confidence":  "low",
+            "evidence":    "Empty LLM response after retry",
+            "example_types": [],
+            "example_files": [],
+        }
+
+    raw = raw_content.strip()
+    raw = re.sub(r"^```(?:json)?\s*", "", raw)
+    raw = re.sub(r"\s*```$", "", raw)
+
+    print("\nRAW LLM OUTPUT:\n", raw[:600])
+
+    try:
+        result = json.loads(raw)
+        # Normalise: old single-file prompts return "example_file" (str).
+        # If the model somehow returned that instead of example_files, convert it.
+        if "example_file" in result and "example_files" not in result:
+            ef = result.pop("example_file")
+            result["example_files"] = (
+                [{"path": ef, "type": "other", "description": ""}] if ef else []
+            )
+        if "example_files" not in result:
+            result["example_files"] = []
+        return result
+    except json.JSONDecodeError:
+        return {
+            "has_usage_examples": None,
+            "confidence":  "low",
+            "evidence":    f"Parsing failed: {raw[:200]}",
+            "example_types": [],
+            "example_files": [],
+        }
+
+
+# =============================================================================
+# PER-PAPER ORCHESTRATION
+# =============================================================================
+
+def build_example_entries(example_files_raw, owner, repo):
+    """
+    Convert the LLM's raw example_files list into enriched dicts, each with a
+    GitHub hyperlink added.
+
+    Input  (from LLM): [{"path": "examples/demo.ipynb", "type": "notebook",
+                          "description": "Demonstrates the core API"}]
+    Output:            [{"path": ..., "type": ..., "description": ...,
+                          "link": "https://github.com/…/blob/HEAD/examples/demo.ipynb"}]
+    """
+    entries = []
+    for item in (example_files_raw or []):
+        path = (item.get("path") or "").strip()
+        if not path:
+            continue
+        entry = {
+            "path":        path,
+            "type":        item.get("type", "other"),
+            "description": item.get("description", ""),
+            "link":        f"https://github.com/{owner}/{repo}/blob/HEAD/{path}",
+        }
+        entries.append(entry)
+    return entries
+
+
+def check_paper(paper):
+    """
+    Full pipeline for one paper:
+        1. Validate URL (GitHub only)
+        2. Fetch repo files
+        3. Ask LLM to list ALL examples
+        4. Retry if uncertain
+        5. Build GitHub links for every example found
+
+    Returns (result_dict, repo_content_string).
+    """
+    url = paper.get("repo", "")
+
+    result = {
+        "title":           paper["title"],
+        "repo":            url,
+        "status":          None,   # "yes" | "no" | "skipped" | "error"
+        "confidence":      None,
+        "evidence":        "",
+        "example_types":   [],
+        "example_entries": [],     # list of {path, type, description, link}
+        "files_checked":   [],
+        "all_example_meta": [],    # all example-like files spotted in the repo tree
+        "note":            "",
+    }
+
+    # ── Non-GitHub repos: record clearly rather than silently skip ────────────
+    if not is_github(url):
+        result["status"] = "skipped"
+        result["note"]   = (
+            f"Not a GitHub repo — manual review needed. URL: {url}"
+            if url else "No repo URL provided"
+        )
+        return result, ""
+
+    owner, repo = parse_github_repo(url)
+    if not owner:
+        result["status"] = "error"
+        result["note"]   = "Could not parse GitHub URL"
+        return result, ""
+
+    try:
+        repo_content, files_checked, all_example_meta = collect_repo_content(owner, repo)
+        result["files_checked"]    = files_checked
+        result["all_example_meta"] = all_example_meta
+
+        llm_result = llm_check_usage(repo_content, paper["title"])
+
+        # Auto-retry if uncertain
+        if llm_result.get("confidence") in ("medium", "low"):
+            print(f"\n  [retry — confidence was {llm_result.get('confidence')}]",
+                  end=" ", flush=True)
+            time.sleep(0.5)
+            retry = llm_check_usage(repo_content, paper["title"],
+                                    system_prompt=RETRY_SYSTEM_PROMPT)
+            if retry.get("has_usage_examples") is not None:
+                llm_result = retry
+
+        result["confidence"]    = llm_result.get("confidence", "unknown")
+        result["evidence"]      = llm_result.get("evidence", "")
+        result["example_types"] = llm_result.get("example_types", [])
+
+        # Build enriched example entries (path + type + description + link)
+        result["example_entries"] = build_example_entries(
+            llm_result.get("example_files", []), owner, repo
+        )
+
+        if llm_result.get("has_usage_examples") is None:
+            result["status"] = "error"
+        else:
+            result["status"] = "yes" if llm_result["has_usage_examples"] else "no"
+
+    except RuntimeError as e:
+        result["status"] = "error"
+        result["note"]   = str(e)
+        return result, ""
+    except Exception as e:
+        result["status"] = "error"
+        result["note"]   = f"Unexpected error: {e}"
+        return result, ""
+
+    return result, repo_content
+
+
+# =============================================================================
+# CONFIDENCE DIAGNOSIS & SELF-HEALING
+# =============================================================================
+
+DIAGNOSIS_RULES = [
+    {
+        "id":    "content_truncated",
+        "label": "Content was truncated (hit MAX_CONTENT_CHARS limit)",
+        "fix":   "Re-fetch README with a larger budget",
+        "check": lambda r, content: len(content) >= MAX_CONTENT_CHARS - 100,
+    },
+    {
+        "id":    "notebooks_not_fetched",
+        "label": "Notebooks exist but were not fully fetched (char budget exhausted)",
+        "fix":   "Fetch notebook content and re-analyse",
+        "check": lambda r, content: (
+            any(m["kind"] == "notebook" for m in r.get("all_example_meta", []))
+            and not any(
+                f.lower().endswith((".ipynb", ".rmd", ".qmd"))
+                for f in (r.get("files_checked") or [])
+            )
+        ),
+    },
+    {
+        "id":    "no_example_files",
+        "label": "No example / tutorial / demo files detected",
+        "fix":   "Scan examples/, tutorials/, and demo/ folders more deeply",
+        "check": lambda r, content: (
+            not any(
+                kw in " ".join(r.get("files_checked") or []).lower()
+                for kw in ["example", "tutorial", "demo", "notebook", "quickstart"]
+            )
+        ),
+    },
+    {
+        "id":    "readme_mentions_examples",
+        "label": "README references example files/folders that were not fetched",
+        "fix":   "Fetch the referenced files and re-analyse",
+        "check": lambda r, content: bool(
+            re.search(
+                r"(example[s]?|tutorial[s]?|demo|notebook|colab|quickstart)",
+                content, re.I
+            )
+            and r.get("status") == "no"
+        ),
+    },
+]
+
+
+def diagnose_result(result, repo_content):
+    diagnoses = []
+    for rule in DIAGNOSIS_RULES:
+        try:
+            if rule["check"](result, repo_content):
+                diagnoses.append(rule)
+        except Exception:
+            pass
+    if not diagnoses:
+        diagnoses.append({
+            "id":    "unknown",
+            "label": "LLM was uncertain — no clear structural cause detected",
+            "fix":   "Manual review recommended",
+        })
+    return diagnoses
+
+
+def heal_result(result, repo_content, owner, repo):
+    """
+    Fetch additional content targeted at the diagnosed problem and re-run the LLM.
+    Returns an updated result dict, or the original if healing failed.
+    """
+    diagnoses = diagnose_result(result, repo_content)
+    primary   = diagnoses[0]["id"]
+
+    healed_content = repo_content
+    healed_prompt  = RETRY_SYSTEM_PROMPT
+
+    if primary == "content_truncated":
+        readme_path = next(
+            (f for f in (result.get("files_checked") or []) if "readme" in f.lower()),
+            None,
+        )
+        if readme_path:
+            big = fetch_file_content(owner, repo, readme_path)
+            if big:
+                healed_content = f"### FILE: {readme_path}\n{big[:45_000]}"
+                healed_prompt  = TARGETED_README_PROMPT
+
+    elif primary in ("notebooks_not_fetched", "no_example_files", "readme_mentions_examples"):
+        all_files   = list_all_repo_files(owner, repo)
+        extra_paths = []
+        for f in all_files:
+            name = f["path"].lower()
+            ext  = "." + name.rsplit(".", 1)[-1] if "." in name else ""
+            if ext in USAGE_EXTENSIONS:
+                extra_paths.append(f["path"])
+            elif ext in SCRIPT_EXTENSIONS and any(
+                kw in name for kw in
+                ["example", "demo", "tutorial", "quickstart", "notebook", "usage", "sample"]
+            ):
+                extra_paths.append(f["path"])
+            elif any(name.startswith(p) for p in EXAMPLE_FOLDER_PREFIXES):
+                extra_paths.append(f["path"])
+
+        extra_paths.sort(key=lambda p: (p.count("/"), p.lower()))
+        extra_paths = extra_paths[:15]   # fetch up to 15 additional files
+
+        extras = []
+        for p in extra_paths:
+            raw = fetch_file_content(owner, repo, p)
+            if raw:
+                if p.lower().endswith(".ipynb"):
+                    snippet = summarise_notebook(raw, max_chars=6_000)
+                else:
+                    snippet = raw[:6_000]
+                extras.append(f"### FILE: {p}\n{snippet}")
+                time.sleep(0.15)
+
+        if extras:
+            healed_content = healed_content + "\n\n" + "\n\n".join(extras)
+            healed_prompt  = DEEP_SCAN_PROMPT
+
+    llm_result = llm_check_usage(healed_content, result["title"],
+                                  system_prompt=healed_prompt)
+    if llm_result.get("has_usage_examples") is None:
+        return result
+
+    healed = dict(result)
+    healed["confidence"]    = llm_result.get("confidence", "high")
+    healed["status"]        = "yes" if llm_result["has_usage_examples"] else "no"
+    healed["evidence"]      = llm_result.get("evidence", "")
+    healed["example_types"] = llm_result.get("example_types", [])
+    healed["example_entries"] = build_example_entries(
+        llm_result.get("example_files", []), owner, repo
+    )
+    healed["note"] = f"[auto-healed: {primary}] " + (result.get("note") or "")
+    return healed
+
+
+# =============================================================================
+# CONSOLE REPORTING
+# =============================================================================
+
+def print_confidence_report(results, repo_contents):
+    total  = len(results)
+    counts = Counter(r.get("confidence", "unknown") for r in results)
+    high   = counts.get("high",   0)
+    medium = counts.get("medium", 0)
+    low    = counts.get("low",    0)
+
+    W = 90
+    print("\n" + "═" * W)
+    print("  CONFIDENCE REPORT")
+    print("═" * W)
+    print(f"  High   : {high:>3}  ({high/total*100:.1f}%)")
+    print(f"  Medium : {medium:>3}  ({medium/total*100:.1f}%)")
+    print(f"  Low    : {low:>3}  ({low/total*100:.1f}%)")
+    print(f"  Total  : {total}")
+
+    non_high = [
+        (r, repo_contents.get(r["title"], ""))
+        for r in results
+        if r.get("confidence") != "high"
+    ]
+    if not non_high:
+        print("\n  All results are high confidence.")
+        print("═" * W)
+        return
+
+    print(f"\n  {'─'*86}")
+    print(f"  {'TITLE':<50} {'CONF':<8}  ROOT CAUSE")
+    print(f"  {'─'*86}")
+    for r, content in non_high:
+        title = r["title"][:48] + ("…" if len(r["title"]) > 48 else "")
+        conf  = r.get("confidence") or "?"   # guard: f-string :<8 requires str, not None
+        diags = diagnose_result(r, content)
+        for i, d in enumerate(diags):
+            if i == 0:
+                print(f"  {title:<50} {conf:<8}  CAUSE : {d['label']}")
+                print(f"  {'':<50} {'':<8}  FIX   : {d['fix']}")
+            else:
+                print(f"  {'':<50} {'':<8}  ALSO  : {d['label']}")
+        print(f"  {'─'*86}")
+    print("═" * W)
+
+
+def print_results(results):
+    W = 110
+    print("\n" + "=" * W)
+    print(f"{'#':<4} {'STATUS':<10} {'CONF':<8} {'# EX':<6} {'EXAMPLE TYPES':<30} TITLE")
+    print("=" * W)
+
+    for i, r in enumerate(results, 1):
+        icon = {
+            "yes": "YES", "no": "NO", "skipped": "SKIP", "error": "ERR",
+        }.get(r["status"], "?")
+
+        types_str = ", ".join(r.get("example_types", []))[:28]
+        if not types_str and r.get("note"):
+            types_str = r["note"][:28]
+
+        n_ex        = len(r.get("example_entries", []))
+        title_short = r["title"][:48] + ("..." if len(r["title"]) > 48 else "")
+        conf        = r.get("confidence") or "-"
+        print(f"{i:<4} {icon:<10} {conf:<8} {n_ex:<6} {types_str:<30} {title_short}")
+
+        if r.get("evidence"):
+            print(f"       evidence: {r['evidence']}")
+        for ex in r.get("example_entries", []):
+            print(f"       [{ex['type']}] {ex['path']}  →  {ex['description']}")
+
+    print("=" * W)
+    yes     = sum(1 for r in results if r["status"] == "yes")
+    no      = sum(1 for r in results if r["status"] == "no")
+    skipped = sum(1 for r in results if r["status"] == "skipped")
+    errors  = sum(1 for r in results if r["status"] == "error")
+    total_ex = sum(len(r.get("example_entries", [])) for r in results)
+    print(
+        f"\nSUMMARY: {yes} repos have examples | {no} missing | "
+        f"{skipped} skipped | {errors} errors | {total_ex} total example files found\n"
+    )
+
+
+# =============================================================================
+# EXCEL OUTPUT
+# =============================================================================
+
+def save_results(results, path=None):
+    """
+    Write two Excel sheets:
+
+    Sheet 1 — "Results"  (one row per paper)
+        Columns: #, Status, Confidence, Title, Repo, # Examples, Example Types,
+                 Evidence, All Example Links (newline-separated), Files Checked, Note
+
+    Sheet 2 — "All Examples"  (one row per individual example file)
+        Columns: Paper #, Paper Title, Repo, File Path, Type, Description, Link
+
+    Sheet 3 — "Skipped / Errors"  (one row per paper that was skipped or errored)
+        Columns: #, Status, Title, Repo / URL, Note
+
+    Sheet 4 — "Summary"  (totals + type breakdown)
+    """
+    if path is None:
+        path = Path(__file__).resolve().parent / "usage_examples_results.xlsx"
+
+    wb = Workbook()
+
+    # ── Shared style helpers ───────────────────────────────────────────────────
+    def hdr_cell(ws, row, col, value, fill_hex="1F5C99"):
+        cell            = ws.cell(row=row, column=col, value=value)
+        cell.font       = Font(name="Arial", bold=True, color="FFFFFF")
+        cell.fill       = PatternFill("solid", start_color=fill_hex)
+        cell.alignment  = Alignment(horizontal="center", vertical="center",
+                                    wrap_text=True)
+        cell.border     = _border()
+        return cell
+
+    def _border():
+        t = Side(style="thin", color="CCCCCC")
+        return Border(left=t, right=t, top=t, bottom=t)
+
+    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    wrap   = Alignment(horizontal="left",   vertical="top",    wrap_text=True)
+
+    STATUS_COLORS = {
+        "yes": "C6EFCE", "no": "FFDDC1", "skipped": "FFEB9C", "error": "FFC7CE",
+    }
+
+    # =========================================================================
+    # SHEET 1 — Results (one row per paper)
+    # =========================================================================
+    ws1        = wb.active
+    ws1.title  = "Results"
+    hdrs1      = ["#", "Status", "Confidence", "Title", "Repo",
+                  "# Examples", "Example Types", "Evidence",
+                  "All Example Links", "Files Checked", "Note"]
+    widths1    = [5, 10, 12, 45, 40, 10, 35, 55, 60, 50, 35]
+
+    for col, (h, w) in enumerate(zip(hdrs1, widths1), 1):
+        hdr_cell(ws1, 1, col, h)
+        ws1.column_dimensions[get_column_letter(col)].width = w
+    ws1.row_dimensions[1].height = 20
+
+    for row_idx, r in enumerate(results, 2):
+        # Build a newline-separated list of all example links for the cell
+        all_links_text = "\n".join(
+            f"{ex['path']}  ({ex['type']})"
+            for ex in r.get("example_entries", [])
+        )
+
+        row_data = [
+            row_idx - 1,
+            (r.get("status") or "").upper(),
+            r.get("confidence") or "",
+            r.get("title") or "",
+            r.get("repo") or "",
+            len(r.get("example_entries", [])),
+            ", ".join(r.get("example_types") or []),
+            r.get("evidence") or "",
+            all_links_text,
+            ", ".join(r.get("files_checked") or []),
+            r.get("note") or "",
+        ]
+        fill_color = STATUS_COLORS.get(r.get("status"), "FFFFFF")
+        row_fill   = PatternFill("solid", start_color=fill_color)
+
+        for col_idx, value in enumerate(row_data, 1):
+            cell           = ws1.cell(row=row_idx, column=col_idx, value=value)
+            cell.font      = Font(name="Arial", size=10)
+            cell.border    = _border()
+            cell.alignment = center if col_idx <= 3 else wrap
+            if col_idx == 2:   # colour the Status cell
+                cell.fill = row_fill
+
+        # Auto-height hint: taller rows for papers with many examples
+        n_ex = len(r.get("example_entries", []))
+        ws1.row_dimensions[row_idx].height = max(20, 15 * max(n_ex, 1))
+
+    # =========================================================================
+    # SHEET 2 — All Examples (one row per individual example file)
+    # =========================================================================
+    ws2       = wb.create_sheet("All Examples")
+    hdrs2     = ["Paper #", "Paper Title", "Repo", "File Path",
+                 "Type", "Description", "GitHub Link"]
+    widths2   = [8, 50, 45, 55, 22, 60, 70]
+
+    for col, (h, w) in enumerate(zip(hdrs2, widths2), 1):
+        hdr_cell(ws2, 1, col, h)
+        ws2.column_dimensions[get_column_letter(col)].width = w
+    ws2.row_dimensions[1].height = 20
+
+    ex_row = 2
+    for paper_num, r in enumerate(results, 1):
+        for ex in r.get("example_entries", []):
+            row_vals = [
+                paper_num,
+                r.get("title") or "",
+                r.get("repo") or "",
+                ex.get("path") or "",
+                ex.get("type") or "",
+                ex.get("description") or "",
+                ex.get("link") or "",
+            ]
+            for col_idx, value in enumerate(row_vals, 1):
+                is_link = (col_idx == 7)
+                cell    = ws2.cell(row=ex_row, column=col_idx, value=value)
+                cell.font      = Font(name="Arial", size=10)
+                cell.border    = _border()
+                cell.alignment = center if col_idx == 1 else wrap
+                if is_link and value:
+                    cell.hyperlink = value
+                    cell.font = Font(name="Arial", size=10,
+                                     color="0563C1", underline="single")
+            ex_row += 1
+
+    # =========================================================================
+    # SHEET 3 — Skipped / Errors
+    # =========================================================================
+    ws3      = wb.create_sheet("Skipped & Errors")
+    hdrs3    = ["#", "Status", "Title", "Repo / URL", "Note"]
+    widths3  = [5, 10, 55, 55, 60]
+
+    for col, (h, w) in enumerate(zip(hdrs3, widths3), 1):
+        hdr_cell(ws3, 1, col, h, fill_hex="7B3F00")  # brown header to stand out
+        ws3.column_dimensions[get_column_letter(col)].width = w
+    ws3.row_dimensions[1].height = 20
+
+    se_row = 2
+    for paper_num, r in enumerate(results, 1):
+        if r.get("status") not in ("skipped", "error"):
+            continue
+        fill_color = STATUS_COLORS.get(r.get("status"), "FFFFFF")
+        row_fill   = PatternFill("solid", start_color=fill_color)
+        row_vals   = [
+            paper_num,
+            (r.get("status") or "").upper(),
+            r.get("title") or "",
+            r.get("repo") or "",
+            r.get("note") or "",
+        ]
+        for col_idx, value in enumerate(row_vals, 1):
+            cell           = ws3.cell(row=se_row, column=col_idx, value=value)
+            cell.font      = Font(name="Arial", size=10)
+            cell.border    = _border()
+            cell.alignment = center if col_idx <= 2 else wrap
+            if col_idx == 2:
+                cell.fill = row_fill
+        se_row += 1
+
+    # =========================================================================
+    # SHEET 4 — Summary
+    # =========================================================================
+    ws4      = wb.create_sheet("Summary")
+    ws4.column_dimensions["A"].width = 42
+    ws4.column_dimensions["B"].width = 15
+
+    hdr_cell(ws4, 1, 1, "Metric")
+    hdr_cell(ws4, 1, 2, "Value")
+    ws4.row_dimensions[1].height = 20
+
+    yes      = sum(1 for r in results if r.get("status") == "yes")
+    no       = sum(1 for r in results if r.get("status") == "no")
+    skipped  = sum(1 for r in results if r.get("status") == "skipped")
+    errors   = sum(1 for r in results if r.get("status") == "error")
+    total    = len(results)
+    total_ex = sum(len(r.get("example_entries", [])) for r in results)
+
+    type_counter = Counter()
+    for r in results:
+        for t in (r.get("example_types") or []):
+            type_counter[t] += 1
+
+    summary_rows = [
+        ("Total Repos Checked",           total),
+        ("Repos with Usage Examples",     yes),
+        ("Repos Missing Usage Examples",  no),
+        ("Skipped (non-GitHub)",          skipped),
+        ("Errors",                        errors),
+        ("Total Example Files Found",     total_ex),
+        ("Avg Examples per Repo (w/ any)",
+         f"={total_ex}/{yes if yes else 1}"),
+        ("Coverage (%)",
+         f"={yes}/{total if total else 1}*100"),
+        ("", ""),
+        ("Example Type Breakdown", ""),
+    ]
+    for t, cnt in type_counter.most_common():
+        summary_rows.append((f"  • {t}", cnt))
+
+    for r_idx, (label, value) in enumerate(summary_rows, 2):
+        ws4.cell(row=r_idx, column=1, value=label).font = Font(name="Arial", size=10)
+        ws4.cell(row=r_idx, column=2, value=value).font = Font(name="Arial", size=10)
+        ws4.cell(row=r_idx, column=2).alignment = center
+
+    wb.save(path)
+    print(f"\nFull results saved to: {path}")
+    print(f"  → Results sheet:        {total} papers")
+    print(f"  → All Examples sheet:   {total_ex} individual example files")
+    se_count = sum(1 for r in results if r.get("status") in ("skipped", "error"))
+    print(f"  → Skipped & Errors:     {se_count} entries")
+
+
+# =============================================================================
+# MAIN
+# =============================================================================
+
+def main():
+    print(f"Checking {len(PAPERS)} repos for usage examples using LLM ({DEPLOYMENT})...")
+    if not GITHUB_TOKEN:
+        print("Tip: Set GITHUB_TOKEN in .env to avoid the 60 req/hr GitHub rate limit.\n")
+
+    results       = []
+    repo_contents = {}
+
+    # ── Pass 1: analyse every paper ───────────────────────────────────────────
+    for i, paper in enumerate(PAPERS, 1):
+        owner, repo_name = parse_github_repo(paper.get("repo", ""))
+        label = f"{owner}/{repo_name}" if owner else paper.get("repo", "?")
+        print(f"[{i:>2}/{len(PAPERS)}] {label} ...", end=" ", flush=True)
+
+        result, content = check_paper(paper)
+        results.append(result)
+        repo_contents[paper["title"]] = content
+
+        icon  = {"yes": "OK", "no": "NO", "skipped": "SKIP", "error": "ERR"}.get(
+            result["status"], "?"
+        )
+        n_ex  = len(result.get("example_entries", []))
+        extra = result.get("confidence") or result.get("note") or ""
+        print(f"{icon}  {n_ex} examples  {extra}")
+        time.sleep(0.3)
+
+    # ── Confidence report ─────────────────────────────────────────────────────
+    print_confidence_report(results, repo_contents)
+
+    # ── Pass 2: self-heal medium/low confidence results ───────────────────────
+    non_high = [i for i, r in enumerate(results)
+                if r.get("confidence") in ("medium", "low")]
+    if non_high:
+        print(f"\n  Auto-healing {len(non_high)} medium/low confidence result(s)...\n")
+        for idx in non_high:
+            r = results[idx]
+            owner, repo = parse_github_repo(r.get("repo", ""))
+            if not owner:
+                continue
+            title_short = r["title"][:55] + ("…" if len(r["title"]) > 55 else "")
+            print(f"  healing: {title_short}", end=" ... ", flush=True)
+            healed = heal_result(r, repo_contents.get(r["title"], ""), owner, repo)
+            results[idx] = healed
+            n_before = len(r.get("example_entries", []))
+            n_after  = len(healed.get("example_entries", []))
+            print(f"conf: {r.get('confidence')} → {healed.get('confidence')}  "
+                  f"examples: {n_before} → {n_after}")
+            time.sleep(0.5)
+
+        still_non_high = [r for r in results if r.get("confidence") in ("medium", "low")]
+        if still_non_high:
+            print(f"\n  {len(still_non_high)} result(s) still not high confidence — manual review needed.")
+        else:
+            print("\n  All results are now high confidence.")
+
+    print_results(results)
+    save_results(results)
+
+
+if __name__ == "__main__":
+    main()

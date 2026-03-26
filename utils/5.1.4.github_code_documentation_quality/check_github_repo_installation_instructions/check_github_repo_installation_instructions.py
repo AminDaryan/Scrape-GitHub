@@ -12,8 +12,10 @@ from openpyxl.utils import get_column_letter
 load_dotenv()
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
-from openai_client import client, AZURE_OPENAI_DEPLOYMENT
 from papers_from_database import PAPERS
+
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
+from openai_client import client, AZURE_OPENAI_DEPLOYMENT
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 
@@ -31,7 +33,7 @@ TARGET_FILENAMES = {
 }
 
 # Max chars sent to LLM per repo
-MAX_CONTENT_CHARS = 40_000
+MAX_CONTENT_CHARS = 120_000
 
 # ─── GitHub API helpers ───────────────────────────────────────────────────────
 
