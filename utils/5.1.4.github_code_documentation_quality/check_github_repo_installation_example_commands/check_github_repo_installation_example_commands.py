@@ -97,7 +97,7 @@ EXAMPLE_FOLDER_PREFIXES = ("examples/", "tutorials/", "demo/", "demos/",
                             "notebooks/", "notebook/", "scripts/", "sample/", "samples/")
 
 # Maximum characters sent to the LLM per request
-MAX_CONTENT_CHARS = 120_000
+MAX_CONTENT_CHARS = 400_000
 
 # Maximum number of notebooks to fully fetch (summarised) in one pass.
 # We raised this from 5 → 20 so fewer notebooks are "skipped".
@@ -166,7 +166,8 @@ def list_all_repo_files(owner, repo):
 
 def fetch_file_content(owner, repo, file_path):
     """Download one file and return its UTF-8 text, or None on failure."""
-    data = github_get(f"repos/{owner}/{repo}/contents/{file_path}")
+    encoded_path = urllib.parse.quote(file_path, safe="/")  # ← encode spaces etc.
+    data = github_get(f"repos/{owner}/{repo}/contents/{encoded_path}")
     if not data or "content" not in data:
         return None
     try:
@@ -358,10 +359,13 @@ Usage examples include:
   - Tutorial files or a tutorials/ / examples/ / demo/ folder
 
 Does NOT count as a usage example:
-  - Installation instructions alone (pip install X)
+  - Installation instructions alone (pip install X, conda env create, conda activate)
+  - Navigation commands alone (cd src, mkdir, ls)
   - Abstract or paper description
   - Citation / BibTeX blocks
   - API reference lists with no example calls
+  - A command only counts if it actually RUNS the tool/model, not just sets up the environment.
+    If cd or conda commands appear alongside a real run command, include only the run command.
 
 CONFIDENCE RULES:
   - Use "high"   in almost all cases.
@@ -378,7 +382,8 @@ Respond with a JSON object ONLY — no extra text, no markdown fences:
     {
       "path": "<exact file path as it appears in the ### FILE / ### NOTEBOOK / ### SCRIPT header>",
       "type": "<one of: notebook | example script | README code snippet | CLI usage | tutorial file | quickstart guide | other>",
-      "description": "<one sentence: what this specific file demonstrates>"
+      "description": "<one sentence: what this specific file demonstrates>",
+      "commands": ["<first exact code block or command>", "<second code block if present>"]
     }
   ]
 }
@@ -391,6 +396,11 @@ IMPORTANT rules for example_files:
   - If no examples exist, use an empty list [].
   - Paths must be copied EXACTLY from the file headers above (e.g. "README.md",
     "examples/demo.ipynb") — do not invent or guess paths.
+  - "commands": list ALL distinct code blocks / commands shown for this file.
+    Each entry is one self-contained code block exactly as written in the repo.
+    Include BOTH CLI commands (e.g. python run.py ...) AND Python API blocks.
+    Use an empty list [] if no commands are shown.
+    Do NOT merge multiple blocks into one string.
 
 Return ONLY valid JSON. No explanation, no markdown, no preamble.
 """
@@ -414,7 +424,7 @@ Respond with a JSON object ONLY:
   "evidence": "<one decisive sentence>",
   "example_types": ["list", "of", "found", "types"],
   "example_files": [
-    {"path": "<exact path>", "type": "<type>", "description": "<one sentence>"}
+    {"path": "<exact path>", "type": "<type>", "description": "<one sentence>", "commands": ["<code block 1>", "<code block 2 if any>"]}
   ]
 }
 Return ONLY valid JSON.
@@ -432,7 +442,7 @@ Respond with a JSON object ONLY:
   "evidence": "<one decisive sentence>",
   "example_types": ["list", "of", "found", "types"],
   "example_files": [
-    {"path": "<exact path>", "type": "<type>", "description": "<one sentence>"}
+    {"path": "<exact path>", "type": "<type>", "description": "<one sentence>", "commands": ["<code block 1>", "<code block 2 if any>"]}
   ]
 }
 Return ONLY valid JSON.
@@ -449,7 +459,7 @@ Respond with a JSON object ONLY:
   "evidence": "<one decisive sentence>",
   "example_types": ["list", "of", "found", "types"],
   "example_files": [
-    {"path": "<exact path>", "type": "<type>", "description": "<one sentence>"}
+    {"path": "<exact path>", "type": "<type>", "description": "<one sentence>", "commands": ["<code block 1>", "<code block 2 if any>"]}
   ]
 }
 Return ONLY valid JSON.
@@ -482,7 +492,7 @@ def llm_check_usage(repo_content, paper_title, system_prompt=None):
         # Scale output budget with input size: large repos can have many examples
         # and the JSON list grows accordingly.  Cap at 4 000 to stay safe.
         if token_budget is None:
-            token_budget = 4000 if len(content) > 50_000 else 2000
+            token_budget = 8000 if len(content) > 50_000 else 4000
         return client.chat.completions.create(
             model=DEPLOYMENT,
             messages=[
@@ -500,10 +510,10 @@ def llm_check_usage(repo_content, paper_title, system_prompt=None):
     # Also raise the output budget on the retry: the empty response may be caused
     # by truncated JSON being silently discarded, not just by input overflow.
     if not raw_content:
-        truncated = repo_content[:15_000] if repo_content else ""
+        truncated = repo_content[:30_000] if repo_content else ""
         print(f"\n  [empty response — retrying with {len(truncated):,} chars]",
               end=" ", flush=True)
-        response    = _call(truncated, token_budget=4000)
+        response  = _call(truncated, token_budget=16000)
         raw_content = response.choices[0].message.content
 
     if not raw_content:
@@ -519,7 +529,7 @@ def llm_check_usage(repo_content, paper_title, system_prompt=None):
     raw = re.sub(r"^```(?:json)?\s*", "", raw)
     raw = re.sub(r"\s*```$", "", raw)
 
-    print("\nRAW LLM OUTPUT:\n", raw[:600])
+    print("\nRAW LLM OUTPUT:\n", raw[:1500])
 
     try:
         result = json.loads(raw)
@@ -562,10 +572,14 @@ def build_example_entries(example_files_raw, owner, repo):
         path = (item.get("path") or "").strip()
         if not path:
             continue
+        cmds = item.get("commands", [])
+        if isinstance(cmds, str):   # graceful fallback if LLM returns a string
+            cmds = [cmds] if cmds else []
         entry = {
             "path":        path,
             "type":        item.get("type", "other"),
             "description": item.get("description", ""),
+            "commands":    cmds,
             "link":        f"https://github.com/{owner}/{repo}/blob/HEAD/{path}",
         }
         entries.append(entry)
@@ -625,7 +639,8 @@ def check_paper(paper):
             print(f"\n  [retry — confidence was {llm_result.get('confidence')}]",
                   end=" ", flush=True)
             time.sleep(0.5)
-            retry = llm_check_usage(repo_content, paper["title"],
+            retry_content = repo_content[:80_000] if len(repo_content) > 80_000 else repo_content
+            retry = llm_check_usage(retry_content, paper["title"],
                                     system_prompt=RETRY_SYSTEM_PROMPT)
             if retry.get("has_usage_examples") is not None:
                 llm_result = retry
@@ -640,7 +655,9 @@ def check_paper(paper):
         )
 
         if llm_result.get("has_usage_examples") is None:
-            result["status"] = "error"
+            result["status"]     = "error"
+            result["note"]       = "Empty LLM response — content may be too large for this model"
+            result["confidence"] = "low"
         else:
             result["status"] = "yes" if llm_result["has_usage_examples"] else "no"
 
@@ -741,8 +758,41 @@ def heal_result(result, repo_content, owner, repo):
         if readme_path:
             big = fetch_file_content(owner, repo, readme_path)
             if big:
-                healed_content = f"### FILE: {readme_path}\n{big[:45_000]}"
-                healed_prompt  = TARGETED_README_PROMPT
+                # Split into 15k chunks and query each, then merge all found examples
+                chunk_size = 30_000
+                chunks = [big[i:i+chunk_size] for i in range(0, min(len(big), 200_000), chunk_size)]
+                all_example_files = []
+                last_result = None
+                for chunk_idx, chunk in enumerate(chunks):
+                    chunk_content = f"### FILE: {readme_path} (part {chunk_idx+1}/{len(chunks)})\n{chunk}"
+                    chunk_result  = llm_check_usage(chunk_content, result["title"],
+                                                    system_prompt=TARGETED_README_PROMPT)
+                    if chunk_result.get("has_usage_examples"):
+                        all_example_files.extend(chunk_result.get("example_files", []))
+                    last_result = chunk_result
+                    time.sleep(0.3)
+
+                if last_result:
+                    # Deduplicate by path
+                    seen  = set()
+                    deduped = []
+                    for ef in all_example_files:
+                        if ef.get("path") not in seen:
+                            seen.add(ef.get("path"))
+                            deduped.append(ef)
+                    last_result["example_files"]      = deduped
+                    last_result["has_usage_examples"] = len(deduped) > 0
+                    last_result["confidence"]         = "high"
+                    healed_content = big[:60_000]   # keep for reference
+                    llm_result     = last_result
+                    healed = dict(result)
+                    healed["confidence"]      = "high"
+                    healed["status"]          = "yes" if last_result["has_usage_examples"] else "no"
+                    healed["evidence"]        = last_result.get("evidence", "")
+                    healed["example_types"]   = last_result.get("example_types", [])
+                    healed["example_entries"] = build_example_entries(deduped, owner, repo)
+                    healed["note"]            = "[auto-healed: chunked README scan]"
+                    return healed
 
     elif primary in ("notebooks_not_fetched", "no_example_files", "readme_mentions_examples"):
         all_files   = list_all_repo_files(owner, repo)
@@ -761,16 +811,16 @@ def heal_result(result, repo_content, owner, repo):
                 extra_paths.append(f["path"])
 
         extra_paths.sort(key=lambda p: (p.count("/"), p.lower()))
-        extra_paths = extra_paths[:15]   # fetch up to 15 additional files
+        extra_paths = extra_paths[:30]   # fetch up to 15 additional files
 
         extras = []
         for p in extra_paths:
             raw = fetch_file_content(owner, repo, p)
             if raw:
                 if p.lower().endswith(".ipynb"):
-                    snippet = summarise_notebook(raw, max_chars=6_000)
+                    snippet = summarise_notebook(raw, max_chars=15_000)
                 else:
-                    snippet = raw[:6_000]
+                    snippet = raw[:15_000]
                 extras.append(f"### FILE: {p}\n{snippet}")
                 time.sleep(0.15)
 
@@ -971,17 +1021,23 @@ def save_results(results, path=None):
             if col_idx == 2:   # colour the Status cell
                 cell.fill = row_fill
 
-        # Auto-height hint: taller rows for papers with many examples
-        n_ex = len(r.get("example_entries", []))
-        ws1.row_dimensions[row_idx].height = max(20, 15 * max(n_ex, 1))
+        # Dynamic height: account for both newlines and wrapped long text
+        def estimate_lines(value, col_width=60):
+            text = str(value)
+            lines = text.split("\n")
+            total = sum(max(1, len(line) // col_width + 1) for line in lines)
+            return total
+
+        max_lines = max(estimate_lines(v) for v in row_data)
+        ws1.row_dimensions[row_idx].height = max(20, max_lines * 15 * 1.3)
 
     # =========================================================================
     # SHEET 2 — All Examples (one row per individual example file)
     # =========================================================================
     ws2       = wb.create_sheet("All Examples")
     hdrs2     = ["Paper #", "Paper Title", "Repo", "File Path",
-                 "Type", "Description", "GitHub Link"]
-    widths2   = [8, 50, 45, 55, 22, 60, 70]
+                 "Type", "Description", "Example Command", "GitHub Link"]
+    widths2   = [8, 50, 45, 55, 22, 60, 70, 70]
 
     for col, (h, w) in enumerate(zip(hdrs2, widths2), 1):
         hdr_cell(ws2, 1, col, h)
@@ -998,10 +1054,11 @@ def save_results(results, path=None):
                 ex.get("path") or "",
                 ex.get("type") or "",
                 ex.get("description") or "",
+                "\n---\n".join(ex.get("commands") or []),
                 ex.get("link") or "",
             ]
             for col_idx, value in enumerate(row_vals, 1):
-                is_link = (col_idx == 7)
+                is_link = (col_idx == 8)
                 cell    = ws2.cell(row=ex_row, column=col_idx, value=value)
                 cell.font      = Font(name="Arial", size=10)
                 cell.border    = _border()
@@ -1010,7 +1067,14 @@ def save_results(results, path=None):
                     cell.hyperlink = value
                     cell.font = Font(name="Arial", size=10,
                                      color="0563C1", underline="single")
-            ex_row += 1
+            def estimate_lines(value, col_width=60):
+                text = str(value)
+                lines = text.split("\n")
+                total = sum(max(1, len(line) // col_width + 1) for line in lines)
+                return total
+
+            max_lines = max(estimate_lines(v) for v in row_vals)
+            ws2.row_dimensions[ex_row].height = max(20, max_lines * 15 * 1.3)
 
     # =========================================================================
     # SHEET 3 — Skipped / Errors
