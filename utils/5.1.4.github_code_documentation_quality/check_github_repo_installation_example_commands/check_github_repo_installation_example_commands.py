@@ -950,7 +950,7 @@ def save_results(results, path=None):
     Sheet 4 — "Summary"  (totals + type breakdown)
     """
     if path is None:
-        path = Path(__file__).resolve().parent / "usage_examples_results.xlsx"
+        path = Path(__file__).resolve().parent / "usage_examples_results_nano.xlsx"
 
     wb = Workbook()
 
@@ -1075,6 +1075,7 @@ def save_results(results, path=None):
 
             max_lines = max(estimate_lines(v) for v in row_vals)
             ws2.row_dimensions[ex_row].height = max(20, max_lines * 15 * 1.3)
+            ex_row += 1  # ← add this line
 
     # =========================================================================
     # SHEET 3 — Skipped / Errors
