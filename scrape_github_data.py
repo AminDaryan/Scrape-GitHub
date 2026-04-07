@@ -2,7 +2,7 @@ import requests
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from utils.github_code_documentation_quality.environment_instructions_existance_check import check_setup_with_nlp
-from utils.github_code_documentation_quality.find_readme import get_readme_info
+from utils.common.find_readme import get_readme_info
 from transformers import pipeline
 import time
 from datetime import datetime

@@ -36,17 +36,17 @@ import os
 import re
 import sys
 import time
-import base64
 import json
-import urllib.parse
 from pathlib import Path
 from collections import Counter
-from urllib.request import urlopen, Request
-from urllib.error import HTTPError, URLError
-from dotenv import load_dotenv
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+# fetch from file fetch_&_parse_github_repo.py, which contains the GitHub API helpers and LLM call wrapper
+from utils.common.fetch_and_parse_github_repo import (
+    load_dotenv, parse_github_repo, is_github, list_all_repo_files, fetch_file_content
+)
+from utils.common.llm_response_parser import parse_llm_json_response
 
 load_dotenv()
 
@@ -87,7 +87,8 @@ TARGET_FILENAMES = {
 
 # File extensions that are always usage examples by definition — we fetch ALL
 # of them regardless of where they live in the repo (not capped like before).
-USAGE_EXTENSIONS = {".ipynb", ".rmd", ".qmd"}
+# NOTE: .rmd and .qmd are excluded — they are analysis documents, not tutorials.
+USAGE_EXTENSIONS = {".ipynb"}
 
 # Extensions of plain example/demo scripts we also want to collect
 SCRIPT_EXTENSIONS = {".py", ".r", ".sh", ".bash", ".m", ".jl"}
@@ -110,70 +111,6 @@ MAX_SCRIPTS = 15
 # =============================================================================
 # GITHUB API HELPERS
 # =============================================================================
-
-def parse_github_repo(url):
-    """
-    Extract (owner, repo) from a GitHub URL.
-    Returns (None, None) if the URL is not a recognisable GitHub repo URL.
-    """
-    match = re.search(r"github\.com/([^/]+)/([^/?.#]+)", url)
-    if match:
-        owner = match.group(1)
-        repo  = match.group(2).rstrip("/")
-        if repo.endswith(".git"):
-            repo = repo[:-4]
-        return owner, repo
-    return None, None
-
-
-def is_github(url):
-    return "github.com" in url
-
-
-def github_get(path):
-    """
-    GET a GitHub REST API endpoint and return parsed JSON, or None on error.
-    Raises RuntimeError when the rate limit is hit so the caller can bail out.
-    """
-    url     = f"https://api.github.com/{path.lstrip('/')}"
-    headers = {"Accept": "application/vnd.github.v3+json"}
-    if GITHUB_TOKEN:
-        headers["Authorization"] = f"token {GITHUB_TOKEN}"
-    req = Request(url, headers=headers)
-    try:
-        with urlopen(req, timeout=10) as r:
-            return json.loads(r.read().decode())
-    except HTTPError as e:
-        if e.code == 403:
-            raise RuntimeError(
-                "GitHub API rate limit hit. Set GITHUB_TOKEN in .env or wait an hour."
-            )
-        return None
-    except URLError:
-        return None
-
-
-def list_all_repo_files(owner, repo):
-    """
-    Return every file blob in the repo using the recursive Git Trees API.
-    This is a single API call regardless of repo size.
-    """
-    data = github_get(f"repos/{owner}/{repo}/git/trees/HEAD?recursive=1")
-    if not data or "tree" not in data:
-        return []
-    return [item for item in data["tree"] if item.get("type") == "blob"]
-
-
-def fetch_file_content(owner, repo, file_path):
-    """Download one file and return its UTF-8 text, or None on failure."""
-    encoded_path = urllib.parse.quote(file_path, safe="/")  # ← encode spaces etc.
-    data = github_get(f"repos/{owner}/{repo}/contents/{encoded_path}")
-    if not data or "content" not in data:
-        return None
-    try:
-        return base64.b64decode(data["content"]).decode("utf-8", errors="ignore")
-    except Exception:
-        return None
 
 
 def summarise_notebook(raw_json_text, max_chars=8_000):
@@ -351,7 +288,7 @@ Your task: find ALL usage examples in the repository — content that shows HOW
 TO USE the code or model, beyond just installing it.
 
 Usage examples include:
-  - Jupyter / R Markdown / Quarto notebooks (.ipynb / .Rmd / .qmd)
+  - Jupyter notebooks (.ipynb)
   - Example or demo scripts (example.py, demo.py, run_example.sh, …)
   - Code snippets in the README that demonstrate the API or CLI
   - A "Quick-start" or "Usage" section in the README containing runnable code
@@ -410,7 +347,7 @@ You are an expert code reviewer. A previous analysis of this repository returned
 uncertain confidence. Re-examine the content and list ALL usage examples found.
 
 Hard rules:
-  - Every .ipynb / .Rmd / .qmd file IS a usage example — list each one.
+  - Every .ipynb file IS a usage example — list each one.
   - A README code block (``` fences) showing how to call the library → list it.
   - An examples/, tutorials/, or demo/ directory mentioned in the README → list
     the folder as one entry of type "demo folder".
@@ -525,32 +462,35 @@ def llm_check_usage(repo_content, paper_title, system_prompt=None):
             "example_files": [],
         }
 
-    raw = raw_content.strip()
-    raw = re.sub(r"^```(?:json)?\s*", "", raw)
-    raw = re.sub(r"\s*```$", "", raw)
+    raw_preview = raw_content.strip()
+    raw_preview = re.sub(r"^```(?:json)?\s*", "", raw_preview)
+    raw_preview = re.sub(r"\s*```$", "", raw_preview)
 
-    print("\nRAW LLM OUTPUT:\n", raw[:1500])
+    print("\nRAW LLM OUTPUT:\n", raw_preview[:1500])
 
-    try:
-        result = json.loads(raw)
-        # Normalise: old single-file prompts return "example_file" (str).
-        # If the model somehow returned that instead of example_files, convert it.
-        if "example_file" in result and "example_files" not in result:
-            ef = result.pop("example_file")
-            result["example_files"] = (
-                [{"path": ef, "type": "other", "description": ""}] if ef else []
-            )
-        if "example_files" not in result:
-            result["example_files"] = []
-        return result
-    except json.JSONDecodeError:
-        return {
+    result = parse_llm_json_response(
+        raw_content=raw_content,
+        empty_payload={
             "has_usage_examples": None,
-            "confidence":  "low",
-            "evidence":    f"Parsing failed: {raw[:200]}",
+            "confidence": "low",
+            "evidence": "Empty LLM response after retry",
             "example_types": [],
             "example_files": [],
-        }
+        },
+        required_list_fields=("example_types", "example_files"),
+    )
+
+    # Backward compatibility: old prompt variants may return a single string
+    # field named example_file instead of the newer example_files list.
+    if "example_file" in result and not result.get("example_files"):
+        ef = result.pop("example_file")
+        result["example_files"] = (
+            [{"path": ef, "type": "other", "description": ""}] if ef else []
+        )
+    else:
+        result.pop("example_file", None)
+
+    return result
 
 
 # =============================================================================
@@ -672,6 +612,130 @@ def check_paper(paper):
 
     return result, repo_content
 
+
+# =============================================================================
+# GROUND-TRUTH EVALUATION
+# =============================================================================
+
+def _normalise_ground_truth_label(value):
+    """Map common ground-truth label formats to a boolean, or None if unknown."""
+    if isinstance(value, bool):
+        return value
+
+    if value is None:
+        return None
+
+    text = str(value).strip().lower()
+    positive = {
+        "yes", "true", "1", "has_usage_examples", "has examples",
+        "present", "exists", "with_examples", "with examples",
+    }
+    negative = {
+        "no", "false", "0", "missing", "none", "absent",
+        "without_examples", "without examples", "no examples",
+    }
+
+    if text in positive:
+        return True
+    if text in negative:
+        return False
+    return None
+
+
+def evaluate_against_ground_truth(results):
+    """Compute binary metrics when PAPERS includes a usable ground_truth field."""
+    gt_by_title = {}
+    for paper in PAPERS:
+        gt = _normalise_ground_truth_label(paper.get("ground_truth"))
+        if gt is not None:
+            gt_by_title[paper.get("title", "")] = gt
+
+    per_paper = []
+    true_pos = false_pos = true_neg = false_neg = 0
+    evaluated = 0
+
+    for row in results:
+        title = row.get("title", "")
+        if title not in gt_by_title:
+            continue
+
+        gt_bool = gt_by_title[title]
+        status = (row.get("status") or "").lower()
+        if status == "yes":
+            pred_bool = True
+        elif status == "no":
+            pred_bool = False
+        else:
+            pred_bool = None
+
+        if pred_bool is None:
+            match = "unknown"
+            note = f"prediction unavailable (status={status or 'n/a'})"
+            if row.get("note"):
+                note += f"; {row['note']}"
+        else:
+            evaluated += 1
+            if pred_bool and gt_bool:
+                true_pos += 1
+            elif pred_bool and not gt_bool:
+                false_pos += 1
+            elif not pred_bool and not gt_bool:
+                true_neg += 1
+            else:
+                false_neg += 1
+
+            match = "correct" if pred_bool == gt_bool else "wrong"
+            note = row.get("note") or ""
+
+        per_paper.append({
+            "title": title,
+            "prediction": "yes" if pred_bool is True else "no" if pred_bool is False else "unknown",
+            "ground_truth": "yes" if gt_bool else "no",
+            "match": match,
+            "note": note,
+        })
+
+    labelled = len(per_paper)
+    accuracy = ((true_pos + true_neg) / evaluated) if evaluated else 0.0
+    precision = (true_pos / (true_pos + false_pos)) if (true_pos + false_pos) else 0.0
+    recall = (true_pos / (true_pos + false_neg)) if (true_pos + false_neg) else 0.0
+    f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) else 0.0
+
+    return {
+        "labelled": labelled,
+        "evaluated": evaluated,
+        "accuracy": accuracy,
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "true_pos": true_pos,
+        "false_pos": false_pos,
+        "true_neg": true_neg,
+        "false_neg": false_neg,
+        "per_paper": per_paper,
+    }
+
+
+def print_ground_truth_report(metrics):
+    """Print a compact summary of ground-truth comparison metrics."""
+    if metrics.get("labelled", 0) == 0:
+        print("\nGround-truth evaluation skipped: no usable ground_truth labels in PAPERS.")
+        return
+
+    print("\n" + "=" * 78)
+    print("GROUND-TRUTH REPORT")
+    print("=" * 78)
+    print(f"Labelled papers : {metrics['labelled']}")
+    print(f"Evaluated       : {metrics['evaluated']}")
+    print(f"Accuracy        : {metrics['accuracy']:.1%}")
+    print(f"Precision       : {metrics['precision']:.1%}")
+    print(f"Recall          : {metrics['recall']:.1%}")
+    print(f"F1 score        : {metrics['f1']:.3f}")
+    print(
+        "Confusion matrix: "
+        f"TP={metrics['true_pos']}, FP={metrics['false_pos']}, "
+        f"TN={metrics['true_neg']}, FN={metrics['false_neg']}"
+    )
 
 # =============================================================================
 # CONFIDENCE DIAGNOSIS & SELF-HEALING
@@ -950,7 +1014,7 @@ def save_results(results, path=None):
     Sheet 4 — "Summary"  (totals + type breakdown)
     """
     if path is None:
-        path = Path(__file__).resolve().parent / "usage_examples_results_nano.xlsx"
+        path = Path(__file__).resolve().parent / "usage_examples_results.xlsx"
 
     wb = Workbook()
 
@@ -1156,12 +1220,68 @@ def save_results(results, path=None):
         ws4.cell(row=r_idx, column=2, value=value).font = Font(name="Arial", size=10)
         ws4.cell(row=r_idx, column=2).alignment = center
 
-    wb.save(path)
+    # =========================================================================
+    # SHEET 5 — Ground Truth Comparison (only written when labels exist)
+    # =========================================================================
+    metrics = evaluate_against_ground_truth(results)
+    if metrics["labelled"] > 0:
+        ws5      = wb.create_sheet("Ground Truth")
+        hdrs5    = ["#", "Paper Title", "Prediction", "Ground Truth", "Match", "Note"]
+        widths5  = [5, 60, 14, 14, 10, 55]
+        for col, (h, w) in enumerate(zip(hdrs5, widths5), 1):
+            hdr_cell(ws5, 1, col, h, fill_hex="2E7D32")
+            ws5.column_dimensions[get_column_letter(col)].width = w
+        ws5.row_dimensions[1].height = 20
+
+        MATCH_COLORS = {"correct": "C6EFCE", "wrong": "FFC7CE"}
+        for r_idx, p in enumerate(metrics["per_paper"], 2):
+            row_vals = [
+                r_idx - 1,
+                p["title"],
+                p["prediction"],
+                p["ground_truth"],
+                p["match"],
+                p["note"],
+            ]
+            fill_hex = MATCH_COLORS.get(p["match"], "FFFFFF")
+            row_fill = PatternFill("solid", start_color=fill_hex)
+            for col_idx, value in enumerate(row_vals, 1):
+                cell           = ws5.cell(row=r_idx, column=col_idx, value=value)
+                cell.font      = Font(name="Arial", size=10)
+                cell.border    = _border()
+                cell.alignment = center if col_idx in (1, 3, 4, 5) else wrap
+                if col_idx == 5:
+                    cell.fill = row_fill
+
+        # Summary block below the table
+        summary_start = len(metrics["per_paper"]) + 3
+        summary_pairs = [
+            ("Labelled papers",  metrics["labelled"]),
+            ("Accuracy",         f"{metrics['accuracy']:.1%}"),
+            ("Precision",        f"{metrics['precision']:.1%}"),
+            ("Recall",           f"{metrics['recall']:.1%}"),
+            ("F1 score",         f"{metrics['f1']:.3f}"),
+            ("True positives",   metrics["true_pos"]),
+            ("False positives",  metrics["false_pos"]),
+            ("True negatives",   metrics["true_neg"]),
+            ("False negatives",  metrics["false_neg"]),
+        ]
+        for i, (label, value) in enumerate(summary_pairs, summary_start):
+            ws5.cell(row=i, column=1, value=label).font = Font(name="Arial", size=10, bold=True)
+            ws5.cell(row=i, column=2, value=value).font = Font(name="Arial", size=10)
+            ws5.cell(row=i, column=2).alignment = center
+
+        wb.save(path)
     print(f"\nFull results saved to: {path}")
     print(f"  → Results sheet:        {total} papers")
     print(f"  → All Examples sheet:   {total_ex} individual example files")
     se_count = sum(1 for r in results if r.get("status") in ("skipped", "error"))
     print(f"  → Skipped & Errors:     {se_count} entries")
+    metrics = evaluate_against_ground_truth(results)
+    if metrics["labelled"] > 0:
+        print(f"  → Ground Truth sheet:   {metrics['labelled']} labelled, accuracy {metrics['accuracy']:.1%}")
+    else:
+        print("  → Ground Truth sheet:   not written (no labels in GROUND_TRUTH)")
 
 
 # =============================================================================
@@ -1224,6 +1344,11 @@ def main():
             print("\n  All results are now high confidence.")
 
     print_results(results)
+
+    # ── Ground truth evaluation ───────────────────────────────────────────────
+    gt_metrics = evaluate_against_ground_truth(results)
+    print_ground_truth_report(gt_metrics)
+
     save_results(results)
 
 

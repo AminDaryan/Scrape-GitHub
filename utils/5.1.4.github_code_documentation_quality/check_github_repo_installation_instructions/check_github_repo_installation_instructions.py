@@ -1,13 +1,13 @@
-import os, re, sys, time, base64, json
-import urllib.parse, requests
+import os, re, sys, time
 from pathlib import Path
 from collections import Counter
-from urllib.request import urlopen, Request
-from urllib.error import HTTPError, URLError
-from dotenv import load_dotenv
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+from utils.common.fetch_and_parse_github_repo import (
+    load_dotenv, parse_github_repo, is_github, list_all_repo_files, fetch_file_content
+)
+from utils.common.llm_response_parser import parse_llm_json_response
 
 load_dotenv()
 
@@ -36,61 +36,6 @@ TARGET_FILENAMES = {
 MAX_CONTENT_CHARS = 120_000
 
 # ─── GitHub API helpers ───────────────────────────────────────────────────────
-
-def parse_github_repo(url):
-    """Extract (owner, repo) from a GitHub URL, or (None, None)."""
-    match = re.search(r"github\.com/([^/]+)/([^/?.#]+)", url)
-    if match:
-        owner = match.group(1)
-        repo = match.group(2).rstrip("/")
-        if repo.endswith(".git"):
-            repo = repo[:-4]
-        return owner, repo
-    return None, None
-
-
-def is_github(url):
-    return "github.com" in url
-
-
-def github_get(path):
-    """Make a GitHub API GET request and return parsed JSON."""
-    url = f"https://api.github.com/{path.lstrip('/')}"
-    headers = {"Accept": "application/vnd.github.v3+json"}
-    if GITHUB_TOKEN:
-        headers["Authorization"] = f"token {GITHUB_TOKEN}"
-    req = Request(url, headers=headers)
-    try:
-        with urlopen(req, timeout=10) as r:
-            return json.loads(r.read().decode())
-    except HTTPError as e:
-        if e.code == 403:
-            raise RuntimeError("GitHub API rate limit hit. Set GITHUB_TOKEN or wait an hour.")
-        return None
-    except URLError:
-        return None
-
-
-def list_all_repo_files(owner, repo):
-    """
-    Use the Git Trees API (recursive=1) to list every file in the repo in
-    one request — far cheaper than walking the tree directory by directory.
-    """
-    data = github_get(f"repos/{owner}/{repo}/git/trees/HEAD?recursive=1")
-    if not data or "tree" not in data:
-        return []
-    return [item for item in data["tree"] if item.get("type") == "blob"]
-
-
-def fetch_file_content(owner, repo, file_path):
-    """Fetch and base64-decode a single file's content via the Contents API."""
-    data = github_get(f"repos/{owner}/{repo}/contents/{file_path}")
-    if not data or "content" not in data:
-        return None
-    try:
-        return base64.b64decode(data["content"]).decode("utf-8", errors="ignore")
-    except Exception:
-        return None
 
 
 def collect_repo_content(owner, repo):
@@ -245,21 +190,22 @@ def llm_check_installation(repo_content, paper_title, system_prompt=None):
             "instruction_types": [],
         }
 
-    raw = raw_content.strip()
-    raw = re.sub(r"^```(?:json)?\s*", "", raw)
-    raw = re.sub(r"\s*```$", "", raw)
+    raw_preview = raw_content.strip()
+    raw_preview = re.sub(r"^```(?:json)?\s*", "", raw_preview)
+    raw_preview = re.sub(r"\s*```$", "", raw_preview)
 
-    print("\nRAW LLM OUTPUT:\n", raw[:500])
+    print("\nRAW LLM OUTPUT:\n", raw_preview[:500])
 
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        return {
+    return parse_llm_json_response(
+        raw_content=raw_content,
+        empty_payload={
             "has_installation_instructions": None,
             "confidence": "low",
-            "evidence": f"Parsing failed: {raw[:200]}",
+            "evidence": "Empty LLM response after retry — content may exceed context window",
             "instruction_types": [],
-        }
+        },
+        required_list_fields=("instruction_types",),
+    )
 
 
 # ─── Per-paper orchestration ──────────────────────────────────────────────────
