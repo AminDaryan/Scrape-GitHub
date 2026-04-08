@@ -24,10 +24,12 @@ load_dotenv()
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 from openai_client import client, AZURE_OPENAI_DEPLOYMENT
+from common.token_usage import TokenUsageTracker, print_token_usage_report
 from papers_from_database import PAPERS
 
 PAUSE   = 1.5
 ALLOWED = {"SEPARATE_APPENDIX", "MISSING"}
+TOKEN_USAGE = TokenUsageTracker()
 
 # ---------------------------------------------------------------------------
 # Prompts
@@ -112,6 +114,7 @@ def call_gpt(messages):
             messages=messages,
             max_completion_tokens=16000,
         )
+        TOKEN_USAGE.add_from_response(resp)
         raw = (resp.choices[0].message.content or "").strip()
         if not raw:
             print(f"  [GPT] ERROR: Empty response")
@@ -450,5 +453,6 @@ if __name__ == "__main__":
         print(f"\n  Wrong ({len(acc['wrong'])}):")
         for w in acc["wrong"]:
             print(f"    PRED={w['pred']:25s}  GT={w['gt']:25s}  {w['title'][:50]}")
+    print_token_usage_report(TOKEN_USAGE, AZURE_OPENAI_DEPLOYMENT)
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results_513.xlsx")
     save_excel(results, out, acc)

@@ -47,6 +47,11 @@ from utils.common.fetch_and_parse_github_repo import (
     load_dotenv, parse_github_repo, is_github, list_all_repo_files, fetch_file_content
 )
 from utils.common.llm_response_parser import parse_llm_json_response
+from utils.common.confidence_reporting import (
+    diagnose_with_rules,
+    print_confidence_report as print_shared_confidence_report,
+)
+from utils.common.token_usage import TokenUsageTracker, print_token_usage_report
 
 load_dotenv()
 
@@ -106,6 +111,7 @@ MAX_NOTEBOOKS = 20
 
 # Maximum number of example scripts to fetch per pass
 MAX_SCRIPTS = 15
+TOKEN_USAGE = TokenUsageTracker()
 
 
 # =============================================================================
@@ -430,7 +436,7 @@ def llm_check_usage(repo_content, paper_title, system_prompt=None):
         # and the JSON list grows accordingly.  Cap at 4 000 to stay safe.
         if token_budget is None:
             token_budget = 8000 if len(content) > 50_000 else 4000
-        return client.chat.completions.create(
+        response = client.chat.completions.create(
             model=DEPLOYMENT,
             messages=[
                 {"role": "system", "content": system_prompt or SYSTEM_PROMPT},
@@ -439,6 +445,8 @@ def llm_check_usage(repo_content, paper_title, system_prompt=None):
             max_completion_tokens=token_budget,
             response_format={"type": "json_object"},
         )
+        TOKEN_USAGE.add_from_response(response)
+        return response
 
     response    = _call(repo_content)
     raw_content = response.choices[0].message.content
@@ -787,20 +795,7 @@ DIAGNOSIS_RULES = [
 
 
 def diagnose_result(result, repo_content):
-    diagnoses = []
-    for rule in DIAGNOSIS_RULES:
-        try:
-            if rule["check"](result, repo_content):
-                diagnoses.append(rule)
-        except Exception:
-            pass
-    if not diagnoses:
-        diagnoses.append({
-            "id":    "unknown",
-            "label": "LLM was uncertain — no clear structural cause detected",
-            "fix":   "Manual review recommended",
-        })
-    return diagnoses
+    return diagnose_with_rules(result, repo_content, DIAGNOSIS_RULES)
 
 
 def heal_result(result, repo_content, owner, repo):
@@ -914,46 +909,7 @@ def heal_result(result, repo_content, owner, repo):
 # =============================================================================
 
 def print_confidence_report(results, repo_contents):
-    total  = len(results)
-    counts = Counter(r.get("confidence", "unknown") for r in results)
-    high   = counts.get("high",   0)
-    medium = counts.get("medium", 0)
-    low    = counts.get("low",    0)
-
-    W = 90
-    print("\n" + "═" * W)
-    print("  CONFIDENCE REPORT")
-    print("═" * W)
-    print(f"  High   : {high:>3}  ({high/total*100:.1f}%)")
-    print(f"  Medium : {medium:>3}  ({medium/total*100:.1f}%)")
-    print(f"  Low    : {low:>3}  ({low/total*100:.1f}%)")
-    print(f"  Total  : {total}")
-
-    non_high = [
-        (r, repo_contents.get(r["title"], ""))
-        for r in results
-        if r.get("confidence") != "high"
-    ]
-    if not non_high:
-        print("\n  All results are high confidence.")
-        print("═" * W)
-        return
-
-    print(f"\n  {'─'*86}")
-    print(f"  {'TITLE':<50} {'CONF':<8}  ROOT CAUSE")
-    print(f"  {'─'*86}")
-    for r, content in non_high:
-        title = r["title"][:48] + ("…" if len(r["title"]) > 48 else "")
-        conf  = r.get("confidence") or "?"   # guard: f-string :<8 requires str, not None
-        diags = diagnose_result(r, content)
-        for i, d in enumerate(diags):
-            if i == 0:
-                print(f"  {title:<50} {conf:<8}  CAUSE : {d['label']}")
-                print(f"  {'':<50} {'':<8}  FIX   : {d['fix']}")
-            else:
-                print(f"  {'':<50} {'':<8}  ALSO  : {d['label']}")
-        print(f"  {'─'*86}")
-    print("═" * W)
+    print_shared_confidence_report(results, repo_contents, diagnose_result)
 
 
 def print_results(results):
@@ -1348,6 +1304,8 @@ def main():
     # ── Ground truth evaluation ───────────────────────────────────────────────
     gt_metrics = evaluate_against_ground_truth(results)
     print_ground_truth_report(gt_metrics)
+
+    print_token_usage_report(TOKEN_USAGE, DEPLOYMENT)
 
     save_results(results)
 
