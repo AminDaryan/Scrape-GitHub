@@ -67,7 +67,7 @@ If your editor shows Mermaid as code, open Markdown Preview (`Ctrl+Shift+V`) or 
 
 ## Environment Variables
 
-Create a `.env` file in the repo root.
+Copy `.env.example` to `.env` and fill in your keys.
 
 Required for Azure OpenAI path:
 
@@ -84,6 +84,28 @@ Optional fallback (used in some scripts when Azure import is not available):
 
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL`
+
+## First-Time Setup
+
+Use one command to prepare a local environment and install dependencies:
+
+- Windows PowerShell:
+
+```powershell
+./setup.ps1
+```
+
+- macOS/Linux:
+
+```bash
+bash ./setup.sh
+```
+
+This setup will:
+
+- create `.venv`
+- install dependencies from `requirements.txt`
+- create `.env` from `.env.example` if missing
 
 ## Quick Run Commands (from repo root)
 

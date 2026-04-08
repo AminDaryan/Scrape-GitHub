@@ -2,3 +2,12 @@
 *.xls
 .env
 .env.*
+!.env.example
+
+# Python virtual environments
+.venv/
+venv/
+
+# Python caches
+__pycache__/
+*.py[cod]
