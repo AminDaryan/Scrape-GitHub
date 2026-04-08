@@ -34,19 +34,19 @@ What level of documentation does exist for the code?
 
 #### In the example Excel file:
 
-1. [github_stats.xlsx](github_stats.xlsx) (contains the Has README result per repository)
+[github_stats.xlsx](github_stats.xlsx)
 
 
 #### In the code:
 
-1. [scrape_github_data.py](scrape_github_data.py)
-2. [find_readme.py](utils/common/find_readme.py)
+1. [find_readme.py](utils/common/find_readme.py) - exact extractor functions: summarize_readme_files(...), get_readme_info(...).
+2. [scrape_github_data.py](utils/scrape_github_data.py) - call site: has_readme = get_readme_info(owner, repo, headers).
 
 ### 3.2 INSTALLATION INSTRUCTIONS
 
 #### In the example Excel file:
 
-1. [installation_instructions_results.xlsx](utils/5.1.4.github_code_documentation_quality/check_github_repo_installation_instructions/installation_instructions_results.xlsx)
+[installation_instructions_results.xlsx](utils/5.1.4.github_code_documentation_quality/check_github_repo_installation_instructions/installation_instructions_results.xlsx)
 
 #### In the code:
 
