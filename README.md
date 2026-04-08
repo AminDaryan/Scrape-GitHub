@@ -67,7 +67,7 @@ If your editor shows Mermaid as code, open Markdown Preview (`Ctrl+Shift+V`) or 
 
 ## Environment Variables
 
-Copy `.env.example` to `.env` and fill in your keys.
+Copy [.env.example](.env.example) to `.env` and fill in your keys.
 
 Required for Azure OpenAI path:
 
@@ -87,6 +87,13 @@ Optional fallback (used in some scripts when Azure import is not available):
 
 ## First-Time Setup
 
+Setup files:
+
+- [requirements.txt](requirements.txt)
+- [.env.example](.env.example)
+- [setup.ps1](setup.ps1)
+- [setup.sh](setup.sh)
+
 Use one command to prepare a local environment and install dependencies:
 
 - Windows PowerShell:
@@ -104,8 +111,8 @@ bash ./setup.sh
 This setup will:
 
 - create `.venv`
-- install dependencies from `requirements.txt`
-- create `.env` from `.env.example` if missing
+- install dependencies from [requirements.txt](requirements.txt)
+- create `.env` from [.env.example](.env.example) if missing
 
 ## Quick Run Commands (from repo root)
 
