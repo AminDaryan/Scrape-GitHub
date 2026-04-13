@@ -52,6 +52,15 @@ from utils.common.confidence_reporting import (
     print_confidence_report as print_shared_confidence_report,
 )
 from utils.common.token_usage import TokenUsageTracker, print_token_usage_report
+from utils.common.result_status import (
+    STATUS_FILL_COLORS,
+    count_statuses,
+    coverage_formula,
+)
+from utils.common.repo_content_helpers import (
+    fetch_paths_with_char_budget,
+    path_priority_with_readme_first,
+)
 
 load_dotenv()
 
@@ -208,15 +217,7 @@ def collect_repo_content(owner, repo):
             script_paths.append(fpath)
 
     # Sort docs: root README first, then other root-level files, then nested
-    def doc_sort(p):
-        pl = p.lower()
-        if pl in ("readme.md", "readme.rst", "readme.txt", "readme"):
-            return 0
-        if "/" not in pl:
-            return 1
-        return 2
-
-    docs_paths.sort(key=doc_sort)
+    docs_paths.sort(key=path_priority_with_readme_first)
 
     # Sort notebooks and scripts: shallowest first (root-level ones are most
     # likely to be the "main" usage example)
@@ -239,16 +240,18 @@ def collect_repo_content(owner, repo):
     total_chars = 0
 
     # ── 1. Fetch documentation files ─────────────────────────────────────────
-    for file_path in docs_paths:
-        if total_chars >= MAX_CONTENT_CHARS:
-            break
-        content = fetch_file_content(owner, repo, file_path)
-        if content:
-            snippet = content[: MAX_CONTENT_CHARS - total_chars]
-            combined.append(f"### FILE: {file_path}\n{snippet}")
-            total_chars += len(snippet)
-            fetched.append(file_path)
-        time.sleep(0.15)
+    doc_blocks, fetched_docs, total_chars = fetch_paths_with_char_budget(
+        owner,
+        repo,
+        docs_paths,
+        MAX_CONTENT_CHARS,
+        fetch_content=fetch_file_content,
+        start_total_chars=total_chars,
+        pause_seconds=0.15,
+        header_label="FILE",
+    )
+    combined.extend(doc_blocks)
+    fetched.extend(fetched_docs)
 
     # ── 2. Fetch and summarise notebooks ─────────────────────────────────────
     remaining     = MAX_CONTENT_CHARS - total_chars
@@ -266,16 +269,19 @@ def collect_repo_content(owner, repo):
         time.sleep(0.15)
 
     # ── 3. Fetch example scripts ──────────────────────────────────────────────
-    for sc_path in scripts_to_fetch:
-        if total_chars >= MAX_CONTENT_CHARS:
-            break
-        content = fetch_file_content(owner, repo, sc_path)
-        if content:
-            snippet = content[: min(4_000, MAX_CONTENT_CHARS - total_chars)]
-            combined.append(f"### SCRIPT: {sc_path}\n{snippet}")
-            total_chars += len(snippet)
-            fetched.append(sc_path)
-        time.sleep(0.15)
+    script_blocks, fetched_scripts, total_chars = fetch_paths_with_char_budget(
+        owner,
+        repo,
+        scripts_to_fetch,
+        MAX_CONTENT_CHARS,
+        fetch_content=fetch_file_content,
+        start_total_chars=total_chars,
+        pause_seconds=0.15,
+        header_label="SCRIPT",
+        per_file_char_cap=4_000,
+    )
+    combined.extend(script_blocks)
+    fetched.extend(fetched_scripts)
 
     return "\n\n".join(combined), fetched, all_example_meta
 
@@ -908,10 +914,6 @@ def heal_result(result, repo_content, owner, repo):
 # CONSOLE REPORTING
 # =============================================================================
 
-def print_confidence_report(results, repo_contents):
-    print_shared_confidence_report(results, repo_contents, diagnose_result)
-
-
 def print_results(results):
     W = 110
     print("\n" + "=" * W)
@@ -938,10 +940,11 @@ def print_results(results):
             print(f"       [{ex['type']}] {ex['path']}  →  {ex['description']}")
 
     print("=" * W)
-    yes     = sum(1 for r in results if r["status"] == "yes")
-    no      = sum(1 for r in results if r["status"] == "no")
-    skipped = sum(1 for r in results if r["status"] == "skipped")
-    errors  = sum(1 for r in results if r["status"] == "error")
+    counts  = count_statuses(results)
+    yes     = counts.get("yes", 0)
+    no      = counts.get("no", 0)
+    skipped = counts.get("skipped", 0)
+    errors  = counts.get("error", 0)
     total_ex = sum(len(r.get("example_entries", [])) for r in results)
     print(
         f"\nSUMMARY: {yes} repos have examples | {no} missing | "
@@ -991,10 +994,6 @@ def save_results(results, path=None):
     center = Alignment(horizontal="center", vertical="center", wrap_text=True)
     wrap   = Alignment(horizontal="left",   vertical="top",    wrap_text=True)
 
-    STATUS_COLORS = {
-        "yes": "C6EFCE", "no": "FFDDC1", "skipped": "FFEB9C", "error": "FFC7CE",
-    }
-
     # =========================================================================
     # SHEET 1 — Results (one row per paper)
     # =========================================================================
@@ -1030,7 +1029,7 @@ def save_results(results, path=None):
             ", ".join(r.get("files_checked") or []),
             r.get("note") or "",
         ]
-        fill_color = STATUS_COLORS.get(r.get("status"), "FFFFFF")
+        fill_color = STATUS_FILL_COLORS.get(r.get("status"), "FFFFFF")
         row_fill   = PatternFill("solid", start_color=fill_color)
 
         for col_idx, value in enumerate(row_data, 1):
@@ -1113,7 +1112,7 @@ def save_results(results, path=None):
     for paper_num, r in enumerate(results, 1):
         if r.get("status") not in ("skipped", "error"):
             continue
-        fill_color = STATUS_COLORS.get(r.get("status"), "FFFFFF")
+        fill_color = STATUS_FILL_COLORS.get(r.get("status"), "FFFFFF")
         row_fill   = PatternFill("solid", start_color=fill_color)
         row_vals   = [
             paper_num,
@@ -1142,10 +1141,11 @@ def save_results(results, path=None):
     hdr_cell(ws4, 1, 2, "Value")
     ws4.row_dimensions[1].height = 20
 
-    yes      = sum(1 for r in results if r.get("status") == "yes")
-    no       = sum(1 for r in results if r.get("status") == "no")
-    skipped  = sum(1 for r in results if r.get("status") == "skipped")
-    errors   = sum(1 for r in results if r.get("status") == "error")
+    counts   = count_statuses(results)
+    yes      = counts.get("yes", 0)
+    no       = counts.get("no", 0)
+    skipped  = counts.get("skipped", 0)
+    errors   = counts.get("error", 0)
     total    = len(results)
     total_ex = sum(len(r.get("example_entries", [])) for r in results)
 
@@ -1164,7 +1164,7 @@ def save_results(results, path=None):
         ("Avg Examples per Repo (w/ any)",
          f"={total_ex}/{yes if yes else 1}"),
         ("Coverage (%)",
-         f"={yes}/{total if total else 1}*100"),
+         coverage_formula(yes, total)),
         ("", ""),
         ("Example Type Breakdown", ""),
     ]
@@ -1231,7 +1231,7 @@ def save_results(results, path=None):
     print(f"\nFull results saved to: {path}")
     print(f"  → Results sheet:        {total} papers")
     print(f"  → All Examples sheet:   {total_ex} individual example files")
-    se_count = sum(1 for r in results if r.get("status") in ("skipped", "error"))
+    se_count = skipped + errors
     print(f"  → Skipped & Errors:     {se_count} entries")
     metrics = evaluate_against_ground_truth(results)
     if metrics["labelled"] > 0:
@@ -1271,7 +1271,7 @@ def main():
         time.sleep(0.3)
 
     # ── Confidence report ─────────────────────────────────────────────────────
-    print_confidence_report(results, repo_contents)
+    print_shared_confidence_report(results, repo_contents, diagnose_result)
 
     # ── Pass 2: self-heal medium/low confidence results ───────────────────────
     non_high = [i for i, r in enumerate(results)

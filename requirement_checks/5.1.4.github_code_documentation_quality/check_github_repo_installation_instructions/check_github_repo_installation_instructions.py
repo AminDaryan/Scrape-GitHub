@@ -12,6 +12,16 @@ from utils.common.confidence_reporting import (
     print_confidence_report as print_shared_confidence_report,
 )
 from utils.common.token_usage import TokenUsageTracker, print_token_usage_report
+from utils.common.result_status import (
+    STATUS_FILL_COLORS,
+    count_statuses,
+    coverage_formula,
+)
+from utils.common.repo_content_helpers import (
+    fetch_paths_with_char_budget,
+    first_readme_path,
+    path_priority_with_readme_first,
+)
 
 load_dotenv()
 
@@ -68,6 +78,7 @@ def collect_repo_content(owner, repo):
     if not all_files:
         return "", []
 
+    readme_fallback = first_readme_path(all_files)
     selected_paths = []
     for f in all_files:
         fpath_lower = f["path"].lower()
@@ -76,39 +87,26 @@ def collect_repo_content(owner, repo):
             selected_paths.append(f["path"])
 
     # Fallback: grab just the root README if nothing matched
-    if not selected_paths:
-        for f in all_files:
-            if f["path"].lower().startswith("readme"):
-                selected_paths.append(f["path"])
-                break
+    if not selected_paths and readme_fallback:
+        selected_paths.append(readme_fallback)
 
     # Always put the root-level README first so it gets the most budget,
     # then setup files, then nested READMEs last
-    def sort_key(p):
-        """Rank selected paths so high-signal setup docs are fetched first."""
-        pl = p.lower()
-        if pl in ("readme.md", "readme.rst", "readme.txt", "readme"):
-            return 0   # root README first
-        if "/" not in pl:
-            return 1   # other root-level files second
-        if "readme" in pl:
-            return 3   # nested READMEs last
-        return 2
-    selected_paths.sort(key=sort_key)
+    selected_paths.sort(
+        key=lambda p: path_priority_with_readme_first(p, nested_readme_last=True)
+    )
 
-    fetched, combined, total_chars = [], [], 0
-    for file_path in selected_paths:
-        if total_chars >= MAX_CONTENT_CHARS:
-            break
-        content = fetch_file_content(owner, repo, file_path)
-        if content:
-            snippet = content[: MAX_CONTENT_CHARS - total_chars]
-            combined.append(f"### FILE: {file_path}\n{snippet}")
-            total_chars += len(snippet)
-            fetched.append(file_path)
-        time.sleep(0.2)
+    blocks, fetched, _ = fetch_paths_with_char_budget(
+        owner,
+        repo,
+        selected_paths,
+        MAX_CONTENT_CHARS,
+        fetch_content=fetch_file_content,
+        pause_seconds=0.2,
+        header_label="FILE",
+    )
 
-    return "\n\n".join(combined), fetched
+    return "\n\n".join(blocks), fetched
 
 
 # ─── LLM analysis ─────────────────────────────────────────────────────────────
@@ -505,16 +503,6 @@ def heal_result(result, repo_content, owner, repo):
     return healed
 
 
-def print_confidence_report(results, repo_contents):
-    """Print confidence summary and diagnosis for uncertain classifications.
-
-    This is a thin wrapper over shared reporting utilities so this script can
-    provide consistent output while still using local diagnosis logic.
-    """
-    print_shared_confidence_report(results, repo_contents, diagnose_result)
-
-
-
 def print_results(results):
     """Render a compact console table of per-paper decisions and evidence.
 
@@ -548,10 +536,11 @@ def print_results(results):
             print(f"       files: {', '.join(r['files_checked'])}")
 
     print("=" * W)
-    yes     = sum(1 for r in results if r["status"] == "yes")
-    no      = sum(1 for r in results if r["status"] == "no")
-    skipped = sum(1 for r in results if r["status"] == "skipped")
-    errors  = sum(1 for r in results if r["status"] == "error")
+    counts  = count_statuses(results)
+    yes     = counts.get("yes", 0)
+    no      = counts.get("no", 0)
+    skipped = counts.get("skipped", 0)
+    errors  = counts.get("error", 0)
     print(
         f"\nSUMMARY: {yes} have install instructions | "
         f"{no} missing | {skipped} skipped (non-GitHub) | {errors} errors\n"
@@ -585,13 +574,6 @@ def save_results(results, path=None):
     thin = Side(style="thin", color="CCCCCC")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
-    status_colors = {
-        "yes":     "C6EFCE",  # green
-        "no":      "FFDDC1",  # orange
-        "skipped": "FFEB9C",  # yellow
-        "error":   "FFC7CE",  # red
-    }
-
     headers = ["#", "Status", "Confidence", "Title", "Repo", "Instruction Types", "Evidence", "Installation Link", "Files Checked", "Note"]
     col_widths = [5, 10, 12, 45, 40, 35, 50, 45, 45, 30]
 
@@ -619,7 +601,7 @@ def save_results(results, path=None):
             ", ".join(r.get("files_checked") or []),
             r.get("note") or "",
         ]
-        fill_color = status_colors.get(r.get("status"), "FFFFFF")
+        fill_color = STATUS_FILL_COLORS.get(r.get("status"), "FFFFFF")
         row_fill = PatternFill("solid", start_color=fill_color)
 
         for col_idx, value in enumerate(row_data, 1):
@@ -636,10 +618,11 @@ def save_results(results, path=None):
 
     # Summary sheet
     ws2 = wb.create_sheet("Summary")
-    yes     = sum(1 for r in results if r.get("status") == "yes")
-    no      = sum(1 for r in results if r.get("status") == "no")
-    skipped = sum(1 for r in results if r.get("status") == "skipped")
-    errors  = sum(1 for r in results if r.get("status") == "error")
+    counts  = count_statuses(results)
+    yes     = counts.get("yes", 0)
+    no      = counts.get("no", 0)
+    skipped = counts.get("skipped", 0)
+    errors  = counts.get("error", 0)
     total   = len(results)
 
     summary_data = [
@@ -648,7 +631,7 @@ def save_results(results, path=None):
         ("Missing Installation Instructions", no),
         ("Skipped (non-GitHub)", skipped),
         ("Errors", errors),
-        ("Coverage (%)", f"={yes}/{total if total else 1}*100"),
+        ("Coverage (%)", coverage_formula(yes, total)),
     ]
 
     ws2.column_dimensions["A"].width = 35
@@ -705,7 +688,7 @@ def main():
         time.sleep(0.3)
 
     # ── Confidence report + diagnosis ─────────────────────────────────────────
-    print_confidence_report(results, repo_contents)
+    print_shared_confidence_report(results, repo_contents, diagnose_result)
 
     # ── Pass 2: self-heal any remaining medium/low confidence results ─────────
     non_high = [i for i, r in enumerate(results) if r.get("confidence") in ("medium", "low")]
