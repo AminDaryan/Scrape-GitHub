@@ -44,10 +44,25 @@ TOKEN_USAGE = TokenUsageTracker()
 
 
 def collect_repo_content(owner, repo):
-    """
-    Fetch all targeted files from the repo and concatenate into a single
-    string for the LLM. Returns (content_string, list_of_fetched_paths).
-    Root README is always fetched first and given the most budget.
+    """Collect and prioritize repository files that may contain setup guidance.
+
+    This function lists all files in a GitHub repository, filters to known
+    setup/documentation filenames, then fetches and concatenates their contents
+    into a single payload for LLM analysis. Each chunk is prefixed with a
+    ``### FILE: <path>`` header so the model can cite exact evidence.
+
+    The ordering is intentional: root README first, then other root files,
+    then nested files. This helps preserve the most informative content when
+    the MAX_CONTENT_CHARS budget is reached.
+
+    Args:
+        owner (str): GitHub account or organization name.
+        repo (str): GitHub repository name.
+
+    Returns:
+        tuple[str, list[str]]: Concatenated file content and the list of file
+        paths that were actually fetched. Returns ("", []) when the repository
+        tree could not be listed.
     """
     all_files = list_all_repo_files(owner, repo)
     if not all_files:
@@ -70,6 +85,7 @@ def collect_repo_content(owner, repo):
     # Always put the root-level README first so it gets the most budget,
     # then setup files, then nested READMEs last
     def sort_key(p):
+        """Rank selected paths so high-signal setup docs are fetched first."""
         pl = p.lower()
         if pl in ("readme.md", "readme.rst", "readme.txt", "readme"):
             return 0   # root README first
@@ -157,10 +173,25 @@ Return ONLY valid JSON.
 
 
 def llm_check_installation(repo_content, paper_title, system_prompt=None):
-    """Send repo content to the LLM and parse its structured response.
-    If the response is empty (context window overflow), shrink content and retry once.
+    """Run LLM classification for installation-instruction detection.
+
+    The function sends repository text to the configured Azure OpenAI model,
+    expects a JSON object response, and normalizes/parses it via the shared
+    parser. If the model returns an empty payload (often context overflow), it
+    retries once with a shorter content slice.
+
+    Args:
+        repo_content (str): Concatenated repository snippets with file headers.
+        paper_title (str): Paper title used to provide context in the prompt.
+        system_prompt (str | None): Optional override prompt for targeted
+            re-evaluation flows.
+
+    Returns:
+        dict: Parsed LLM result containing boolean decision, confidence,
+        evidence text, instruction types, and optional installation file.
     """
     def _call(content):
+        """Submit one chat-completions request and record token usage."""
         user_message = (
             f"Paper: {paper_title}\n\n"
             "Below are the contents of key files fetched from its GitHub repository.\n"
@@ -218,6 +249,20 @@ def llm_check_installation(repo_content, paper_title, system_prompt=None):
 # ─── Per-paper orchestration ──────────────────────────────────────────────────
 
 def check_paper(paper):
+    """Execute end-to-end installation-instruction checks for one paper record.
+
+    This orchestrator validates the repository URL, fetches candidate files,
+    calls the LLM classifier, optionally retries with a stricter prompt when
+    confidence is not high, and formats a normalized result dictionary used by
+    reporting/export code.
+
+    Args:
+        paper (dict): Entry from PAPERS with at least ``title`` and ``repo``.
+
+    Returns:
+        tuple[dict, str]: Final result object and the raw fetched repository
+        content string used for confidence diagnosis.
+    """
     url = paper.get("repo", "")
     result = {
         "title":             paper["title"],
@@ -368,14 +413,36 @@ Return ONLY valid JSON.
 
 
 def diagnose_result(result, repo_content):
-    """Return a list of matching diagnosis IDs for a medium/low confidence result."""
+    """Identify likely root causes for uncertain LLM confidence.
+
+    Args:
+        result (dict): One per-paper evaluation record.
+        repo_content (str): Full text payload that was sent to the LLM.
+
+    Returns:
+        list[dict]: Ordered diagnosis matches from ``DIAGNOSIS_RULES``.
+    """
     return diagnose_with_rules(result, repo_content, DIAGNOSIS_RULES)
 
 
 def heal_result(result, repo_content, owner, repo):
     """
-    Attempt to fix a medium/low confidence result.
-    Returns an updated result dict (or the original if healing failed).
+    Attempt targeted remediation when confidence is medium/low.
+
+    The function picks the top diagnosis and applies a focused recovery
+    strategy (for example: refetch a larger README, search for missed setup
+    files, or use a broader prompt for implicit instructions). It then reruns
+    the LLM and merges successful updates into the original result structure.
+
+    Args:
+        result (dict): Existing per-paper result to improve.
+        repo_content (str): Original fetched content payload.
+        owner (str): GitHub owner/org.
+        repo (str): GitHub repository name.
+
+    Returns:
+        dict: Healed result when re-analysis succeeds, otherwise the original
+        result unchanged.
     """
     diagnoses = diagnose_result(result, repo_content)
     primary = diagnoses[0]["id"]
@@ -439,12 +506,21 @@ def heal_result(result, repo_content, owner, repo):
 
 
 def print_confidence_report(results, repo_contents):
-    """Print a confidence breakdown with root-cause diagnosis for non-high results."""
+    """Print confidence summary and diagnosis for uncertain classifications.
+
+    This is a thin wrapper over shared reporting utilities so this script can
+    provide consistent output while still using local diagnosis logic.
+    """
     print_shared_confidence_report(results, repo_contents, diagnose_result)
 
 
 
 def print_results(results):
+    """Render a compact console table of per-paper decisions and evidence.
+
+    Args:
+        results (list[dict]): Final normalized result objects.
+    """
     W = 110
     print("\n" + "=" * W)
     print(f"{'#':<4} {'STATUS':<10} {'CONF':<8} {'INSTRUCTION TYPES':<36} TITLE")
@@ -484,6 +560,17 @@ def print_results(results):
 
 
 def save_results(results, path=None):
+    """Export detailed and summary results to an Excel workbook.
+
+    The workbook contains:
+    - ``Results``: one row per repository with status, evidence, and links.
+    - ``Summary``: aggregate counts and coverage formula.
+
+    Args:
+        results (list[dict]): Final normalized results.
+        path (Path | None): Optional output path. Defaults to
+            ``installation_instructions_results.xlsx`` next to this script.
+    """
     if path is None:
         path = Path(__file__).resolve().parent / "installation_instructions_results.xlsx"
     wb = Workbook()
@@ -585,6 +672,14 @@ def save_results(results, path=None):
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
+    """Run the full two-pass analysis pipeline over all configured papers.
+
+    Workflow:
+    1) Evaluate each repository once.
+    2) Print a confidence report and diagnoses.
+    3) Auto-heal medium/low confidence cases and re-evaluate.
+    4) Print token usage, console summary, and save Excel output.
+    """
     print(f"Checking {len(PAPERS)} repos for installation instructions "
           f"using LLM ({AZURE_OPENAI_DEPLOYMENT})...")
     if not GITHUB_TOKEN:
