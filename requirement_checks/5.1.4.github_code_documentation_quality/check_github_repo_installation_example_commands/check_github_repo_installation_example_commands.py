@@ -80,6 +80,13 @@ except ImportError:
     client     = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
     DEPLOYMENT = os.getenv("OPENAI_MODEL", "gpt-4o")
 
+from prompts import (
+    SYSTEM_PROMPT,
+    RETRY_SYSTEM_PROMPT,
+    TARGETED_README_PROMPT,
+    DEEP_SCAN_PROMPT,
+)
+
 
 # =============================================================================
 # CONFIGURATION
@@ -289,130 +296,7 @@ def collect_repo_content(owner, repo):
 # =============================================================================
 # LLM PROMPTS
 # =============================================================================
-# KEY CHANGE: every prompt now asks for `example_files` — a LIST of objects,
-# one per example found — instead of a single `example_file` string.
-# Each object has: path, type, description.
-
-SYSTEM_PROMPT = """\
-You are an expert code reviewer analysing GitHub repositories for academic papers.
-
-Your task: find ALL usage examples in the repository — content that shows HOW
-TO USE the code or model, beyond just installing it.
-
-Usage examples include:
-  - Jupyter notebooks (.ipynb)
-  - Example or demo scripts (example.py, demo.py, run_example.sh, …)
-  - Code snippets in the README that demonstrate the API or CLI
-  - A "Quick-start" or "Usage" section in the README containing runnable code
-  - Command-line usage examples with flags/arguments shown
-  - Tutorial files or a tutorials/ / examples/ / demo/ folder
-
-Does NOT count as a usage example:
-  - Installation instructions alone (pip install X, conda env create, conda activate)
-  - Navigation commands alone (cd src, mkdir, ls)
-  - Abstract or paper description
-  - Citation / BibTeX blocks
-  - API reference lists with no example calls
-  - A command only counts if it actually RUNS the tool/model, not just sets up the environment.
-    If cd or conda commands appear alongside a real run command, include only the run command.
-
-CONFIDENCE RULES:
-  - Use "high"   in almost all cases.
-  - Use "medium" ONLY if the content was clearly truncated mid-sentence.
-  - Use "low"    ONLY if absolutely no files were fetched.
-
-Respond with a JSON object ONLY — no extra text, no markdown fences:
-{
-  "has_usage_examples": true | false,
-  "confidence": "high" | "medium" | "low",
-  "evidence": "<one sentence summarising what you found overall>",
-  "example_types": ["distinct", "types", "found"],
-  "example_files": [
-    {
-      "path": "<exact file path as it appears in the ### FILE / ### NOTEBOOK / ### SCRIPT header>",
-      "type": "<one of: notebook | example script | README code snippet | CLI usage | tutorial file | quickstart guide | other>",
-      "description": "<one sentence: what this specific file demonstrates>",
-      "commands": ["<first exact code block or command>", "<second code block if present>"]
-    }
-  ]
-}
-
-IMPORTANT rules for example_files:
-  - List EVERY individual example file you found — do not stop at one.
-  - For a README that contains multiple distinct usage sections, list it once
-    with type "README code snippet".
-  - For each notebook or script file, list it as its own entry.
-  - If no examples exist, use an empty list [].
-  - Paths must be copied EXACTLY from the file headers above (e.g. "README.md",
-    "examples/demo.ipynb") — do not invent or guess paths.
-  - "commands": list ALL distinct code blocks / commands shown for this file.
-    Each entry is one self-contained code block exactly as written in the repo.
-    Include BOTH CLI commands (e.g. python run.py ...) AND Python API blocks.
-    Use an empty list [] if no commands are shown.
-    Do NOT merge multiple blocks into one string.
-
-Return ONLY valid JSON. No explanation, no markdown, no preamble.
-"""
-
-RETRY_SYSTEM_PROMPT = """\
-You are an expert code reviewer. A previous analysis of this repository returned
-uncertain confidence. Re-examine the content and list ALL usage examples found.
-
-Hard rules:
-  - Every .ipynb file IS a usage example — list each one.
-  - A README code block (``` fences) showing how to call the library → list it.
-  - An examples/, tutorials/, or demo/ directory mentioned in the README → list
-    the folder as one entry of type "demo folder".
-  - A purely abstract / citation README with zero runnable content → empty list.
-  - You MUST return "high" confidence. Only "medium" if genuinely mid-truncation.
-
-Respond with a JSON object ONLY:
-{
-  "has_usage_examples": true | false,
-  "confidence": "high",
-  "evidence": "<one decisive sentence>",
-  "example_types": ["list", "of", "found", "types"],
-  "example_files": [
-    {"path": "<exact path>", "type": "<type>", "description": "<one sentence>", "commands": ["<code block 1>", "<code block 2 if any>"]}
-  ]
-}
-Return ONLY valid JSON.
-"""
-
-TARGETED_README_PROMPT = """\
-You are an expert code reviewer. The README was previously truncated; you now
-have a larger portion. List ALL usage examples — code blocks, CLI examples,
-references to notebooks or example files.
-
-Respond with a JSON object ONLY:
-{
-  "has_usage_examples": true | false,
-  "confidence": "high",
-  "evidence": "<one decisive sentence>",
-  "example_types": ["list", "of", "found", "types"],
-  "example_files": [
-    {"path": "<exact path>", "type": "<type>", "description": "<one sentence>", "commands": ["<code block 1>", "<code block 2 if any>"]}
-  ]
-}
-Return ONLY valid JSON.
-"""
-
-DEEP_SCAN_PROMPT = """\
-You are an expert code reviewer. Additional files (notebooks, scripts, example
-folders) have been fetched. List EVERY usage example you find in the content.
-
-Respond with a JSON object ONLY:
-{
-  "has_usage_examples": true | false,
-  "confidence": "high",
-  "evidence": "<one decisive sentence>",
-  "example_types": ["list", "of", "found", "types"],
-  "example_files": [
-    {"path": "<exact path>", "type": "<type>", "description": "<one sentence>", "commands": ["<code block 1>", "<code block 2 if any>"]}
-  ]
-}
-Return ONLY valid JSON.
-"""
+# Prompt templates are defined in neighboring prompts.py.
 
 
 # =============================================================================

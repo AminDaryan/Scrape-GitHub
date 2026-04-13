@@ -30,6 +30,12 @@ from papers_from_database import PAPERS
 
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from openai_client import client, AZURE_OPENAI_DEPLOYMENT
+from prompts import (
+    SYSTEM_PROMPT,
+    RETRY_SYSTEM_PROMPT,
+    TARGETED_README_PROMPT,
+    IMPLICIT_INSTALL_PROMPT,
+)
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 
@@ -110,64 +116,7 @@ def collect_repo_content(owner, repo):
 
 
 # ─── LLM analysis ─────────────────────────────────────────────────────────────
-
-SYSTEM_PROMPT = """\
-You are an expert code reviewer analysing GitHub repositories for academic papers.
-
-Your task: determine whether the repository contains INSTALLATION INSTRUCTIONS —
-i.e. any content that explains how to set up the environment, install dependencies,
-or get the code running (pip install, conda, docker, apt-get, virtualenv, etc.).
-
-You will receive the concatenated contents of key files (README, setup files,
-requirements, Dockerfiles, Makefiles, etc.).
-
-CONFIDENCE RULES — you must use "high" in almost all cases:
-- Use "high" if the files clearly contain installation steps (commands, package lists, environment setup).
-- Use "high" if the files are clearly just a paper summary, dataset description, or survey with zero setup content.
-- Use "high" if a requirements.txt or environment.yml is present — that IS an installation instruction.
-- Use "medium" ONLY if the content was visibly truncated mid-sentence and you genuinely cannot tell.
-- Use "low" ONLY if no files at all were fetched.
-- A README that only mentions prerequisites by name (no commands) counts as "other" instruction type — still mark true with high confidence.
-
-Respond with a JSON object ONLY — no extra text, no markdown fences:
-{
-  "has_installation_instructions": true | false,
-  "confidence": "high" | "medium" | "low",
-  "evidence": "<one sentence describing what you found or why you concluded no instructions exist>",
-  "instruction_types": ["list", "of", "found", "types"],
-  "installation_file": "<the exact file path where installation instructions were found, e.g. README.md or docs/installation.md, or null if none found>"
-}
-
-Possible instruction_types values (use as many as apply):
-  pip install, conda environment, docker setup, system packages,
-  virtual environment, requirements file, makefile, manual build steps, other
-If none found, use an empty list [].
-For installation_file: return the file path string exactly as it appears in the "### FILE: <path>" headers above (e.g. "README.md", "docs/installation.md"). Return null if no instructions found.
-Return ONLY valid JSON.
-Do NOT include any explanation, text, or markdown.
-Your entire response must be a single valid JSON object.
-"""
-
-RETRY_SYSTEM_PROMPT = """\
-You are an expert code reviewer. A previous analysis of this GitHub repository returned uncertain confidence.
-Re-examine the content carefully and make a DECISIVE, HIGH-CONFIDENCE determination.
-
-Rules:
-- If ANY setup file (requirements.txt, environment.yml, Dockerfile, setup.py, pyproject.toml) is present → true, high confidence, "requirements file" type.
-- If the README lists packages or versions to install, even informally → true, high confidence, "other" type.
-- If the README is purely a paper abstract, survey, or dataset description with zero setup content → false, high confidence.
-- You MUST return "high" confidence. Only return "medium" if the content is genuinely mid-truncation.
-
-Respond with a JSON object ONLY:
-{
-  "has_installation_instructions": true | false,
-  "confidence": "high",
-  "evidence": "<one decisive sentence>",
-  "instruction_types": ["list", "of", "found", "types"],
-  "installation_file": "<file path or null>"
-}
-Return ONLY valid JSON.
-"""
+# Prompt templates are defined in neighboring prompts.py.
 
 
 def llm_check_installation(repo_content, paper_title, system_prompt=None):
@@ -370,44 +319,7 @@ DIAGNOSIS_RULES = [
     },
 ]
 
-# Targeted prompt for repos where only the README section was truncated
-TARGETED_README_PROMPT = """\
-You are an expert code reviewer. The README for this repo was previously truncated.
-You are now receiving a larger portion. Focus specifically on finding any installation,
-setup, or environment configuration steps, even informal ones (e.g. listing required
-Python version, package names without explicit commands).
-
-Respond with a JSON object ONLY:
-{
-  "has_installation_instructions": true | false,
-  "confidence": "high",
-  "evidence": "<one decisive sentence>",
-  "instruction_types": ["list", "of", "found", "types"],
-  "installation_file": "<file path or null>"
-}
-Return ONLY valid JSON.
-"""
-
-# Targeted prompt for vague READMEs that mention prereqs but have no commands
-IMPLICIT_INSTALL_PROMPT = """\
-You are an expert code reviewer. Apply a BROAD definition of installation instructions:
-- Listing required packages or Python/library versions by name = YES (type: "other")
-- Mentioning "you need X installed" = YES (type: "other")
-- A requirements.txt or environment.yml being present = YES (type: "requirements file")
-- Only a paper abstract or citation info with zero technical content = NO
-
-Be decisive. Return "high" confidence unless genuinely mid-truncation.
-
-Respond with a JSON object ONLY:
-{
-  "has_installation_instructions": true | false,
-  "confidence": "high",
-  "evidence": "<one decisive sentence>",
-  "instruction_types": ["list", "of", "found", "types"],
-  "installation_file": "<file path or null>"
-}
-Return ONLY valid JSON.
-"""
+# Additional prompt variants are defined in neighboring prompts.py.
 
 
 def diagnose_result(result, repo_content):

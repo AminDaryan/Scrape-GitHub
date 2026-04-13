@@ -57,11 +57,3 @@ def summarize_readme_files(
 
     return f"Yes ({len(readme_files)}): " + ", ".join(readme_files)
 
-
-def get_readme_info(
-    owner: str,
-    repo: str,
-    headers: Optional[Mapping[str, str]] = None,
-) -> str:
-    """Backward-compatible wrapper for existing call sites."""
-    return summarize_readme_files(owner, repo, headers=headers)

@@ -2,7 +2,7 @@ import requests
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from utils.github_code_documentation_quality.environment_instructions_existance_check import check_setup_with_nlp
-from utils.common.find_readme import get_readme_info
+from utils.common.find_readme import summarize_readme_files
 from transformers import pipeline
 import time
 from datetime import datetime
@@ -34,7 +34,7 @@ def get_repo_info(owner, repo, headers=None):
 
     # Check for README
     log(f"   📄 Checking for README...")
-    has_readme = get_readme_info(owner, repo, headers)
+    has_readme = summarize_readme_files(owner, repo, headers)
     log(f"   ✓ README check done: {has_readme}")
 
     data = response.json()
