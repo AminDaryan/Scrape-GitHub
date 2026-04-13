@@ -473,7 +473,7 @@ def save_results(results, path=None):
             ``installation_instructions_results.xlsx`` next to this script.
     """
     if path is None:
-        path = Path(__file__).resolve().parent / "installation_instructions_results.xlsx"
+        path = Path(__file__).resolve().parent / "results/installation_instructions_results.xlsx"
     wb = Workbook()
     ws = wb.active
     ws.title = "Results"

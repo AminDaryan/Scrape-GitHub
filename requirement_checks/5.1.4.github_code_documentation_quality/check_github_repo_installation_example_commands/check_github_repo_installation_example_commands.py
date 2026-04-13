@@ -857,7 +857,7 @@ def save_results(results, path=None):
     Sheet 4 — "Summary"  (totals + type breakdown)
     """
     if path is None:
-        path = Path(__file__).resolve().parent / "usage_examples_results.xlsx"
+        path = Path(__file__).resolve().parent / "results/usage_examples_results.xlsx"
 
     wb = Workbook()
 
