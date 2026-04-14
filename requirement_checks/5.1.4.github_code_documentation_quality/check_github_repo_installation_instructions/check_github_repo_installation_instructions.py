@@ -1,4 +1,4 @@
-import os, re, sys, time
+import os, sys
 from pathlib import Path
 
 # Add parent directories to Python path for local imports
@@ -10,7 +10,6 @@ from openpyxl import Workbook
 from common.fetch_and_parse_github_repo import (
     load_dotenv, parse_github_repo, is_github, list_all_repo_files, fetch_file_content,
 )
-from common.confidence_reporting import diagnose_with_rules
 from common.token_usage import TokenUsageTracker
 from common.result_status import count_statuses
 from common.repo_content_helpers import (
@@ -29,12 +28,7 @@ load_dotenv()
 
 from papers_from_database import PAPERS
 from openai_client import client, AZURE_OPENAI_DEPLOYMENT
-from prompts import (
-    SYSTEM_PROMPT,
-    RETRY_SYSTEM_PROMPT,
-    TARGETED_README_PROMPT,
-    IMPLICIT_INSTALL_PROMPT,
-)
+from prompts import SYSTEM_PROMPT
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 
@@ -101,13 +95,12 @@ def collect_repo_content(owner, repo):
 
 EMPTY_INSTALLATION_PAYLOAD = {
     "has_installation_instructions": None,
-    "confidence": "low",
     "evidence": "Empty LLM response after retry — content may exceed context window",
     "instruction_types": [],
 }
 
 
-def llm_check_installation(repo_content, paper_title, system_prompt=None):
+def llm_check_installation(repo_content, paper_title):
     """Classify whether the repo content contains installation instructions."""
     def build_msg(content):
         return (
@@ -120,7 +113,7 @@ def llm_check_installation(repo_content, paper_title, system_prompt=None):
     return llm_call_parse_retry(
         client=client,
         deployment=AZURE_OPENAI_DEPLOYMENT,
-        system_prompt=system_prompt or SYSTEM_PROMPT,
+        system_prompt=SYSTEM_PROMPT,
         build_user_message=build_msg,
         content=repo_content,
         token_usage=TOKEN_USAGE,
@@ -134,13 +127,12 @@ def llm_check_installation(repo_content, paper_title, system_prompt=None):
 # ─── Per-paper orchestration ──────────────────────────────────────────────────
 
 def check_paper(paper):
-    """Validate, fetch, classify, and optionally retry one paper. Returns (result, content)."""
+    """Validate, fetch, and classify one paper. Returns a result dict."""
     url = paper.get("repo", "")
     result = {
         "title":             paper["title"],
         "repo":              url,
         "status":            None,
-        "confidence":        None,
         "evidence":          "",
         "instruction_types": [],
         "files_checked":     [],
@@ -151,13 +143,13 @@ def check_paper(paper):
     if not is_github(url):
         result["status"] = "skipped"
         result["note"]   = "Not a GitHub repo"
-        return result, ""
+        return result
 
     owner, repo = parse_github_repo(url)
     if not owner:
         result["status"] = "error"
         result["note"]   = "Could not parse GitHub URL"
-        return result, ""
+        return result
 
     try:
         repo_content, files_checked = collect_repo_content(owner, repo)
@@ -165,15 +157,6 @@ def check_paper(paper):
 
         llm_result = llm_check_installation(repo_content, paper["title"])
 
-        # Retry with stricter prompt if confidence is not high
-        if llm_result.get("confidence") in ("medium", "low"):
-            print(f"\n  [retry — confidence was {llm_result.get('confidence')}]", end=" ", flush=True)
-            time.sleep(0.5)
-            retry_result = llm_check_installation(repo_content, paper["title"], system_prompt=RETRY_SYSTEM_PROMPT)
-            if retry_result.get("has_installation_instructions") is not None:
-                llm_result = retry_result
-
-        result["confidence"]        = llm_result.get("confidence", "unknown")
         result["evidence"]          = llm_result.get("evidence", "")
         result["instruction_types"] = llm_result.get("instruction_types", [])
 
@@ -189,136 +172,23 @@ def check_paper(paper):
     except RuntimeError as e:
         result["status"] = "error"
         result["note"]   = str(e)
-        return result, ""
+        return result
     except Exception as e:
         result["status"] = "error"
         result["note"]   = f"Unexpected error: {e}"
-        return result, ""
+        return result
 
-    return result, repo_content
-
-
-# ─── Confidence diagnosis & self-healing ──────────────────────────────────────
-
-# Root causes and their fixes
-DIAGNOSIS_RULES = [
-    {
-        "id":    "content_truncated",
-        "label": "Content was truncated (hit MAX_CONTENT_CHARS limit)",
-        "fix":   "Re-fetch with a higher char limit targeting only the README",
-        "check": lambda r, content: len(content) >= MAX_CONTENT_CHARS - 100,
-    },
-    {
-        "id":    "no_setup_files",
-        "label": "No setup files found — only README was fetched",
-        "fix":   "Do a deeper search for any setup/install file in the repo",
-        "check": lambda r, content: (
-            len(r.get("files_checked", [])) <= 1
-            and not any(
-                f in (r.get("files_checked") or [])
-                for f in ["requirements.txt", "environment.yml", "setup.py",
-                          "pyproject.toml", "Dockerfile"]
-            )
-        ),
-    },
-    {
-        "id":    "install_section_exists_but_truncated",
-        "label": "README has an installation section heading but content was cut off",
-        "fix":   "Fetch only the README at double the normal char budget",
-        "check": lambda r, content: bool(
-            re.search(r"#{1,3}\s*(install|setup|getting.started)", content, re.I)
-            and len(content) >= MAX_CONTENT_CHARS - 100
-        ),
-    },
-    {
-        "id":    "vague_readme",
-        "label": "README mentions prerequisites/dependencies but no explicit commands",
-        "fix":   "Ask the LLM to re-evaluate with a stricter definition of 'implicit' instructions",
-        "check": lambda r, content: bool(
-            re.search(r"(prerequisite|requirement|depend|python\s*[\d.]+|version\s*[\d.]+)",
-                      content, re.I)
-            and not re.search(r"(pip install|conda|docker|apt-get|brew install|yarn|npm install)",
-                              content, re.I)
-        ),
-    },
-]
-
-# Additional prompt variants are defined in neighboring prompts.py.
+    return result
 
 
-def diagnose_result(result, repo_content):
-    """Identify likely root causes for uncertain LLM confidence."""
-    return diagnose_with_rules(result, repo_content, DIAGNOSIS_RULES)
-
-
-def heal_result(result, repo_content, owner, repo):
-    """Re-fetch targeted content and re-run the LLM to improve a low-confidence result."""
-    diagnoses = diagnose_result(result, repo_content)
-    primary = diagnoses[0]["id"]
-
-    healed_content  = repo_content
-    healed_prompt   = RETRY_SYSTEM_PROMPT
-
-    if primary in ("content_truncated", "install_section_exists_but_truncated"):
-        # Re-fetch README with a much larger budget
-        readme_path = next(
-            (f for f in (result.get("files_checked") or [])
-             if "readme" in f.lower()),
-            None
-        )
-        if readme_path:
-            big_content = fetch_file_content(owner, repo, readme_path)
-            if big_content:
-                healed_content = f"### FILE: {readme_path}\n{big_content[:80_000]}"
-                healed_prompt  = TARGETED_README_PROMPT
-
-    elif primary == "no_setup_files":
-        # Search the full tree for any setup/install file we might have missed
-        all_files = list_all_repo_files(owner, repo)
-        extra_paths = []
-        for f in all_files:
-            name = f["path"].lower()
-            if any(kw in name for kw in
-                   ["install", "setup", "require", "environment", "docker",
-                    "conda", "makefile", "pyproject"]):
-                extra_paths.append(f["path"])
-        if extra_paths:
-            extras = []
-            for p in extra_paths[:5]:
-                c = fetch_file_content(owner, repo, p)
-                if c:
-                    extras.append(f"### FILE: {p}\n{c[:8_000]}")
-                    time.sleep(0.2)
-            if extras:
-                healed_content = healed_content + "\n\n" + "\n\n".join(extras)
-
-    elif primary == "vague_readme":
-        healed_prompt = IMPLICIT_INSTALL_PROMPT
-
-    llm_result = llm_check_installation(healed_content, result["title"],
-                                        system_prompt=healed_prompt)
-    if llm_result.get("has_installation_instructions") is None:
-        return result  # healing failed — keep original
-
-    healed = dict(result)
-    healed["confidence"]        = llm_result.get("confidence", "high")
-    healed["status"]            = "yes" if llm_result["has_installation_instructions"] else "no"
-    healed["evidence"]          = llm_result.get("evidence", "")
-    healed["instruction_types"] = llm_result.get("instruction_types", [])
-    healed["note"]              = f"[auto-healed: {primary}] " + (result.get("note") or "")
-
-    install_file = llm_result.get("installation_file")
-    if install_file and owner:
-        healed["installation_link"] = f"https://github.com/{owner}/{repo}/blob/HEAD/{install_file}"
-
-    return healed
+# ─── Console reporting ────────────────────────────────────────────────────────
 
 
 def print_results(results):
     """Print a compact console table of per-paper results."""
     W = 110
     print("\n" + "=" * W)
-    print(f"{'#':<4} {'STATUS':<10} {'CONF':<8} {'INSTRUCTION TYPES':<36} TITLE")
+    print(f"{'#':<4} {'STATUS':<10} {'INSTRUCTION TYPES':<36} TITLE")
     print("=" * W)
 
     for i, r in enumerate(results, 1):
@@ -334,8 +204,7 @@ def print_results(results):
             types_str = r["note"][:34]
 
         title_short = r["title"][:52] + ("..." if len(r["title"]) > 52 else "")
-        conf = r.get("confidence") or "-"
-        print(f"{i:<4} {icon:<10} {conf:<8} {types_str:<36} {title_short}")
+        print(f"{i:<4} {icon:<10} {types_str:<36} {title_short}")
 
         if r.get("evidence"):
             print(f"       -> {r['evidence']}")
@@ -363,10 +232,10 @@ def save_results(results, path=None):
     ws = wb.active
     ws.title = "Results"
 
-    headers = ["#", "Status", "Confidence", "Title", "Repo",
+    headers = ["#", "Status", "Title", "Repo",
                "Instruction Types", "Evidence", "Installation Link",
                "Files Checked", "Note"]
-    col_widths = [5, 10, 12, 45, 40, 35, 50, 45, 45, 30]
+    col_widths = [5, 10, 45, 40, 35, 50, 45, 45, 30]
     border = thin_border()
 
     write_header_row(ws, headers, col_widths, fill_hex="2F5496", border=border)
@@ -375,7 +244,6 @@ def save_results(results, path=None):
         return [
             num,
             (r.get("status") or "").upper(),
-            r.get("confidence") or "",
             r.get("title") or "",
             r.get("repo") or "",
             ", ".join(r.get("instruction_types") or []),
@@ -388,7 +256,7 @@ def save_results(results, path=None):
     write_results_data_rows(
         ws, results, row_data_fn,
         border=border,
-        link_cols={8},
+        link_cols={7},
         row_height_fn=lambda vals: auto_row_height(vals),
     )
 
@@ -409,12 +277,10 @@ def save_results(results, path=None):
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    """Entry point: run the two-pass analysis pipeline."""
+    """Entry point: run the analysis pipeline."""
     run_checker_pipeline(
         papers=PAPERS,
         check_paper_fn=check_paper,
-        diagnose_fn=diagnose_result,
-        heal_fn=heal_result,
         print_results_fn=print_results,
         save_results_fn=save_results,
         token_usage=TOKEN_USAGE,

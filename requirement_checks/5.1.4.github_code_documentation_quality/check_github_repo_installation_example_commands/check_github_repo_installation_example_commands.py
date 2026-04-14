@@ -5,7 +5,6 @@ then asks the LLM to list every usage example. Results export to Excel.
 """
 
 import os
-import re
 import sys
 import time
 import json
@@ -22,7 +21,6 @@ sys.path.insert(0, str(_this.parent.parent.parent))   # requirement_checks/
 from common.fetch_and_parse_github_repo import (
     load_dotenv, parse_github_repo, is_github, list_all_repo_files, fetch_file_content,
 )
-from common.confidence_reporting import diagnose_with_rules
 from common.token_usage import TokenUsageTracker
 from common.result_status import (
     STATUS_FILL_COLORS,
@@ -52,12 +50,7 @@ except ImportError:
     client     = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
     DEPLOYMENT = os.getenv("OPENAI_MODEL", "gpt-4o")
 
-from prompts import (
-    SYSTEM_PROMPT,
-    RETRY_SYSTEM_PROMPT,
-    TARGETED_README_PROMPT,
-    DEEP_SCAN_PROMPT,
-)
+from prompts import SYSTEM_PROMPT
 
 
 # =============================================================================
@@ -246,14 +239,13 @@ def collect_repo_content(owner, repo):
 
 EMPTY_USAGE_PAYLOAD = {
     "has_usage_examples": None,
-    "confidence": "low",
     "evidence": "Empty LLM response after retry",
     "example_types": [],
     "example_files": [],
 }
 
 
-def llm_check_usage(repo_content, paper_title, system_prompt=None):
+def llm_check_usage(repo_content, paper_title):
     """Classify whether the repo has usage examples via the LLM."""
     def build_msg(content):
         return (
@@ -268,7 +260,7 @@ def llm_check_usage(repo_content, paper_title, system_prompt=None):
     result = llm_call_parse_retry(
         client=client,
         deployment=DEPLOYMENT,
-        system_prompt=system_prompt or SYSTEM_PROMPT,
+        system_prompt=SYSTEM_PROMPT,
         build_user_message=build_msg,
         content=repo_content,
         token_usage=TOKEN_USAGE,
@@ -319,14 +311,13 @@ def build_example_entries(example_files_raw, owner, repo):
 
 
 def check_paper(paper):
-    """Validate, fetch, classify, and optionally retry one paper. Returns (result, content)."""
+    """Validate, fetch, and classify one paper. Returns a result dict."""
     url = paper.get("repo", "")
 
     result = {
         "title":           paper["title"],
         "repo":            url,
         "status":          None,   # "yes" | "no" | "skipped" | "error"
-        "confidence":      None,
         "evidence":        "",
         "example_types":   [],
         "example_entries": [],     # list of {path, type, description, link}
@@ -342,13 +333,13 @@ def check_paper(paper):
             f"Not a GitHub repo — manual review needed. URL: {url}"
             if url else "No repo URL provided"
         )
-        return result, ""
+        return result
 
     owner, repo = parse_github_repo(url)
     if not owner:
         result["status"] = "error"
         result["note"]   = "Could not parse GitHub URL"
-        return result, ""
+        return result
 
     try:
         repo_content, files_checked, all_example_meta = collect_repo_content(owner, repo)
@@ -357,18 +348,6 @@ def check_paper(paper):
 
         llm_result = llm_check_usage(repo_content, paper["title"])
 
-        # Auto-retry if uncertain
-        if llm_result.get("confidence") in ("medium", "low"):
-            print(f"\n  [retry — confidence was {llm_result.get('confidence')}]",
-                  end=" ", flush=True)
-            time.sleep(0.5)
-            retry_content = repo_content[:80_000] if len(repo_content) > 80_000 else repo_content
-            retry = llm_check_usage(retry_content, paper["title"],
-                                    system_prompt=RETRY_SYSTEM_PROMPT)
-            if retry.get("has_usage_examples") is not None:
-                llm_result = retry
-
-        result["confidence"]    = llm_result.get("confidence", "unknown")
         result["evidence"]      = llm_result.get("evidence", "")
         result["example_types"] = llm_result.get("example_types", [])
 
@@ -380,20 +359,19 @@ def check_paper(paper):
         if llm_result.get("has_usage_examples") is None:
             result["status"]     = "error"
             result["note"]       = "Empty LLM response — content may be too large for this model"
-            result["confidence"] = "low"
         else:
             result["status"] = "yes" if llm_result["has_usage_examples"] else "no"
 
     except RuntimeError as e:
         result["status"] = "error"
         result["note"]   = str(e)
-        return result, ""
+        return result
     except Exception as e:
         result["status"] = "error"
         result["note"]   = f"Unexpected error: {e}"
-        return result, ""
+        return result
 
-    return result, repo_content
+    return result
 
 
 # =============================================================================
@@ -521,163 +499,6 @@ def print_ground_truth_report(metrics):
     )
 
 # =============================================================================
-# CONFIDENCE DIAGNOSIS & SELF-HEALING
-# =============================================================================
-
-DIAGNOSIS_RULES = [
-    {
-        "id":    "content_truncated",
-        "label": "Content was truncated (hit MAX_CONTENT_CHARS limit)",
-        "fix":   "Re-fetch README with a larger budget",
-        "check": lambda r, content: len(content) >= MAX_CONTENT_CHARS - 100,
-    },
-    {
-        "id":    "notebooks_not_fetched",
-        "label": "Notebooks exist but were not fully fetched (char budget exhausted)",
-        "fix":   "Fetch notebook content and re-analyse",
-        "check": lambda r, content: (
-            any(m["kind"] == "notebook" for m in r.get("all_example_meta", []))
-            and not any(
-                f.lower().endswith((".ipynb", ".rmd", ".qmd"))
-                for f in (r.get("files_checked") or [])
-            )
-        ),
-    },
-    {
-        "id":    "no_example_files",
-        "label": "No example / tutorial / demo files detected",
-        "fix":   "Scan examples/, tutorials/, and demo/ folders more deeply",
-        "check": lambda r, content: (
-            not any(
-                kw in " ".join(r.get("files_checked") or []).lower()
-                for kw in ["example", "tutorial", "demo", "notebook", "quickstart"]
-            )
-        ),
-    },
-    {
-        "id":    "readme_mentions_examples",
-        "label": "README references example files/folders that were not fetched",
-        "fix":   "Fetch the referenced files and re-analyse",
-        "check": lambda r, content: bool(
-            re.search(
-                r"(example[s]?|tutorial[s]?|demo|notebook|colab|quickstart)",
-                content, re.I
-            )
-            and r.get("status") == "no"
-        ),
-    },
-]
-
-
-def diagnose_result(result, repo_content):
-    """Identify likely root causes for uncertain LLM confidence."""
-    return diagnose_with_rules(result, repo_content, DIAGNOSIS_RULES)
-
-
-def heal_result(result, repo_content, owner, repo):
-    """Re-fetch targeted content and re-run the LLM to improve a low-confidence result."""
-    diagnoses = diagnose_result(result, repo_content)
-    primary   = diagnoses[0]["id"]
-
-    healed_content = repo_content
-    healed_prompt  = RETRY_SYSTEM_PROMPT
-
-    if primary == "content_truncated":
-        readme_path = next(
-            (f for f in (result.get("files_checked") or []) if "readme" in f.lower()),
-            None,
-        )
-        if readme_path:
-            big = fetch_file_content(owner, repo, readme_path)
-            if big:
-                # Split into 15k chunks and query each, then merge all found examples
-                chunk_size = 30_000
-                chunks = [big[i:i+chunk_size] for i in range(0, min(len(big), 200_000), chunk_size)]
-                all_example_files = []
-                last_result = None
-                for chunk_idx, chunk in enumerate(chunks):
-                    chunk_content = f"### FILE: {readme_path} (part {chunk_idx+1}/{len(chunks)})\n{chunk}"
-                    chunk_result  = llm_check_usage(chunk_content, result["title"],
-                                                    system_prompt=TARGETED_README_PROMPT)
-                    if chunk_result.get("has_usage_examples"):
-                        all_example_files.extend(chunk_result.get("example_files", []))
-                    last_result = chunk_result
-                    time.sleep(0.3)
-
-                if last_result:
-                    # Deduplicate by path
-                    seen  = set()
-                    deduped = []
-                    for ef in all_example_files:
-                        if ef.get("path") not in seen:
-                            seen.add(ef.get("path"))
-                            deduped.append(ef)
-                    last_result["example_files"]      = deduped
-                    last_result["has_usage_examples"] = len(deduped) > 0
-                    last_result["confidence"]         = "high"
-                    healed_content = big[:60_000]   # keep for reference
-                    llm_result     = last_result
-                    healed = dict(result)
-                    healed["confidence"]      = "high"
-                    healed["status"]          = "yes" if last_result["has_usage_examples"] else "no"
-                    healed["evidence"]        = last_result.get("evidence", "")
-                    healed["example_types"]   = last_result.get("example_types", [])
-                    healed["example_entries"] = build_example_entries(deduped, owner, repo)
-                    healed["note"]            = "[auto-healed: chunked README scan]"
-                    return healed
-
-    elif primary in ("notebooks_not_fetched", "no_example_files", "readme_mentions_examples"):
-        all_files   = list_all_repo_files(owner, repo)
-        extra_paths = []
-        for f in all_files:
-            name = f["path"].lower()
-            ext  = "." + name.rsplit(".", 1)[-1] if "." in name else ""
-            if ext in USAGE_EXTENSIONS:
-                extra_paths.append(f["path"])
-            elif ext in SCRIPT_EXTENSIONS and any(
-                kw in name for kw in
-                ["example", "demo", "tutorial", "quickstart", "notebook", "usage", "sample"]
-            ):
-                extra_paths.append(f["path"])
-            elif any(name.startswith(p) for p in EXAMPLE_FOLDER_PREFIXES):
-                extra_paths.append(f["path"])
-
-        extra_paths.sort(key=lambda p: (p.count("/"), p.lower()))
-        extra_paths = extra_paths[:30]   # fetch up to 15 additional files
-
-        extras = []
-        for p in extra_paths:
-            raw = fetch_file_content(owner, repo, p)
-            if raw:
-                if p.lower().endswith(".ipynb"):
-                    snippet = summarise_notebook(raw, max_chars=15_000)
-                else:
-                    snippet = raw[:15_000]
-                extras.append(f"### FILE: {p}\n{snippet}")
-                time.sleep(0.15)
-
-        if extras:
-            healed_content = healed_content + "\n\n" + "\n\n".join(extras)
-            healed_prompt  = DEEP_SCAN_PROMPT
-
-    llm_result = llm_check_usage(healed_content, result["title"],
-                                  system_prompt=healed_prompt)
-    if llm_result.get("has_usage_examples") is None:
-        return result
-
-    healed = dict(result)
-    healed["confidence"]    = llm_result.get("confidence", "high")
-    healed["status"]        = "yes" if llm_result["has_usage_examples"] else "no"
-    healed["evidence"]      = llm_result.get("evidence", "")
-    healed["example_types"] = llm_result.get("example_types", [])
-    healed["example_entries"] = build_example_entries(
-        llm_result.get("example_files", []), owner, repo
-    )
-    healed["note"] = f"[auto-healed: {primary}] " + (result.get("note") or "")
-    return healed
-
-
-# =============================================================================
 # CONSOLE REPORTING
 # =============================================================================
 
@@ -739,10 +560,10 @@ def save_results(results, path=None):
     # =========================================================================
     ws1       = wb.active
     ws1.title = "Results"
-    hdrs1     = ["#", "Status", "Confidence", "Title", "Repo",
+    hdrs1     = ["#", "Status", "Title", "Repo",
                  "# Examples", "Example Types", "Evidence",
                  "All Example Links", "Files Checked", "Note"]
-    widths1   = [5, 10, 12, 45, 40, 10, 35, 55, 60, 50, 35]
+    widths1   = [5, 10, 45, 40, 10, 35, 55, 60, 50, 35]
     write_header_row(ws1, hdrs1, widths1, fill_hex="1F5C99", border=border)
 
     def results_row_data(r, num):
@@ -753,7 +574,6 @@ def save_results(results, path=None):
         return [
             num,
             (r.get("status") or "").upper(),
-            r.get("confidence") or "",
             r.get("title") or "",
             r.get("repo") or "",
             len(r.get("example_entries", [])),
@@ -929,15 +749,10 @@ def save_results(results, path=None):
 # =============================================================================
 
 def main():
-    """Run the full two-pass analysis pipeline over all configured papers."""
+    """Run the analysis pipeline over all configured papers."""
 
     def _format_check_extra(result):
         return f"{len(result.get('example_entries', []))} examples"
-
-    def _format_heal_extra(old, healed):
-        n_before = len(old.get("example_entries", []))
-        n_after  = len(healed.get("example_entries", []))
-        return f"examples: {n_before} → {n_after}"
 
     def _finalize(results):
         gt_metrics = evaluate_against_ground_truth(results)
@@ -946,8 +761,6 @@ def main():
     run_checker_pipeline(
         papers=PAPERS,
         check_paper_fn=check_paper,
-        diagnose_fn=diagnose_result,
-        heal_fn=heal_result,
         print_results_fn=print_results,
         save_results_fn=save_results,
         token_usage=TOKEN_USAGE,
@@ -955,7 +768,6 @@ def main():
         description="usage examples",
         github_token=GITHUB_TOKEN,
         format_check_extra=_format_check_extra,
-        format_heal_extra=_format_heal_extra,
         finalize_fn=_finalize,
     )
 
