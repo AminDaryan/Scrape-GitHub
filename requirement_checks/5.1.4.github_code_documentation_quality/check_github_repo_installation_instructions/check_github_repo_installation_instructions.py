@@ -59,26 +59,7 @@ TOKEN_USAGE = TokenUsageTracker()
 
 
 def collect_repo_content(owner, repo):
-    """Collect and prioritize repository files that may contain setup guidance.
-
-    This function lists all files in a GitHub repository, filters to known
-    setup/documentation filenames, then fetches and concatenates their contents
-    into a single payload for LLM analysis. Each chunk is prefixed with a
-    ``### FILE: <path>`` header so the model can cite exact evidence.
-
-    The ordering is intentional: root README first, then other root files,
-    then nested files. This helps preserve the most informative content when
-    the MAX_CONTENT_CHARS budget is reached.
-
-    Args:
-        owner (str): GitHub account or organization name.
-        repo (str): GitHub repository name.
-
-    Returns:
-        tuple[str, list[str]]: Concatenated file content and the list of file
-        paths that were actually fetched. Returns ("", []) when the repository
-        tree could not be listed.
-    """
+    """Fetch and concatenate setup-relevant files from a GitHub repo."""
     all_files = list_all_repo_files(owner, repo)
     if not all_files:
         return "", []
@@ -127,11 +108,7 @@ EMPTY_INSTALLATION_PAYLOAD = {
 
 
 def llm_check_installation(repo_content, paper_title, system_prompt=None):
-    """Run LLM classification for installation-instruction detection.
-
-    Uses the shared ``llm_call_parse_retry`` helper for the call → retry →
-    parse pattern.
-    """
+    """Classify whether the repo content contains installation instructions."""
     def build_msg(content):
         return (
             f"Paper: {paper_title}\n\n"
@@ -157,20 +134,7 @@ def llm_check_installation(repo_content, paper_title, system_prompt=None):
 # ─── Per-paper orchestration ──────────────────────────────────────────────────
 
 def check_paper(paper):
-    """Execute end-to-end installation-instruction checks for one paper record.
-
-    This orchestrator validates the repository URL, fetches candidate files,
-    calls the LLM classifier, optionally retries with a stricter prompt when
-    confidence is not high, and formats a normalized result dictionary used by
-    reporting/export code.
-
-    Args:
-        paper (dict): Entry from PAPERS with at least ``title`` and ``repo``.
-
-    Returns:
-        tuple[dict, str]: Final result object and the raw fetched repository
-        content string used for confidence diagnosis.
-    """
+    """Validate, fetch, classify, and optionally retry one paper. Returns (result, content)."""
     url = paper.get("repo", "")
     result = {
         "title":             paper["title"],
@@ -283,37 +247,12 @@ DIAGNOSIS_RULES = [
 
 
 def diagnose_result(result, repo_content):
-    """Identify likely root causes for uncertain LLM confidence.
-
-    Args:
-        result (dict): One per-paper evaluation record.
-        repo_content (str): Full text payload that was sent to the LLM.
-
-    Returns:
-        list[dict]: Ordered diagnosis matches from ``DIAGNOSIS_RULES``.
-    """
+    """Identify likely root causes for uncertain LLM confidence."""
     return diagnose_with_rules(result, repo_content, DIAGNOSIS_RULES)
 
 
 def heal_result(result, repo_content, owner, repo):
-    """
-    Attempt targeted remediation when confidence is medium/low.
-
-    The function picks the top diagnosis and applies a focused recovery
-    strategy (for example: refetch a larger README, search for missed setup
-    files, or use a broader prompt for implicit instructions). It then reruns
-    the LLM and merges successful updates into the original result structure.
-
-    Args:
-        result (dict): Existing per-paper result to improve.
-        repo_content (str): Original fetched content payload.
-        owner (str): GitHub owner/org.
-        repo (str): GitHub repository name.
-
-    Returns:
-        dict: Healed result when re-analysis succeeds, otherwise the original
-        result unchanged.
-    """
+    """Re-fetch targeted content and re-run the LLM to improve a low-confidence result."""
     diagnoses = diagnose_result(result, repo_content)
     primary = diagnoses[0]["id"]
 
@@ -376,11 +315,7 @@ def heal_result(result, repo_content, owner, repo):
 
 
 def print_results(results):
-    """Render a compact console table of per-paper decisions and evidence.
-
-    Args:
-        results (list[dict]): Final normalized result objects.
-    """
+    """Print a compact console table of per-paper results."""
     W = 110
     print("\n" + "=" * W)
     print(f"{'#':<4} {'STATUS':<10} {'CONF':<8} {'INSTRUCTION TYPES':<36} TITLE")
@@ -421,11 +356,7 @@ def print_results(results):
 
 
 def save_results(results, path=None):
-    """Export detailed and summary results to an Excel workbook.
-
-    Uses shared helpers from ``common.excel_output`` for header rows, data
-    rows, and the summary sheet.
-    """
+    """Export results and summary to an Excel workbook."""
     if path is None:
         path = Path(__file__).resolve().parent / "results/installation_instructions_results.xlsx"
     wb = Workbook()
@@ -478,7 +409,7 @@ def save_results(results, path=None):
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    """Run the full two-pass analysis pipeline over all configured papers."""
+    """Entry point: run the two-pass analysis pipeline."""
     run_checker_pipeline(
         papers=PAPERS,
         check_paper_fn=check_paper,

@@ -1,16 +1,8 @@
-"""Shared two-pass checker pipeline used by all requirement-check scripts.
+"""Shared two-pass checker pipeline.
 
-Both the installation-instructions checker and the usage-examples checker
-run an identical two-pass workflow:
-
-  Pass 1 — Evaluate every paper via a per-paper callback.
-  Pass 2 — Auto-heal medium/low confidence results.
-
-Then print results, run optional finalization (e.g. ground-truth evaluation),
-report token usage, and save to Excel.
-
-This module extracts that shared loop so each checker only supplies its own
-callbacks and configuration.
+Both checkers follow the same workflow: evaluate every paper (pass 1),
+auto-heal low-confidence results (pass 2), then report and save.
+This module extracts that loop so each checker only supplies callbacks.
 """
 
 import time
@@ -38,24 +30,9 @@ def run_checker_pipeline(
 ):
     """Run the standard two-pass analysis pipeline.
 
-    Args:
-        papers: List of paper dicts with at least ``title`` and ``repo``.
-        check_paper_fn: Callable(paper) -> (result_dict, content_str).
-        diagnose_fn: Callable(result, content) -> list of diagnosis dicts.
-        heal_fn: Callable(result, content, owner, repo) -> healed result.
-        print_results_fn: Callable(results) -> None.
-        save_results_fn: Callable(results) -> None.
-        token_usage: TokenUsageTracker instance.
-        deployment: LLM deployment name for display.
-        description: Human-readable task label
-            (e.g. ``"installation instructions"``).
-        github_token: GitHub token string; empty triggers a hint message.
-        format_check_extra: Optional callable(result) -> str appended to the
-            per-paper progress line.
-        format_heal_extra: Optional callable(old_result, healed_result) -> str
-            appended to the per-heal progress line.
-        finalize_fn: Optional callable(results) invoked after
-            ``print_results_fn`` (e.g. for ground-truth evaluation).
+    *check_paper_fn(paper)* returns ``(result_dict, content_str)``.
+    *heal_fn(result, content, owner, repo)* returns a healed result.
+    Optional *finalize_fn(results)* runs after printing (e.g. ground-truth).
     """
     print(
         f"Checking {len(papers)} repos for {description} "

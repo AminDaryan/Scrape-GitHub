@@ -1,14 +1,4 @@
-"""Shared helpers for status aggregation and Excel-summary formatting.
-
-This module centralizes tiny but repeated reporting logic that appears in
-multiple checker scripts:
-1) Mapping result statuses to fill colors for spreadsheet output.
-2) Counting statuses in a robust, case-insensitive way.
-3) Building a safe coverage formula string for Excel.
-
-Keeping these in one place reduces duplicate code and ensures that reports from
-different scripts stay consistent.
-"""
+"""Status aggregation helpers and Excel fill-color mapping."""
 
 from typing import Any, Dict, Mapping, Sequence
 
@@ -27,15 +17,10 @@ def count_statuses(
     results: Sequence[Mapping[str, Any]],
     status_key: str = "status",
 ) -> Dict[str, int]:
-    """Count records by normalized status.
+    """Count records by normalized (lowercased) status.
 
-    Args:
-        results: Sequence of result dictionaries.
-        status_key: Dictionary key that stores each row's status value.
-
-    Returns:
-        A dictionary with counts for known statuses (yes/no/skipped/error) and
-        any additional statuses encountered in the input.
+    Returns a dict pre-seeded with the four known statuses so callers can
+    safely do ``counts["yes"]`` without a KeyError.
     """
     # Pre-seed known statuses so downstream code can safely use .get("yes", 0)
     # or direct indexing without checking whether a key exists.

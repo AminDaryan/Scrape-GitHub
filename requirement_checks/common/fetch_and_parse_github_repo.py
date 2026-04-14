@@ -1,15 +1,8 @@
 """GitHub API helpers for fetching repository metadata and file contents.
 
-This module provides low-level functions for interacting with the GitHub REST
-API: parsing repo URLs, listing files via the Git Trees endpoint, and
-downloading individual file contents.  It is intentionally free of any
-application-specific imports (papers databases, LLM clients, etc.) so that it
-can be reused across different checker scripts.
-
-Environment variables:
-    GITHUB_TOKEN  Authenticated requests get a 5 000 req/hr rate limit instead
-                  of the anonymous 60 req/hr.  Set this in a ``.env`` file or
-                  export it in your shell.
+Provides URL parsing, file listing via the Git Trees endpoint, and individual
+file downloads.  Set ``GITHUB_TOKEN`` in ``.env`` to raise the rate limit from
+60 to 5 000 requests/hour.
 """
 
 import base64

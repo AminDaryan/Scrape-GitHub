@@ -1,13 +1,7 @@
 """Shared LLM call-with-retry logic for checker scripts.
 
-Both the installation-instructions checker and the usage-examples checker
-follow the same pattern:
-  1. Build a user message from repository content.
-  2. Send a chat-completion request.
-  3. If the response is empty (context overflow), truncate and retry once.
-  4. Parse the raw JSON output via parse_llm_json_response.
-
-This module extracts that shared pattern into a single function.
+Extracts the common pattern: send chat-completion → retry on empty response
+→ parse JSON via ``parse_llm_json_response``.
 """
 
 import re
@@ -30,25 +24,11 @@ def llm_call_parse_retry(
     retry_max_tokens=None,
     preview_chars=500,
 ):
-    """Send an LLM chat-completion request, retry on empty, and parse JSON.
+    """Send an LLM chat-completion, retry on empty, and parse the JSON result.
 
-    Args:
-        client: OpenAI client instance.
-        deployment: Model deployment name.
-        system_prompt: System prompt string.
-        build_user_message: Callable(content_str) -> user message string.
-        content: Repository content string to analyse.
-        token_usage: TokenUsageTracker instance for recording usage.
-        empty_payload: Dict returned when both attempts produce no output.
-        required_list_fields: Field names that must be lists in parsed result.
-        max_completion_tokens: Token limit for the first attempt.
-        retry_truncate_chars: Content character limit for the retry attempt.
-        retry_max_tokens: Token limit for the retry (defaults to
-            *max_completion_tokens*).
-        preview_chars: How many characters of raw LLM output to print.
-
-    Returns:
-        Parsed JSON response dict.
+    *build_user_message(content_str)* builds the user prompt.  If the first
+    call returns nothing, content is truncated to *retry_truncate_chars* and
+    retried once.  Returns the parsed JSON dict or a copy of *empty_payload*.
     """
 
     def _call(text, tokens):

@@ -1,18 +1,7 @@
 """Usage-examples checker for academic paper GitHub repositories.
 
-For each paper in the database, this script visits its GitHub repository and
-finds ALL usage examples (Jupyter notebooks, demo scripts, README code
-snippets, tutorial files, etc.).  Each found example is recorded with its
-file path, type, description, and a direct GitHub link.
-
-High-level flow:
-    1. Read the list of papers from ``papers_from_database.py``.
-    2. Fetch README, docs, notebooks, and example/demo scripts via the
-       GitHub API (no cloning needed).
-    3. Ask the LLM to list every usage example found.
-    4. Auto-heal uncertain results by fetching additional files.
-    5. Export to Excel with Results, All Examples, Skipped & Errors,
-       Summary, and optional Ground Truth sheets.
+Fetches README, docs, notebooks, and example scripts via the GitHub API,
+then asks the LLM to list every usage example. Results export to Excel.
 """
 
 import os
@@ -119,13 +108,7 @@ TOKEN_USAGE = TokenUsageTracker()
 
 
 def summarise_notebook(raw_json_text, max_chars=8_000):
-    """
-    Distil a Jupyter notebook JSON into a compact plain-text block containing
-    only code cells, markdown cells, and short text outputs.
-
-    This strips base64-encoded images, widget state, and kernel metadata that
-    would waste context-window tokens without helping the LLM.
-    """
+    """Distil a Jupyter notebook JSON into compact plain text (code + markdown only)."""
     try:
         nb = json.loads(raw_json_text)
     except Exception:
@@ -150,26 +133,7 @@ def summarise_notebook(raw_json_text, max_chars=8_000):
 
 
 def collect_repo_content(owner, repo):
-    """
-    Download all files that could contain usage examples and combine them into
-    one large text string for the LLM.
-
-    What we collect (in priority order so the most important files get the most
-    character budget):
-        1. Root README
-        2. Other named documentation files (usage.md, quickstart.md, …)
-        3. ALL markdown/rst files inside docs/, examples/, tutorials/, demo/, …
-        4. ALL notebooks (.ipynb / .Rmd / .qmd) — up to MAX_NOTEBOOKS
-        5. Example/demo Python/shell scripts — up to MAX_SCRIPTS
-
-    Returns:
-        content_string   — everything joined into one big string for the LLM
-        fetched_paths    — list of paths successfully downloaded
-        all_example_meta — list of dicts describing every example-like file
-                           found in the repo tree (even ones not fetched due
-                           to the char budget), used later to build links.
-                           Each dict: {"path": str, "kind": "notebook"|"script"|"doc"}
-    """
+    """Fetch docs, notebooks, and example scripts; return combined text and metadata."""
     all_files = list_all_repo_files(owner, repo)
     if not all_files:
         return "", [], []
@@ -290,11 +254,7 @@ EMPTY_USAGE_PAYLOAD = {
 
 
 def llm_check_usage(repo_content, paper_title, system_prompt=None):
-    """Send combined repo content to the LLM and parse its structured response.
-
-    Uses the shared ``llm_call_parse_retry`` helper for the call → retry →
-    parse pattern.
-    """
+    """Classify whether the repo has usage examples via the LLM."""
     def build_msg(content):
         return (
             f"Paper: {paper_title}\n\n"
@@ -338,15 +298,7 @@ def llm_check_usage(repo_content, paper_title, system_prompt=None):
 # =============================================================================
 
 def build_example_entries(example_files_raw, owner, repo):
-    """
-    Convert the LLM's raw example_files list into enriched dicts, each with a
-    GitHub hyperlink added.
-
-    Input  (from LLM): [{"path": "examples/demo.ipynb", "type": "notebook",
-                          "description": "Demonstrates the core API"}]
-    Output:            [{"path": ..., "type": ..., "description": ...,
-                          "link": "https://github.com/…/blob/HEAD/examples/demo.ipynb"}]
-    """
+    """Enrich raw LLM example_files with GitHub hyperlinks."""
     entries = []
     for item in (example_files_raw or []):
         path = (item.get("path") or "").strip()
@@ -367,16 +319,7 @@ def build_example_entries(example_files_raw, owner, repo):
 
 
 def check_paper(paper):
-    """
-    Full pipeline for one paper:
-        1. Validate URL (GitHub only)
-        2. Fetch repo files
-        3. Ask LLM to list ALL examples
-        4. Retry if uncertain
-        5. Build GitHub links for every example found
-
-    Returns (result_dict, repo_content_string).
-    """
+    """Validate, fetch, classify, and optionally retry one paper. Returns (result, content)."""
     url = paper.get("repo", "")
 
     result = {
@@ -632,10 +575,7 @@ def diagnose_result(result, repo_content):
 
 
 def heal_result(result, repo_content, owner, repo):
-    """
-    Fetch additional content targeted at the diagnosed problem and re-run the LLM.
-    Returns an updated result dict, or the original if healing failed.
-    """
+    """Re-fetch targeted content and re-run the LLM to improve a low-confidence result."""
     diagnoses = diagnose_result(result, repo_content)
     primary   = diagnoses[0]["id"]
 
@@ -742,7 +682,7 @@ def heal_result(result, repo_content, owner, repo):
 # =============================================================================
 
 def print_results(results):
-    """Render a compact console table of per-paper decisions with example counts."""
+    """Print a compact console table of per-paper results with example counts."""
     W = 110
     print("\n" + "=" * W)
     print(f"{'#':<4} {'STATUS':<10} {'CONF':<8} {'# EX':<6} {'EXAMPLE TYPES':<30} TITLE")
@@ -785,12 +725,7 @@ def print_results(results):
 # =============================================================================
 
 def save_results(results, path=None):
-    """Write five Excel sheets: Results, All Examples, Skipped & Errors,
-    Summary, and (optionally) Ground Truth.
-
-    Uses shared helpers from ``common.excel_output`` for headers, data rows,
-    and the summary sheet.
-    """
+    """Write five Excel sheets: Results, All Examples, Skipped & Errors, Summary, Ground Truth."""
     if path is None:
         path = Path(__file__).resolve().parent / "results/usage_examples_results.xlsx"
 
