@@ -1,44 +1,35 @@
+"""GitHub API helpers for fetching repository metadata and file contents.
 
-import os
-import re
-import sys
+This module provides low-level functions for interacting with the GitHub REST
+API: parsing repo URLs, listing files via the Git Trees endpoint, and
+downloading individual file contents.  It is intentionally free of any
+application-specific imports (papers databases, LLM clients, etc.) so that it
+can be reused across different checker scripts.
+
+Environment variables:
+    GITHUB_TOKEN  Authenticated requests get a 5 000 req/hr rate limit instead
+                  of the anonymous 60 req/hr.  Set this in a ``.env`` file or
+                  export it in your shell.
+"""
+
 import base64
 import json
+import os
+import re
 import urllib.parse
-from pathlib import Path
-from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
-from dotenv import load_dotenv
+from urllib.request import Request, urlopen
 
+from dotenv import load_dotenv
 
 load_dotenv()
 
-
-# =============================================================================
-# IMPORTS — papers list and LLM client
-# =============================================================================
-sys.path.append(str(Path(__file__).resolve().parent.parent))
-from papers_from_database import PAPERS
-
-
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 
-try:
-    sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
-    from openai_client import client, AZURE_OPENAI_DEPLOYMENT as DEPLOYMENT
-except ImportError:
-    import openai
-    client     = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
-    DEPLOYMENT = os.getenv("OPENAI_MODEL", "gpt-4o")
 
-
-# =============================================================================
-# GITHUB API HELPERS
-# =============================================================================
-    
 def parse_github_repo(url):
-    """
-    Extract (owner, repo) from a GitHub URL.
+    """Extract (owner, repo) from a GitHub URL.
+
     Returns (None, None) if the URL is not a recognisable GitHub repo URL.
     """
     match = re.search(r"github\.com/([^/]+)/([^/?.#]+)", url)
@@ -52,13 +43,15 @@ def parse_github_repo(url):
 
 
 def is_github(url):
+    """Return True if *url* points to a GitHub repository."""
     return "github.com" in url
 
 
 def github_get(path):
-    """
-    GET a GitHub REST API endpoint and return parsed JSON, or None on error.
-    Raises RuntimeError when the rate limit is hit so the caller can bail out.
+    """GET a GitHub REST API endpoint and return parsed JSON, or None on error.
+
+    Raises:
+        RuntimeError: When the GitHub rate limit (HTTP 403) is hit.
     """
     url     = f"https://api.github.com/{path.lstrip('/')}"
     headers = {"Accept": "application/vnd.github.v3+json"}
@@ -76,11 +69,11 @@ def github_get(path):
         return None
     except URLError:
         return None
-    
+
 
 def list_all_repo_files(owner, repo):
-    """
-    Return every file blob in the repo using the recursive Git Trees API.
+    """Return every file blob in the repo using the recursive Git Trees API.
+
     This is a single API call regardless of repo size.
     """
     data = github_get(f"repos/{owner}/{repo}/git/trees/HEAD?recursive=1")

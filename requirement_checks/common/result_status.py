@@ -53,6 +53,6 @@ def count_statuses(
 
 
 def coverage_formula(positive_count: int, total_count: int) -> str:
-    # Build an Excel formula string for percentage coverage.
+    """Build an Excel formula string for percentage coverage."""
     denom = total_count if total_count else 1
     return f"={positive_count}/{denom}*100"

@@ -54,94 +54,94 @@ PAPERS = [
         "semanticscholarid": "5000db4d66e7884114390c88162811b44fe46c7d",
         "repo": "https://github.com/hannahdavidsoncollege-maker/ScientificReasoningForEnvironment-MedicineWithLLMs",
     },
-    {
-        "title": "A Dual Large Language Models Architecture with Herald Guided Prompts for Parallel Fine Grained Traffic Signal Control",
-        "semanticscholarid": "50cbc8bcd56169388637d6ac6e7390879968da45",
-        "repo": "https://github.com/BUPT-ANTlab/HeraldLight",
-    },
-    {
-        "title": "Advancing ADMET prediction through multiscale fragment-aware pretraining with MSformer-ADMET",
-        "semanticscholarid": "f041717fa0bf230cbce34dc8d2e2a51da7ac6770",
-        "repo": "https://github.com/ZJUFanLab/MSformer",
-    },
-    {
-        "title": "Advancing site-specific disease and pest management in precision agriculture: From reasoning-driven foundation models to adaptive, feedback-based learning",
-        "semanticscholarid": "d3d800753aceafe767edcb2e1cd2748f54c29dea",
-        "repo": "https://github.com/nitin-dominic/AgriPathogenDatabase",
-    },
-    {
-        "title": "Adversarial Attention Perturbations for Large Object Detection Transformers",
-        "semanticscholarid": "8a5e5b5bd4ddf16add90033e8b4394116d71d6d3",
-        "repo": "https://github.com/zacharyyahn/AFOG",
-    },
-    {
-        "title": "A First-Order Logic-Based Alternative to Reward Models in RLHF",
-        "semanticscholarid": "3fac01d47dcdfcd2d442d3407180cbd66ade9459",
-        "repo": "https://github.com/ChunjinJiang/sgrpo",
-    },
-    {
-        "title": "A foundation model for learning genetic associations from brain imaging phenotypes",
-        "semanticscholarid": "6681151239348eb3e526b9230ce9d8e1db5f0498",
-        "repo": "https://github.com/IBM/comical",
-    },
-    {
-        "title": "Agentmandering: A Game-Theoretic Framework for Fair Redistricting via Large Language Model Agents",
-        "semanticscholarid": "53415fff609c8b1e9fb2f9f503f016f1b91a8315",
-        "repo": "https://github.com/Lihaogx/AgentMandering",
-    },
-    {
-        "title": "AgentSHAP: Interpreting LLM Agent Tool Importance with Monte Carlo Shapley Value Estimation",
-        "semanticscholarid": "36da1d21706b746604504e50ef326434822e5b3a",
-        "repo": "https://github.com/GenAISHAP/TokenSHAP",
-    },
-    {
-        "title": "A Granular Study of Safety Pretraining under Model Abliteration",
-        "semanticscholarid": "cd8f896b943b7b28c65106ef0dc4ff94cb8d164f",
-        "repo": "https://github.com/shashankskagnihotri/safety_pretraining",
-    },
-    {
-        "title": "A Human-Centered Mutltimodal AutoML Framework for Discriminative and Generative Tasks with Large Language Models",
-        "semanticscholarid": "91121ece43de94693af15fc7ea41fa1a7a200b64",
-        "repo": "https://github.com/richarf22/UniAutoML",
-    },
-    {
-        "title": "AIP-TranLAC: A Transformer-Based Method Integrating LSTM and Attention Mechanism for Predicting Anti-inflammatory Peptides",
-        "semanticscholarid": "afbac5d3cb445dfc8cc7680fe44fdec73b55e886",
-        "repo": "https://github.com/Renjingyi123/AIP-TranLAC",
-    },
-    {
-        "title": "Aligned or Apart? Multi-Agent Insights into Consumer and Brand Messaging Discrepancies",
-        "semanticscholarid": "4b69f469a595d88bc00d62ca760ebe4e40884c26",
-        "repo": "https://github.com/htgan-ai/OPIM",
-    },
-    {
-        "title": "Aligning Deep Implicit Preferences by Learning to Reason Defensively",
-        "semanticscholarid": "d93c41e0223fe7f1817a0458ed8ed444f2d78d8f",
-        "repo": "https://github.com/Zephyrian-Hugh/Deep-pref",
-    },
-    {
-        "title": "A Human-Centered Mutltimodal AutoML Framework for Discriminative and Generative Tasks with Large Language Models",
-        "semanticscholarid": "",
-        "repo": "https://github.com/richarf22/UniAutoML",
-    },
-    {
-        "title": "A Solver‐Aided Hierarchical Language for LLM‐Driven Systems",
-        "semanticscholarid": "",
-        "repo": "https://github.com/deGravity/aidl",
-    },
-    {
-        "title": "A Structured Framework for Evaluating and Enhancing LLM Robustness",
-        "semanticscholarid": "",
-        "repo": "https://github.com/yha9806/VULCA-EMNLP2025",
-    },
-    {
-        "title": "A Survey of Reasoning and Agentic Systems in Time Series",
-        "semanticscholarid": "",
-        "repo": "https://github.com/blacksnail789521/Time-Series-Agent",
-    },
-    {
-        "title": "A Survey on Latent Reasoning",
-        "semanticscholarid": "",
-        "repo": "https://github.com/multimodal-art-projection/Latent-Reasoning",
-    },
+    # {
+    #     "title": "A Dual Large Language Models Architecture with Herald Guided Prompts for Parallel Fine Grained Traffic Signal Control",
+    #     "semanticscholarid": "50cbc8bcd56169388637d6ac6e7390879968da45",
+    #     "repo": "https://github.com/BUPT-ANTlab/HeraldLight",
+    # },
+    # {
+    #     "title": "Advancing ADMET prediction through multiscale fragment-aware pretraining with MSformer-ADMET",
+    #     "semanticscholarid": "f041717fa0bf230cbce34dc8d2e2a51da7ac6770",
+    #     "repo": "https://github.com/ZJUFanLab/MSformer",
+    # },
+    # {
+    #     "title": "Advancing site-specific disease and pest management in precision agriculture: From reasoning-driven foundation models to adaptive, feedback-based learning",
+    #     "semanticscholarid": "d3d800753aceafe767edcb2e1cd2748f54c29dea",
+    #     "repo": "https://github.com/nitin-dominic/AgriPathogenDatabase",
+    # },
+    # {
+    #     "title": "Adversarial Attention Perturbations for Large Object Detection Transformers",
+    #     "semanticscholarid": "8a5e5b5bd4ddf16add90033e8b4394116d71d6d3",
+    #     "repo": "https://github.com/zacharyyahn/AFOG",
+    # },
+    # {
+    #     "title": "A First-Order Logic-Based Alternative to Reward Models in RLHF",
+    #     "semanticscholarid": "3fac01d47dcdfcd2d442d3407180cbd66ade9459",
+    #     "repo": "https://github.com/ChunjinJiang/sgrpo",
+    # },
+    # {
+    #     "title": "A foundation model for learning genetic associations from brain imaging phenotypes",
+    #     "semanticscholarid": "6681151239348eb3e526b9230ce9d8e1db5f0498",
+    #     "repo": "https://github.com/IBM/comical",
+    # },
+    # {
+    #     "title": "Agentmandering: A Game-Theoretic Framework for Fair Redistricting via Large Language Model Agents",
+    #     "semanticscholarid": "53415fff609c8b1e9fb2f9f503f016f1b91a8315",
+    #     "repo": "https://github.com/Lihaogx/AgentMandering",
+    # },
+    # {
+    #     "title": "AgentSHAP: Interpreting LLM Agent Tool Importance with Monte Carlo Shapley Value Estimation",
+    #     "semanticscholarid": "36da1d21706b746604504e50ef326434822e5b3a",
+    #     "repo": "https://github.com/GenAISHAP/TokenSHAP",
+    # },
+    # {
+    #     "title": "A Granular Study of Safety Pretraining under Model Abliteration",
+    #     "semanticscholarid": "cd8f896b943b7b28c65106ef0dc4ff94cb8d164f",
+    #     "repo": "https://github.com/shashankskagnihotri/safety_pretraining",
+    # },
+    # {
+    #     "title": "A Human-Centered Mutltimodal AutoML Framework for Discriminative and Generative Tasks with Large Language Models",
+    #     "semanticscholarid": "91121ece43de94693af15fc7ea41fa1a7a200b64",
+    #     "repo": "https://github.com/richarf22/UniAutoML",
+    # },
+    # {
+    #     "title": "AIP-TranLAC: A Transformer-Based Method Integrating LSTM and Attention Mechanism for Predicting Anti-inflammatory Peptides",
+    #     "semanticscholarid": "afbac5d3cb445dfc8cc7680fe44fdec73b55e886",
+    #     "repo": "https://github.com/Renjingyi123/AIP-TranLAC",
+    # },
+    # {
+    #     "title": "Aligned or Apart? Multi-Agent Insights into Consumer and Brand Messaging Discrepancies",
+    #     "semanticscholarid": "4b69f469a595d88bc00d62ca760ebe4e40884c26",
+    #     "repo": "https://github.com/htgan-ai/OPIM",
+    # },
+    # {
+    #     "title": "Aligning Deep Implicit Preferences by Learning to Reason Defensively",
+    #     "semanticscholarid": "d93c41e0223fe7f1817a0458ed8ed444f2d78d8f",
+    #     "repo": "https://github.com/Zephyrian-Hugh/Deep-pref",
+    # },
+    # {
+    #     "title": "A Human-Centered Mutltimodal AutoML Framework for Discriminative and Generative Tasks with Large Language Models",
+    #     "semanticscholarid": "",
+    #     "repo": "https://github.com/richarf22/UniAutoML",
+    # },
+    # {
+    #     "title": "A Solver‐Aided Hierarchical Language for LLM‐Driven Systems",
+    #     "semanticscholarid": "",
+    #     "repo": "https://github.com/deGravity/aidl",
+    # },
+    # {
+    #     "title": "A Structured Framework for Evaluating and Enhancing LLM Robustness",
+    #     "semanticscholarid": "",
+    #     "repo": "https://github.com/yha9806/VULCA-EMNLP2025",
+    # },
+    # {
+    #     "title": "A Survey of Reasoning and Agentic Systems in Time Series",
+    #     "semanticscholarid": "",
+    #     "repo": "https://github.com/blacksnail789521/Time-Series-Agent",
+    # },
+    # {
+    #     "title": "A Survey on Latent Reasoning",
+    #     "semanticscholarid": "",
+    #     "repo": "https://github.com/multimodal-art-projection/Latent-Reasoning",
+    # },
 ]

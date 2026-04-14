@@ -1,36 +1,19 @@
-# =============================================================================
-# usage_examples_checker.py
-#
-# PURPOSE:
-#   For each academic paper in your database, this script visits the paper's
-#   GitHub repository and finds ALL usage examples present (Jupyter notebooks,
-#   demo scripts, README code snippets, tutorial files, etc.).
-#
-#   Each found example is recorded individually with:
-#     - its file path inside the repo
-#     - the example type (notebook / example script / README code snippet / …)
-#     - a one-line description of what it demonstrates
-#     - a direct clickable GitHub link
-#
-# HOW IT WORKS — high-level flow:
-#   1. Read the list of papers (title + GitHub URL) from papers_from_database.py
-#   2. For each repo, download the README, docs, ALL notebooks, and any
-#      example/tutorial/demo files via the GitHub API (no cloning needed).
-#   3. Send that content to an LLM and ask it to list EVERY usage example found.
-#   4. If the LLM is unsure, fetch more files and retry automatically.
-#   5. Save two Excel sheets:
-#        "Results"      — one row per paper (summary + all example links)
-#        "All Examples" — one row per individual example file (for easy browsing)
-#
-# REQUIREMENTS:
-#   pip install openai openpyxl python-dotenv
-#
-# ENVIRONMENT VARIABLES (put these in a .env file next to this script):
-#   GITHUB_TOKEN   — optional but strongly recommended (raises GitHub rate limit
-#                    from 60 to 5,000 API requests per hour).
-#   OPENAI_API_KEY — only needed if you are NOT using Azure OpenAI.
-#   OPENAI_MODEL   — only needed if you are NOT using Azure OpenAI.
-# =============================================================================
+"""Usage-examples checker for academic paper GitHub repositories.
+
+For each paper in the database, this script visits its GitHub repository and
+finds ALL usage examples (Jupyter notebooks, demo scripts, README code
+snippets, tutorial files, etc.).  Each found example is recorded with its
+file path, type, description, and a direct GitHub link.
+
+High-level flow:
+    1. Read the list of papers from ``papers_from_database.py``.
+    2. Fetch README, docs, notebooks, and example/demo scripts via the
+       GitHub API (no cloning needed).
+    3. Ask the LLM to list every usage example found.
+    4. Auto-heal uncertain results by fetching additional files.
+    5. Export to Excel with Results, All Examples, Skipped & Errors,
+       Summary, and optional Ground Truth sheets.
+"""
 
 import os
 import re
@@ -40,40 +23,40 @@ import json
 from pathlib import Path
 from collections import Counter
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
-# fetch from file fetch_&_parse_github_repo.py, which contains the GitHub API helpers and LLM call wrapper
-from utils.common.fetch_and_parse_github_repo import (
-    load_dotenv, parse_github_repo, is_github, list_all_repo_files, fetch_file_content
+from openpyxl.styles import Font, PatternFill
+
+# Add parent directories to Python path for local imports
+_this = Path(__file__).resolve()
+sys.path.insert(0, str(_this.parent.parent))          # 5.1.4.github_code_documentation_quality/
+sys.path.insert(0, str(_this.parent.parent.parent))   # requirement_checks/
+
+from common.fetch_and_parse_github_repo import (
+    load_dotenv, parse_github_repo, is_github, list_all_repo_files, fetch_file_content,
 )
-from utils.common.llm_response_parser import parse_llm_json_response
-from utils.common.confidence_reporting import (
-    diagnose_with_rules,
-    print_confidence_report as print_shared_confidence_report,
-)
-from utils.common.token_usage import TokenUsageTracker, print_token_usage_report
-from utils.common.result_status import (
+from common.confidence_reporting import diagnose_with_rules
+from common.token_usage import TokenUsageTracker
+from common.result_status import (
     STATUS_FILL_COLORS,
     count_statuses,
-    coverage_formula,
 )
-from utils.common.repo_content_helpers import (
+from common.repo_content_helpers import (
     fetch_paths_with_char_budget,
     path_priority_with_readme_first,
+)
+from common.llm_helpers import llm_call_parse_retry
+from common.checker_pipeline import run_checker_pipeline
+from common.excel_output import (
+    write_header_row, write_results_data_rows, write_summary_sheet,
+    thin_border, auto_row_height, alignment_center, alignment_wrap_left,
 )
 
 load_dotenv()
 
-# =============================================================================
-# IMPORTS — papers list and LLM client
-# =============================================================================
-sys.path.append(str(Path(__file__).resolve().parent.parent))
 from papers_from_database import PAPERS
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 
 try:
-    sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
     from openai_client import client, AZURE_OPENAI_DEPLOYMENT as DEPLOYMENT
 except ImportError:
     import openai
@@ -294,88 +277,47 @@ def collect_repo_content(owner, repo):
 
 
 # =============================================================================
-# LLM PROMPTS
-# =============================================================================
-# Prompt templates are defined in neighboring prompts.py.
-
-
-# =============================================================================
 # LLM CALL WRAPPER
 # =============================================================================
 
+EMPTY_USAGE_PAYLOAD = {
+    "has_usage_examples": None,
+    "confidence": "low",
+    "evidence": "Empty LLM response after retry",
+    "example_types": [],
+    "example_files": [],
+}
+
+
 def llm_check_usage(repo_content, paper_title, system_prompt=None):
-    """
-    Send the combined repo content to the LLM and parse its structured response.
+    """Send combined repo content to the LLM and parse its structured response.
 
-    Returns a dict with:
-        has_usage_examples  bool | None
-        confidence          "high" | "medium" | "low"
-        evidence            str
-        example_types       list[str]
-        example_files       list[{"path", "type", "description"}]
+    Uses the shared ``llm_call_parse_retry`` helper for the call → retry →
+    parse pattern.
     """
-
-    def _call(content, token_budget=None):
-        user_message = (
+    def build_msg(content):
+        return (
             f"Paper: {paper_title}\n\n"
             "Below are the contents of key files from its GitHub repository.\n"
             "Find ALL usage examples present.\n\n"
             + (content if content else "[No relevant files found in the repository]")
         )
-        # Scale output budget with input size: large repos can have many examples
-        # and the JSON list grows accordingly.  Cap at 4 000 to stay safe.
-        if token_budget is None:
-            token_budget = 8000 if len(content) > 50_000 else 4000
-        response = client.chat.completions.create(
-            model=DEPLOYMENT,
-            messages=[
-                {"role": "system", "content": system_prompt or SYSTEM_PROMPT},
-                {"role": "user",   "content": user_message},
-            ],
-            max_completion_tokens=token_budget,
-            response_format={"type": "json_object"},
-        )
-        TOKEN_USAGE.add_from_response(response)
-        return response
 
-    response    = _call(repo_content)
-    raw_content = response.choices[0].message.content
+    token_budget = 8000 if len(repo_content) > 50_000 else 4000
 
-    # Empty response = context window overflow → retry with truncated content
-    # Also raise the output budget on the retry: the empty response may be caused
-    # by truncated JSON being silently discarded, not just by input overflow.
-    if not raw_content:
-        truncated = repo_content[:30_000] if repo_content else ""
-        print(f"\n  [empty response — retrying with {len(truncated):,} chars]",
-              end=" ", flush=True)
-        response  = _call(truncated, token_budget=16000)
-        raw_content = response.choices[0].message.content
-
-    if not raw_content:
-        return {
-            "has_usage_examples": None,
-            "confidence":  "low",
-            "evidence":    "Empty LLM response after retry",
-            "example_types": [],
-            "example_files": [],
-        }
-
-    raw_preview = raw_content.strip()
-    raw_preview = re.sub(r"^```(?:json)?\s*", "", raw_preview)
-    raw_preview = re.sub(r"\s*```$", "", raw_preview)
-
-    print("\nRAW LLM OUTPUT:\n", raw_preview[:1500])
-
-    result = parse_llm_json_response(
-        raw_content=raw_content,
-        empty_payload={
-            "has_usage_examples": None,
-            "confidence": "low",
-            "evidence": "Empty LLM response after retry",
-            "example_types": [],
-            "example_files": [],
-        },
+    result = llm_call_parse_retry(
+        client=client,
+        deployment=DEPLOYMENT,
+        system_prompt=system_prompt or SYSTEM_PROMPT,
+        build_user_message=build_msg,
+        content=repo_content,
+        token_usage=TOKEN_USAGE,
+        empty_payload=EMPTY_USAGE_PAYLOAD,
         required_list_fields=("example_types", "example_files"),
+        max_completion_tokens=token_budget,
+        retry_truncate_chars=30_000,
+        retry_max_tokens=16000,
+        preview_chars=1500,
     )
 
     # Backward compatibility: old prompt variants may return a single string
@@ -685,6 +627,7 @@ DIAGNOSIS_RULES = [
 
 
 def diagnose_result(result, repo_content):
+    """Identify likely root causes for uncertain LLM confidence."""
     return diagnose_with_rules(result, repo_content, DIAGNOSIS_RULES)
 
 
@@ -799,6 +742,7 @@ def heal_result(result, repo_content, owner, repo):
 # =============================================================================
 
 def print_results(results):
+    """Render a compact console table of per-paper decisions with example counts."""
     W = 110
     print("\n" + "=" * W)
     print(f"{'#':<4} {'STATUS':<10} {'CONF':<8} {'# EX':<6} {'EXAMPLE TYPES':<30} TITLE")
@@ -841,67 +785,38 @@ def print_results(results):
 # =============================================================================
 
 def save_results(results, path=None):
-    """
-    Write two Excel sheets:
+    """Write five Excel sheets: Results, All Examples, Skipped & Errors,
+    Summary, and (optionally) Ground Truth.
 
-    Sheet 1 — "Results"  (one row per paper)
-        Columns: #, Status, Confidence, Title, Repo, # Examples, Example Types,
-                 Evidence, All Example Links (newline-separated), Files Checked, Note
-
-    Sheet 2 — "All Examples"  (one row per individual example file)
-        Columns: Paper #, Paper Title, Repo, File Path, Type, Description, Link
-
-    Sheet 3 — "Skipped / Errors"  (one row per paper that was skipped or errored)
-        Columns: #, Status, Title, Repo / URL, Note
-
-    Sheet 4 — "Summary"  (totals + type breakdown)
+    Uses shared helpers from ``common.excel_output`` for headers, data rows,
+    and the summary sheet.
     """
     if path is None:
         path = Path(__file__).resolve().parent / "results/usage_examples_results.xlsx"
 
     wb = Workbook()
-
-    # ── Shared style helpers ───────────────────────────────────────────────────
-    def hdr_cell(ws, row, col, value, fill_hex="1F5C99"):
-        cell            = ws.cell(row=row, column=col, value=value)
-        cell.font       = Font(name="Arial", bold=True, color="FFFFFF")
-        cell.fill       = PatternFill("solid", start_color=fill_hex)
-        cell.alignment  = Alignment(horizontal="center", vertical="center",
-                                    wrap_text=True)
-        cell.border     = _border()
-        return cell
-
-    def _border():
-        t = Side(style="thin", color="CCCCCC")
-        return Border(left=t, right=t, top=t, bottom=t)
-
-    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    wrap   = Alignment(horizontal="left",   vertical="top",    wrap_text=True)
+    border = thin_border()
+    center = alignment_center()
+    wrap   = alignment_wrap_left()
 
     # =========================================================================
     # SHEET 1 — Results (one row per paper)
     # =========================================================================
-    ws1        = wb.active
-    ws1.title  = "Results"
-    hdrs1      = ["#", "Status", "Confidence", "Title", "Repo",
-                  "# Examples", "Example Types", "Evidence",
-                  "All Example Links", "Files Checked", "Note"]
-    widths1    = [5, 10, 12, 45, 40, 10, 35, 55, 60, 50, 35]
+    ws1       = wb.active
+    ws1.title = "Results"
+    hdrs1     = ["#", "Status", "Confidence", "Title", "Repo",
+                 "# Examples", "Example Types", "Evidence",
+                 "All Example Links", "Files Checked", "Note"]
+    widths1   = [5, 10, 12, 45, 40, 10, 35, 55, 60, 50, 35]
+    write_header_row(ws1, hdrs1, widths1, fill_hex="1F5C99", border=border)
 
-    for col, (h, w) in enumerate(zip(hdrs1, widths1), 1):
-        hdr_cell(ws1, 1, col, h)
-        ws1.column_dimensions[get_column_letter(col)].width = w
-    ws1.row_dimensions[1].height = 20
-
-    for row_idx, r in enumerate(results, 2):
-        # Build a newline-separated list of all example links for the cell
+    def results_row_data(r, num):
         all_links_text = "\n".join(
             f"{ex['path']}  ({ex['type']})"
             for ex in r.get("example_entries", [])
         )
-
-        row_data = [
-            row_idx - 1,
+        return [
+            num,
             (r.get("status") or "").upper(),
             r.get("confidence") or "",
             r.get("title") or "",
@@ -913,39 +828,21 @@ def save_results(results, path=None):
             ", ".join(r.get("files_checked") or []),
             r.get("note") or "",
         ]
-        fill_color = STATUS_FILL_COLORS.get(r.get("status"), "FFFFFF")
-        row_fill   = PatternFill("solid", start_color=fill_color)
 
-        for col_idx, value in enumerate(row_data, 1):
-            cell           = ws1.cell(row=row_idx, column=col_idx, value=value)
-            cell.font      = Font(name="Arial", size=10)
-            cell.border    = _border()
-            cell.alignment = center if col_idx <= 3 else wrap
-            if col_idx == 2:   # colour the Status cell
-                cell.fill = row_fill
-
-        # Dynamic height: account for both newlines and wrapped long text
-        def estimate_lines(value, col_width=60):
-            text = str(value)
-            lines = text.split("\n")
-            total = sum(max(1, len(line) // col_width + 1) for line in lines)
-            return total
-
-        max_lines = max(estimate_lines(v) for v in row_data)
-        ws1.row_dimensions[row_idx].height = max(20, max_lines * 15 * 1.3)
+    write_results_data_rows(
+        ws1, results, results_row_data,
+        border=border,
+        row_height_fn=lambda vals: auto_row_height(vals, line_height=15 * 1.3),
+    )
 
     # =========================================================================
     # SHEET 2 — All Examples (one row per individual example file)
     # =========================================================================
-    ws2       = wb.create_sheet("All Examples")
-    hdrs2     = ["Paper #", "Paper Title", "Repo", "File Path",
-                 "Type", "Description", "Example Command", "GitHub Link"]
-    widths2   = [8, 50, 45, 55, 22, 60, 70, 70]
-
-    for col, (h, w) in enumerate(zip(hdrs2, widths2), 1):
-        hdr_cell(ws2, 1, col, h)
-        ws2.column_dimensions[get_column_letter(col)].width = w
-    ws2.row_dimensions[1].height = 20
+    ws2    = wb.create_sheet("All Examples")
+    hdrs2  = ["Paper #", "Paper Title", "Repo", "File Path",
+              "Type", "Description", "Example Command", "GitHub Link"]
+    widths2 = [8, 50, 45, 55, 22, 60, 70, 70]
+    write_header_row(ws2, hdrs2, widths2, fill_hex="1F5C99", border=border)
 
     ex_row = 2
     for paper_num, r in enumerate(results, 1):
@@ -961,36 +858,26 @@ def save_results(results, path=None):
                 ex.get("link") or "",
             ]
             for col_idx, value in enumerate(row_vals, 1):
-                is_link = (col_idx == 8)
-                cell    = ws2.cell(row=ex_row, column=col_idx, value=value)
+                cell = ws2.cell(row=ex_row, column=col_idx, value=value)
                 cell.font      = Font(name="Arial", size=10)
-                cell.border    = _border()
+                cell.border    = border
                 cell.alignment = center if col_idx == 1 else wrap
-                if is_link and value:
+                if col_idx == 8 and value:
                     cell.hyperlink = value
                     cell.font = Font(name="Arial", size=10,
                                      color="0563C1", underline="single")
-            def estimate_lines(value, col_width=60):
-                text = str(value)
-                lines = text.split("\n")
-                total = sum(max(1, len(line) // col_width + 1) for line in lines)
-                return total
-
-            max_lines = max(estimate_lines(v) for v in row_vals)
-            ws2.row_dimensions[ex_row].height = max(20, max_lines * 15 * 1.3)
-            ex_row += 1  # ← add this line
+            ws2.row_dimensions[ex_row].height = auto_row_height(
+                row_vals, line_height=15 * 1.3,
+            )
+            ex_row += 1
 
     # =========================================================================
     # SHEET 3 — Skipped / Errors
     # =========================================================================
-    ws3      = wb.create_sheet("Skipped & Errors")
-    hdrs3    = ["#", "Status", "Title", "Repo / URL", "Note"]
-    widths3  = [5, 10, 55, 55, 60]
-
-    for col, (h, w) in enumerate(zip(hdrs3, widths3), 1):
-        hdr_cell(ws3, 1, col, h, fill_hex="7B3F00")  # brown header to stand out
-        ws3.column_dimensions[get_column_letter(col)].width = w
-    ws3.row_dimensions[1].height = 20
+    ws3    = wb.create_sheet("Skipped & Errors")
+    hdrs3  = ["#", "Status", "Title", "Repo / URL", "Note"]
+    widths3 = [5, 10, 55, 55, 60]
+    write_header_row(ws3, hdrs3, widths3, fill_hex="7B3F00", border=border)
 
     se_row = 2
     for paper_num, r in enumerate(results, 1):
@@ -1008,29 +895,17 @@ def save_results(results, path=None):
         for col_idx, value in enumerate(row_vals, 1):
             cell           = ws3.cell(row=se_row, column=col_idx, value=value)
             cell.font      = Font(name="Arial", size=10)
-            cell.border    = _border()
+            cell.border    = border
             cell.alignment = center if col_idx <= 2 else wrap
             if col_idx == 2:
                 cell.fill = row_fill
         se_row += 1
 
     # =========================================================================
-    # SHEET 4 — Summary
+    # SHEET 4 — Summary (uses shared helper)
     # =========================================================================
-    ws4      = wb.create_sheet("Summary")
-    ws4.column_dimensions["A"].width = 42
-    ws4.column_dimensions["B"].width = 15
-
-    hdr_cell(ws4, 1, 1, "Metric")
-    hdr_cell(ws4, 1, 2, "Value")
-    ws4.row_dimensions[1].height = 20
-
     counts   = count_statuses(results)
     yes      = counts.get("yes", 0)
-    no       = counts.get("no", 0)
-    skipped  = counts.get("skipped", 0)
-    errors   = counts.get("error", 0)
-    total    = len(results)
     total_ex = sum(len(r.get("example_entries", [])) for r in results)
 
     type_counter = Counter()
@@ -1038,62 +913,52 @@ def save_results(results, path=None):
         for t in (r.get("example_types") or []):
             type_counter[t] += 1
 
-    summary_rows = [
-        ("Total Repos Checked",           total),
-        ("Repos with Usage Examples",     yes),
-        ("Repos Missing Usage Examples",  no),
-        ("Skipped (non-GitHub)",          skipped),
-        ("Errors",                        errors),
-        ("Total Example Files Found",     total_ex),
+    extra_summary = [
+        ("Total Example Files Found", total_ex),
         ("Avg Examples per Repo (w/ any)",
          f"={total_ex}/{yes if yes else 1}"),
-        ("Coverage (%)",
-         coverage_formula(yes, total)),
         ("", ""),
         ("Example Type Breakdown", ""),
     ]
     for t, cnt in type_counter.most_common():
-        summary_rows.append((f"  • {t}", cnt))
+        extra_summary.append((f"  • {t}", cnt))
 
-    for r_idx, (label, value) in enumerate(summary_rows, 2):
-        ws4.cell(row=r_idx, column=1, value=label).font = Font(name="Arial", size=10)
-        ws4.cell(row=r_idx, column=2, value=value).font = Font(name="Arial", size=10)
-        ws4.cell(row=r_idx, column=2).alignment = center
+    ws4 = wb.create_sheet("Summary")
+    write_summary_sheet(
+        ws4, results,
+        positive_label="Repos with Usage Examples",
+        negative_label="Repos Missing Usage Examples",
+        extra_rows=extra_summary,
+        fill_hex="1F5C99",
+        border=border,
+    )
 
     # =========================================================================
-    # SHEET 5 — Ground Truth Comparison (only written when labels exist)
+    # SHEET 5 — Ground Truth Comparison (only when labels exist)
     # =========================================================================
     metrics = evaluate_against_ground_truth(results)
     if metrics["labelled"] > 0:
-        ws5      = wb.create_sheet("Ground Truth")
-        hdrs5    = ["#", "Paper Title", "Prediction", "Ground Truth", "Match", "Note"]
-        widths5  = [5, 60, 14, 14, 10, 55]
-        for col, (h, w) in enumerate(zip(hdrs5, widths5), 1):
-            hdr_cell(ws5, 1, col, h, fill_hex="2E7D32")
-            ws5.column_dimensions[get_column_letter(col)].width = w
-        ws5.row_dimensions[1].height = 20
+        ws5    = wb.create_sheet("Ground Truth")
+        hdrs5  = ["#", "Paper Title", "Prediction", "Ground Truth", "Match", "Note"]
+        widths5 = [5, 60, 14, 14, 10, 55]
+        write_header_row(ws5, hdrs5, widths5, fill_hex="2E7D32", border=border)
 
         MATCH_COLORS = {"correct": "C6EFCE", "wrong": "FFC7CE"}
         for r_idx, p in enumerate(metrics["per_paper"], 2):
             row_vals = [
-                r_idx - 1,
-                p["title"],
-                p["prediction"],
-                p["ground_truth"],
-                p["match"],
-                p["note"],
+                r_idx - 1, p["title"], p["prediction"],
+                p["ground_truth"], p["match"], p["note"],
             ]
             fill_hex = MATCH_COLORS.get(p["match"], "FFFFFF")
             row_fill = PatternFill("solid", start_color=fill_hex)
             for col_idx, value in enumerate(row_vals, 1):
                 cell           = ws5.cell(row=r_idx, column=col_idx, value=value)
                 cell.font      = Font(name="Arial", size=10)
-                cell.border    = _border()
+                cell.border    = border
                 cell.alignment = center if col_idx in (1, 3, 4, 5) else wrap
                 if col_idx == 5:
                     cell.fill = row_fill
 
-        # Summary block below the table
         summary_start = len(metrics["per_paper"]) + 3
         summary_pairs = [
             ("Labelled papers",  metrics["labelled"]),
@@ -1111,13 +976,13 @@ def save_results(results, path=None):
             ws5.cell(row=i, column=2, value=value).font = Font(name="Arial", size=10)
             ws5.cell(row=i, column=2).alignment = center
 
-        wb.save(path)
+    wb.save(path)
+
+    total_ex = sum(len(r.get("example_entries", [])) for r in results)
     print(f"\nFull results saved to: {path}")
     print(f"  → Results sheet:        {total} papers")
     print(f"  → All Examples sheet:   {total_ex} individual example files")
-    se_count = skipped + errors
-    print(f"  → Skipped & Errors:     {se_count} entries")
-    metrics = evaluate_against_ground_truth(results)
+    print(f"  → Skipped & Errors:     {skipped + errors} entries")
     if metrics["labelled"] > 0:
         print(f"  → Ground Truth sheet:   {metrics['labelled']} labelled, accuracy {metrics['accuracy']:.1%}")
     else:
@@ -1129,69 +994,35 @@ def save_results(results, path=None):
 # =============================================================================
 
 def main():
-    print(f"Checking {len(PAPERS)} repos for usage examples using LLM ({DEPLOYMENT})...")
-    if not GITHUB_TOKEN:
-        print("Tip: Set GITHUB_TOKEN in .env to avoid the 60 req/hr GitHub rate limit.\n")
+    """Run the full two-pass analysis pipeline over all configured papers."""
 
-    results       = []
-    repo_contents = {}
+    def _format_check_extra(result):
+        return f"{len(result.get('example_entries', []))} examples"
 
-    # ── Pass 1: analyse every paper ───────────────────────────────────────────
-    for i, paper in enumerate(PAPERS, 1):
-        owner, repo_name = parse_github_repo(paper.get("repo", ""))
-        label = f"{owner}/{repo_name}" if owner else paper.get("repo", "?")
-        print(f"[{i:>2}/{len(PAPERS)}] {label} ...", end=" ", flush=True)
+    def _format_heal_extra(old, healed):
+        n_before = len(old.get("example_entries", []))
+        n_after  = len(healed.get("example_entries", []))
+        return f"examples: {n_before} → {n_after}"
 
-        result, content = check_paper(paper)
-        results.append(result)
-        repo_contents[paper["title"]] = content
+    def _finalize(results):
+        gt_metrics = evaluate_against_ground_truth(results)
+        print_ground_truth_report(gt_metrics)
 
-        icon  = {"yes": "OK", "no": "NO", "skipped": "SKIP", "error": "ERR"}.get(
-            result["status"], "?"
-        )
-        n_ex  = len(result.get("example_entries", []))
-        extra = result.get("confidence") or result.get("note") or ""
-        print(f"{icon}  {n_ex} examples  {extra}")
-        time.sleep(0.3)
-
-    # ── Confidence report ─────────────────────────────────────────────────────
-    print_shared_confidence_report(results, repo_contents, diagnose_result)
-
-    # ── Pass 2: self-heal medium/low confidence results ───────────────────────
-    non_high = [i for i, r in enumerate(results)
-                if r.get("confidence") in ("medium", "low")]
-    if non_high:
-        print(f"\n  Auto-healing {len(non_high)} medium/low confidence result(s)...\n")
-        for idx in non_high:
-            r = results[idx]
-            owner, repo = parse_github_repo(r.get("repo", ""))
-            if not owner:
-                continue
-            title_short = r["title"][:55] + ("…" if len(r["title"]) > 55 else "")
-            print(f"  healing: {title_short}", end=" ... ", flush=True)
-            healed = heal_result(r, repo_contents.get(r["title"], ""), owner, repo)
-            results[idx] = healed
-            n_before = len(r.get("example_entries", []))
-            n_after  = len(healed.get("example_entries", []))
-            print(f"conf: {r.get('confidence')} → {healed.get('confidence')}  "
-                  f"examples: {n_before} → {n_after}")
-            time.sleep(0.5)
-
-        still_non_high = [r for r in results if r.get("confidence") in ("medium", "low")]
-        if still_non_high:
-            print(f"\n  {len(still_non_high)} result(s) still not high confidence — manual review needed.")
-        else:
-            print("\n  All results are now high confidence.")
-
-    print_results(results)
-
-    # ── Ground truth evaluation ───────────────────────────────────────────────
-    gt_metrics = evaluate_against_ground_truth(results)
-    print_ground_truth_report(gt_metrics)
-
-    print_token_usage_report(TOKEN_USAGE, DEPLOYMENT)
-
-    save_results(results)
+    run_checker_pipeline(
+        papers=PAPERS,
+        check_paper_fn=check_paper,
+        diagnose_fn=diagnose_result,
+        heal_fn=heal_result,
+        print_results_fn=print_results,
+        save_results_fn=save_results,
+        token_usage=TOKEN_USAGE,
+        deployment=DEPLOYMENT,
+        description="usage examples",
+        github_token=GITHUB_TOKEN,
+        format_check_extra=_format_check_extra,
+        format_heal_extra=_format_heal_extra,
+        finalize_fn=_finalize,
+    )
 
 
 if __name__ == "__main__":

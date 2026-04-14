@@ -1,34 +1,33 @@
 import os, re, sys, time
 from pathlib import Path
+
+# Add parent directories to Python path for local imports
+_this = Path(__file__).resolve()
+sys.path.insert(0, str(_this.parent.parent))          # 5.1.4.github_code_documentation_quality/
+sys.path.insert(0, str(_this.parent.parent.parent))   # requirement_checks/
+
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
-from utils.common.fetch_and_parse_github_repo import (
-    load_dotenv, parse_github_repo, is_github, list_all_repo_files, fetch_file_content
+from common.fetch_and_parse_github_repo import (
+    load_dotenv, parse_github_repo, is_github, list_all_repo_files, fetch_file_content,
 )
-from utils.common.llm_response_parser import parse_llm_json_response
-from utils.common.confidence_reporting import (
-    diagnose_with_rules,
-    print_confidence_report as print_shared_confidence_report,
-)
-from utils.common.token_usage import TokenUsageTracker, print_token_usage_report
-from utils.common.result_status import (
-    STATUS_FILL_COLORS,
-    count_statuses,
-    coverage_formula,
-)
-from utils.common.repo_content_helpers import (
+from common.confidence_reporting import diagnose_with_rules
+from common.token_usage import TokenUsageTracker
+from common.result_status import count_statuses
+from common.repo_content_helpers import (
     fetch_paths_with_char_budget,
     first_readme_path,
     path_priority_with_readme_first,
 )
+from common.llm_helpers import llm_call_parse_retry
+from common.checker_pipeline import run_checker_pipeline
+from common.excel_output import (
+    write_header_row, write_results_data_rows, write_summary_sheet,
+    thin_border, auto_row_height,
+)
 
 load_dotenv()
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
 from papers_from_database import PAPERS
-
-sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from openai_client import client, AZURE_OPENAI_DEPLOYMENT
 from prompts import (
     SYSTEM_PROMPT,
@@ -119,77 +118,39 @@ def collect_repo_content(owner, repo):
 # Prompt templates are defined in neighboring prompts.py.
 
 
+EMPTY_INSTALLATION_PAYLOAD = {
+    "has_installation_instructions": None,
+    "confidence": "low",
+    "evidence": "Empty LLM response after retry — content may exceed context window",
+    "instruction_types": [],
+}
+
+
 def llm_check_installation(repo_content, paper_title, system_prompt=None):
     """Run LLM classification for installation-instruction detection.
 
-    The function sends repository text to the configured Azure OpenAI model,
-    expects a JSON object response, and normalizes/parses it via the shared
-    parser. If the model returns an empty payload (often context overflow), it
-    retries once with a shorter content slice.
-
-    Args:
-        repo_content (str): Concatenated repository snippets with file headers.
-        paper_title (str): Paper title used to provide context in the prompt.
-        system_prompt (str | None): Optional override prompt for targeted
-            re-evaluation flows.
-
-    Returns:
-        dict: Parsed LLM result containing boolean decision, confidence,
-        evidence text, instruction types, and optional installation file.
+    Uses the shared ``llm_call_parse_retry`` helper for the call → retry →
+    parse pattern.
     """
-    def _call(content):
-        """Submit one chat-completions request and record token usage."""
-        user_message = (
+    def build_msg(content):
+        return (
             f"Paper: {paper_title}\n\n"
             "Below are the contents of key files fetched from its GitHub repository.\n"
             "Does this repository contain installation instructions?\n\n"
             + (content if content else "[No relevant files found in the repository]")
         )
-        response = client.chat.completions.create(
-            model=AZURE_OPENAI_DEPLOYMENT,
-            messages=[
-                {"role": "system", "content": system_prompt or SYSTEM_PROMPT},
-                {"role": "user",   "content": user_message},
-            ],
-            max_completion_tokens=1000,
-            response_format={"type": "json_object"}
-        )
-        TOKEN_USAGE.add_from_response(response)
-        return response
 
-    response = _call(repo_content)
-    raw_content = response.choices[0].message.content
-
-    # Empty response usually means context window overflow — shrink and retry once
-    if not raw_content:
-        truncated = repo_content[:15_000] if repo_content else ""
-        print(f"\n  [empty response — retrying with {len(truncated):,} chars]", end=" ", flush=True)
-        response = _call(truncated)
-        raw_content = response.choices[0].message.content
-
-    if not raw_content:
-        return {
-            "has_installation_instructions": None,
-            "confidence": "low",
-            "evidence": "Empty LLM response after retry — content may exceed context window",
-            "instruction_types": [],
-        }
-
-    raw_preview = raw_content.strip()
-    raw_preview = re.sub(r"^```(?:json)?\s*", "", raw_preview)
-    raw_preview = re.sub(r"\s*```$", "", raw_preview)
-
-    print("\nRAW LLM OUTPUT:\n", raw_preview[:500])
-
-    return parse_llm_json_response(
-        raw_content=raw_content,
-        empty_payload={
-            "has_installation_instructions": None,
-            "confidence": "low",
-            "evidence": "Empty LLM response after retry — content may exceed context window",
-            "instruction_types": [],
-        },
+    return llm_call_parse_retry(
+        client=client,
+        deployment=AZURE_OPENAI_DEPLOYMENT,
+        system_prompt=system_prompt or SYSTEM_PROMPT,
+        build_user_message=build_msg,
+        content=repo_content,
+        token_usage=TOKEN_USAGE,
+        empty_payload=EMPTY_INSTALLATION_PAYLOAD,
         required_list_fields=("instruction_types",),
+        max_completion_tokens=1000,
+        retry_truncate_chars=15_000,
     )
 
 
@@ -248,7 +209,6 @@ def check_paper(paper):
             if retry_result.get("has_installation_instructions") is not None:
                 llm_result = retry_result
 
-        result["status"]            = "yes" if llm_result.get("has_installation_instructions") else "no"
         result["confidence"]        = llm_result.get("confidence", "unknown")
         result["evidence"]          = llm_result.get("evidence", "")
         result["instruction_types"] = llm_result.get("instruction_types", [])
@@ -463,14 +423,8 @@ def print_results(results):
 def save_results(results, path=None):
     """Export detailed and summary results to an Excel workbook.
 
-    The workbook contains:
-    - ``Results``: one row per repository with status, evidence, and links.
-    - ``Summary``: aggregate counts and coverage formula.
-
-    Args:
-        results (list[dict]): Final normalized results.
-        path (Path | None): Optional output path. Defaults to
-            ``installation_instructions_results.xlsx`` next to this script.
+    Uses shared helpers from ``common.excel_output`` for header rows, data
+    rows, and the summary sheet.
     """
     if path is None:
         path = Path(__file__).resolve().parent / "results/installation_instructions_results.xlsx"
@@ -478,87 +432,44 @@ def save_results(results, path=None):
     ws = wb.active
     ws.title = "Results"
 
-    # Styles
-    header_font = Font(name="Arial", bold=True, color="FFFFFF")
-    header_fill = PatternFill("solid", start_color="2F5496")
-    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    wrap = Alignment(horizontal="left", vertical="top", wrap_text=True)
-    thin = Side(style="thin", color="CCCCCC")
-    border = Border(left=thin, right=thin, top=thin, bottom=thin)
-
-    headers = ["#", "Status", "Confidence", "Title", "Repo", "Instruction Types", "Evidence", "Installation Link", "Files Checked", "Note"]
+    headers = ["#", "Status", "Confidence", "Title", "Repo",
+               "Instruction Types", "Evidence", "Installation Link",
+               "Files Checked", "Note"]
     col_widths = [5, 10, 12, 45, 40, 35, 50, 45, 45, 30]
+    border = thin_border()
 
-    for col_idx, (header, width) in enumerate(zip(headers, col_widths), 1):
-        cell = ws.cell(row=1, column=col_idx, value=header)
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.alignment = center
-        cell.border = border
-        ws.column_dimensions[get_column_letter(col_idx)].width = width
+    write_header_row(ws, headers, col_widths, fill_hex="2F5496", border=border)
 
-    ws.row_dimensions[1].height = 20
-
-    for row_idx, r in enumerate(results, 2):
-        install_link = r.get("installation_link") or ""
-        row_data = [
-            row_idx - 1,
+    def row_data_fn(r, num):
+        return [
+            num,
             (r.get("status") or "").upper(),
             r.get("confidence") or "",
             r.get("title") or "",
             r.get("repo") or "",
             ", ".join(r.get("instruction_types") or []),
             r.get("evidence") or "",
-            install_link,
+            r.get("installation_link") or "",
             ", ".join(r.get("files_checked") or []),
             r.get("note") or "",
         ]
-        fill_color = STATUS_FILL_COLORS.get(r.get("status"), "FFFFFF")
-        row_fill = PatternFill("solid", start_color=fill_color)
 
-        for col_idx, value in enumerate(row_data, 1):
-            cell = ws.cell(row=row_idx, column=col_idx, value=value)
-            cell.font = Font(name="Arial", size=10)
-            cell.border = border
-            cell.alignment = center if col_idx <= 3 else wrap
-            if col_idx == 2:
-                cell.fill = row_fill
-            # Render Installation Link column (col 8) as a clickable hyperlink
-            if col_idx == 8 and value:
-                cell.hyperlink = value
-                cell.font = Font(name="Arial", size=10, color="0563C1", underline="single")
+    write_results_data_rows(
+        ws, results, row_data_fn,
+        border=border,
+        link_cols={8},
+        row_height_fn=lambda vals: auto_row_height(vals),
+    )
 
     # Summary sheet
     ws2 = wb.create_sheet("Summary")
-    counts  = count_statuses(results)
-    yes     = counts.get("yes", 0)
-    no      = counts.get("no", 0)
-    skipped = counts.get("skipped", 0)
-    errors  = counts.get("error", 0)
-    total   = len(results)
-
-    summary_data = [
-        ("Total Repos Checked", total),
-        ("Have Installation Instructions", yes),
-        ("Missing Installation Instructions", no),
-        ("Skipped (non-GitHub)", skipped),
-        ("Errors", errors),
-        ("Coverage (%)", coverage_formula(yes, total)),
-    ]
-
-    ws2.column_dimensions["A"].width = 35
-    ws2.column_dimensions["B"].width = 15
-    ws2.cell(row=1, column=1, value="Metric").font = Font(name="Arial", bold=True)
-    ws2.cell(row=1, column=2, value="Value").font = Font(name="Arial", bold=True)
-    for fill_col in [1, 2]:
-        ws2.cell(row=1, column=fill_col).fill = PatternFill("solid", start_color="2F5496")
-        ws2.cell(row=1, column=fill_col).font = Font(name="Arial", bold=True, color="FFFFFF")
-        ws2.cell(row=1, column=fill_col).alignment = center
-
-    for r_idx, (label, value) in enumerate(summary_data, 2):
-        ws2.cell(row=r_idx, column=1, value=label).font = Font(name="Arial", size=10)
-        ws2.cell(row=r_idx, column=2, value=value).font = Font(name="Arial", size=10)
-        ws2.cell(row=r_idx, column=2).alignment = center
+    write_summary_sheet(
+        ws2, results,
+        positive_label="Have Installation Instructions",
+        negative_label="Missing Installation Instructions",
+        fill_hex="2F5496",
+        border=border,
+    )
 
     wb.save(path)
     print(f"Full results saved to {path}")
@@ -567,69 +478,19 @@ def save_results(results, path=None):
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    """Run the full two-pass analysis pipeline over all configured papers.
-
-    Workflow:
-    1) Evaluate each repository once.
-    2) Print a confidence report and diagnoses.
-    3) Auto-heal medium/low confidence cases and re-evaluate.
-    4) Print token usage, console summary, and save Excel output.
-    """
-    print(f"Checking {len(PAPERS)} repos for installation instructions "
-          f"using LLM ({AZURE_OPENAI_DEPLOYMENT})...")
-    if not GITHUB_TOKEN:
-        print("Tip: Set GITHUB_TOKEN in your .env to avoid the 60 req/hr GitHub rate limit.\n")
-
-    results      = []
-    repo_contents = {}  # title → raw content fetched, used for diagnosis
-
-    # ── Pass 1: check all papers ──────────────────────────────────────────────
-    for i, paper in enumerate(PAPERS, 1):
-        owner, repo_name = parse_github_repo(paper.get("repo", ""))
-        label = f"{owner}/{repo_name}" if owner else paper["repo"]
-        print(f"[{i:>2}/{len(PAPERS)}] {label} ...", end=" ", flush=True)
-
-        result, content = check_paper(paper)
-        results.append(result)
-        repo_contents[paper["title"]] = content
-
-        icon  = {"yes": "OK", "no": "NO", "skipped": "SKIP", "error": "ERR"}.get(result["status"], "?")
-        extra = result.get("confidence") or result.get("note") or ""
-        print(f"{icon}  {extra}")
-
-        time.sleep(0.3)
-
-    # ── Confidence report + diagnosis ─────────────────────────────────────────
-    print_shared_confidence_report(results, repo_contents, diagnose_result)
-
-    # ── Pass 2: self-heal any remaining medium/low confidence results ─────────
-    non_high = [i for i, r in enumerate(results) if r.get("confidence") in ("medium", "low")]
-    if non_high:
-        print(f"\n  Auto-healing {len(non_high)} medium/low confidence result(s)...\n")
-        for idx in non_high:
-            r = results[idx]
-            owner, repo = parse_github_repo(r.get("repo", ""))
-            if not owner:
-                continue
-            title_short = r["title"][:55] + ("…" if len(r["title"]) > 55 else "")
-            print(f"  healing: {title_short}", end=" ... ", flush=True)
-            healed = heal_result(r, repo_contents.get(r["title"], ""), owner, repo)
-            results[idx] = healed
-            print(f"conf: {r.get('confidence')} → {healed.get('confidence')}")
-            time.sleep(0.5)
-
-        # Final confidence report after healing
-        still_non_high = [r for r in results if r.get("confidence") in ("medium", "low")]
-        if still_non_high:
-            print(f"\n  {len(still_non_high)} result(s) still not high confidence after healing.")
-            print("  These likely require manual review (repo has no machine-readable setup info).")
-        else:
-            print("\n  All results are now high confidence.")
-
-    print_token_usage_report(TOKEN_USAGE, AZURE_OPENAI_DEPLOYMENT)
-
-    print_results(results)
-    save_results(results)
+    """Run the full two-pass analysis pipeline over all configured papers."""
+    run_checker_pipeline(
+        papers=PAPERS,
+        check_paper_fn=check_paper,
+        diagnose_fn=diagnose_result,
+        heal_fn=heal_result,
+        print_results_fn=print_results,
+        save_results_fn=save_results,
+        token_usage=TOKEN_USAGE,
+        deployment=AZURE_OPENAI_DEPLOYMENT,
+        description="installation instructions",
+        github_token=GITHUB_TOKEN,
+    )
 
 
 if __name__ == "__main__":

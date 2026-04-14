@@ -69,6 +69,7 @@ def print_token_usage_report(tracker: TokenUsageTracker, model_name: str = "") -
 
 
 def _extract_int(source: Any, keys: Tuple[str, ...]) -> int:
+    """Try each key in order and return the first integer-like value found."""
     for key in keys:
         value = None
         if isinstance(source, Mapping):
