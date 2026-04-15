@@ -2,7 +2,7 @@
 
 # Extensions of source code files we want to analyse for inline comments.
 SOURCE_CODE_EXTENSIONS = {
-    ".py", ".r", ".rmd", ".jl",                    # scripting / data-science
+    ".py", ".r", ".rmd", ".jl", ".ipynb",           # scripting / data-science
     ".cpp", ".c", ".h", ".hpp", ".cc", ".cxx",     # C / C++
     ".java", ".scala", ".kt",                       # JVM
     ".js", ".ts", ".jsx", ".tsx",                   # JavaScript / TypeScript

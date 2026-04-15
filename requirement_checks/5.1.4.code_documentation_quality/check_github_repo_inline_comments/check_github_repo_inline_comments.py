@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill
+from openpyxl.styles import Font
 
 # Add parent directories to Python path for local imports
 _this = Path(__file__).resolve()
@@ -17,21 +17,18 @@ sys.path.insert(0, str(_this.parent.parent))          # 5.1.4.code_documentation
 sys.path.insert(0, str(_this.parent.parent.parent))   # requirement_checks/
 
 from common.fetch_and_parse_github_repo import (
-    load_dotenv, parse_github_repo, is_github, list_all_repo_files, fetch_file_content,
+    load_dotenv, parse_github_repo, list_all_repo_files, fetch_file_content,
 )
 from common.token_usage import TokenUsageTracker
-from common.result_status import STATUS_FILL_COLORS, count_statuses
-from common.repo_content_helpers import (
-    fetch_paths_with_char_budget,
-    path_priority_with_readme_first,
-)
+from common.result_status import count_statuses
+from common.repo_content_helpers import fetch_paths_with_char_budget
 from common.llm_helpers import llm_call_parse_retry
 from common.checker_pipeline import run_checker_pipeline
 from common.excel_output import (
     write_header_row, write_results_data_rows, write_summary_sheet,
     thin_border, auto_row_height, alignment_center, alignment_wrap_left,
 )
-from shared.check_paper_common import check_paper_generic
+from shared import check_paper_generic
 
 load_dotenv()
 
@@ -108,7 +105,6 @@ def collect_repo_content(owner, repo):
 
 EMPTY_INLINE_COMMENTS_PAYLOAD = {
     "has_inline_comments": None,
-    "comment_quality": "none",
     "evidence": "Empty LLM response after retry — content may exceed context window",
     "comment_types": [],
     "files_with_comments": [],
@@ -147,14 +143,8 @@ def llm_check_inline_comments(repo_content, paper_title):
 # PER-PAPER ORCHESTRATION
 # =============================================================================
 
-def _collect_wrapper(owner, repo, result):
-    """Adapter: call collect_repo_content and return (content, files_checked)."""
-    return collect_repo_content(owner, repo)
-
-
 def _map_inline_comments(result, llm_result, owner, repo):
     """Copy inline-comment-specific fields from LLM result into the paper result."""
-    result["comment_quality"]     = llm_result.get("comment_quality", "none")
     result["comment_types"]       = llm_result.get("comment_types", [])
     result["files_with_comments"] = llm_result.get("files_with_comments", [])
 
@@ -164,11 +154,10 @@ def check_paper(paper):
     return check_paper_generic(
         paper,
         extra_defaults={
-            "comment_quality":     "none",
             "comment_types":       [],
             "files_with_comments": [],
         },
-        collect_content_fn=_collect_wrapper,
+        collect_content_fn=collect_repo_content,
         llm_check_fn=llm_check_inline_comments,
         map_llm_result_fn=_map_inline_comments,
         boolean_key="has_inline_comments",
@@ -185,7 +174,7 @@ def print_results(results):
     """Print a compact console table of per-paper results."""
     W = 110
     print("\n" + "=" * W)
-    print(f"{'#':<4} {'STATUS':<10} {'QUALITY':<10} {'COMMENT TYPES':<36} TITLE")
+    print(f"{'#':<4} {'STATUS':<10} {'COMMENT TYPES':<36} TITLE")
     print("=" * W)
 
     for i, r in enumerate(results, 1):
@@ -193,13 +182,12 @@ def print_results(results):
             "yes": "YES", "no": "NO", "skipped": "SKIP", "error": "ERR",
         }.get(r["status"], "?")
 
-        quality = r.get("comment_quality", "-") or "-"
         types_str = ", ".join(r.get("comment_types", []))[:34]
         if not types_str and r.get("note"):
             types_str = r["note"][:34]
 
         title_short = r["title"][:46] + ("..." if len(r["title"]) > 46 else "")
-        print(f"{i:<4} {icon:<10} {quality:<10} {types_str:<36} {title_short}")
+        print(f"{i:<4} {icon:<10} {types_str:<36} {title_short}")
 
         if r.get("evidence"):
             print(f"       evidence: {r['evidence']}")
@@ -236,16 +224,15 @@ def save_results(results, path=None):
     # ── SHEET 1: Results (one row per paper) ─────────────────────────────────
     ws1 = wb.active
     ws1.title = "Results"
-    hdrs1 = ["#", "Status", "Quality", "Title", "Repo",
+    hdrs1 = ["#", "Status", "Title", "Repo",
              "Comment Types", "Evidence", "Files Checked", "Note"]
-    widths1 = [5, 10, 10, 45, 40, 35, 55, 50, 35]
+    widths1 = [5, 10, 45, 40, 35, 55, 50, 35]
     write_header_row(ws1, hdrs1, widths1, fill_hex="2F5496", border=border)
 
     def results_row_data(r, num):
         return [
             num,
             (r.get("status") or "").upper(),
-            r.get("comment_quality") or "none",
             r.get("title") or "",
             r.get("repo") or "",
             ", ".join(r.get("comment_types") or []),
@@ -263,8 +250,8 @@ def save_results(results, path=None):
     # ── SHEET 2: Per-File Detail (one row per file with comments) ────────────
     ws2 = wb.create_sheet("Per-File Detail")
     hdrs2 = ["Paper #", "Paper Title", "Repo", "File Path",
-             "Quality", "Description", "GitHub Link"]
-    widths2 = [8, 50, 45, 55, 12, 60, 70]
+             "Description", "GitHub Link"]
+    widths2 = [8, 50, 45, 55, 60, 70]
     write_header_row(ws2, hdrs2, widths2, fill_hex="2F5496", border=border)
 
     detail_row = 2
@@ -283,7 +270,6 @@ def save_results(results, path=None):
                 r.get("title") or "",
                 r.get("repo") or "",
                 fpath,
-                fc.get("quality") or "",
                 fc.get("description") or "",
                 link,
             ]
@@ -292,7 +278,7 @@ def save_results(results, path=None):
                 cell.font = Font(name="Arial", size=10)
                 cell.border = border
                 cell.alignment = center if col_idx == 1 else wrap
-                if col_idx == 7 and value:
+                if col_idx == 6 and value:
                     cell.hyperlink = value
                     cell.font = Font(name="Arial", size=10,
                                      color="0563C1", underline="single")
@@ -307,6 +293,8 @@ def save_results(results, path=None):
         ws3, results,
         positive_label="Have Inline Comments",
         negative_label="Missing Inline Comments",
+        token_usage=TOKEN_USAGE,
+        deployment=AZURE_OPENAI_DEPLOYMENT,
         fill_hex="2F5496",
         border=border,
     )

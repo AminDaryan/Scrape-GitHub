@@ -9,23 +9,20 @@ import sys
 import time
 import json
 from pathlib import Path
-from collections import Counter
+
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 
 # Add parent directories to Python path for local imports
 _this = Path(__file__).resolve()
-sys.path.insert(0, str(_this.parent.parent))          # 5.1.4.github_code_documentation_quality/
+sys.path.insert(0, str(_this.parent.parent))          # 5.1.4.code_documentation_quality/
 sys.path.insert(0, str(_this.parent.parent.parent))   # requirement_checks/
 
 from common.fetch_and_parse_github_repo import (
-    load_dotenv, parse_github_repo, is_github, list_all_repo_files, fetch_file_content,
+    load_dotenv, parse_github_repo, list_all_repo_files, fetch_file_content,
 )
 from common.token_usage import TokenUsageTracker
-from common.result_status import (
-    STATUS_FILL_COLORS,
-    count_statuses,
-)
+from common.result_status import STATUS_FILL_COLORS, count_statuses
 from common.repo_content_helpers import (
     fetch_paths_with_char_budget,
     path_priority_with_readme_first,
@@ -36,32 +33,19 @@ from common.excel_output import (
     write_header_row, write_results_data_rows, write_summary_sheet,
     thin_border, auto_row_height, alignment_center, alignment_wrap_left,
 )
-from shared.check_paper_common import check_paper_generic
+from shared import check_paper_generic
 
 load_dotenv()
 
 from papers_from_database import PAPERS
-
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
-
-try:
-    from openai_client import client, AZURE_OPENAI_DEPLOYMENT as DEPLOYMENT
-except ImportError:
-    import openai
-    client     = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
-    DEPLOYMENT = os.getenv("OPENAI_MODEL", "gpt-4o")
-
+from openai_client import client, AZURE_OPENAI_DEPLOYMENT as DEPLOYMENT
 from prompts import SYSTEM_PROMPT
 from config import (
     TARGET_FILENAMES, USAGE_EXTENSIONS, SCRIPT_EXTENSIONS,
     EXAMPLE_FOLDER_PREFIXES, MAX_CONTENT_CHARS, MAX_NOTEBOOKS, MAX_SCRIPTS,
 )
 
-
-# =============================================================================
-# CONFIGURATION
-# =============================================================================
-
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 TOKEN_USAGE = TokenUsageTracker()
 
 
@@ -498,7 +482,7 @@ def save_results(results, path=None):
                  "# Examples", "Example Types", "Evidence",
                  "All Example Links", "Files Checked", "Note"]
     widths1   = [5, 10, 45, 40, 10, 35, 55, 60, 50, 35]
-    write_header_row(ws1, hdrs1, widths1, fill_hex="1F5C99", border=border)
+    write_header_row(ws1, hdrs1, widths1, fill_hex="2F5496", border=border)
 
     def results_row_data(r, num):
         all_links_text = "\n".join(
@@ -531,7 +515,7 @@ def save_results(results, path=None):
     hdrs2  = ["Paper #", "Paper Title", "Repo", "File Path",
               "Type", "Description", "Example Command", "GitHub Link"]
     widths2 = [8, 50, 45, 55, 22, 60, 70, 70]
-    write_header_row(ws2, hdrs2, widths2, fill_hex="1F5C99", border=border)
+    write_header_row(ws2, hdrs2, widths2, fill_hex="2F5496", border=border)
 
     ex_row = 2
     for paper_num, r in enumerate(results, 1):
@@ -618,7 +602,9 @@ def save_results(results, path=None):
         positive_label="Repos with Usage Examples",
         negative_label="Repos Missing Usage Examples",
         extra_rows=extra_summary,
-        fill_hex="1F5C99",
+        token_usage=TOKEN_USAGE,
+        deployment=DEPLOYMENT,
+        fill_hex="2F5496",
         border=border,
     )
 
@@ -667,6 +653,10 @@ def save_results(results, path=None):
 
     wb.save(path)
 
+    counts = count_statuses(results)
+    total = len(results)
+    skipped = counts.get("skipped", 0)
+    errors = counts.get("error", 0)
     total_ex = sum(len(r.get("example_entries", [])) for r in results)
     print(f"\nFull results saved to: {path}")
     print(f"  → Results sheet:        {total} papers")

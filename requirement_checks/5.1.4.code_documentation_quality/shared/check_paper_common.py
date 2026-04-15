@@ -4,6 +4,8 @@ Extracts the common URL-validation → GitHub-parsing → fetch → LLM → stat
 pattern so each checker only supplies its checker-specific config/callbacks.
 """
 
+import inspect
+
 from common.fetch_and_parse_github_repo import parse_github_repo, is_github
 
 
@@ -28,10 +30,12 @@ def check_paper_generic(
         Checker-specific result keys with their default values.  Merged into
         the base result dict (which already has title, repo, status, evidence,
         files_checked, note).
-    collect_content_fn : callable(owner, repo, result) -> (content_str, files_list)
-        Fetches repo content.  Receives the mutable *result* dict so it can
-        stash extra metadata (e.g. ``result["all_example_meta"]``).
-        Must return ``(content_str, files_checked_list)``.
+    collect_content_fn : callable(owner, repo) -> (content_str, files_list)
+                     OR  callable(owner, repo, result) -> (content_str, files_list)
+        Fetches repo content.  The 3-argument form receives the mutable
+        *result* dict so it can stash extra metadata (e.g.
+        ``result["all_example_meta"]``).  The simpler 2-argument form is
+        preferred when no extra metadata is needed.
     llm_check_fn : callable(content_str, paper_title) -> dict
         Sends content to the LLM and returns the parsed JSON response.
     map_llm_result_fn : callable(result, llm_result, owner, repo) -> None
@@ -45,6 +49,8 @@ def check_paper_generic(
     no_files_message : str
         Error message used when *require_files* triggers.
     """
+    # Detect whether collect_content_fn expects (owner, repo) or (owner, repo, result)
+    _collect_wants_result = len(inspect.signature(collect_content_fn).parameters) >= 3
     url = paper.get("repo", "")
 
     result = {
@@ -72,11 +78,14 @@ def check_paper_generic(
         return result
 
     try:
-        repo_content, files_checked = collect_content_fn(owner, repo, result)
+        if _collect_wants_result:
+            repo_content, files_checked = collect_content_fn(owner, repo, result)
+        else:
+            repo_content, files_checked = collect_content_fn(owner, repo)
         result["files_checked"] = files_checked
 
         if require_files and not files_checked:
-            result["status"] = "error"
+            result["status"] = "no"
             result["note"] = no_files_message
             return result
 

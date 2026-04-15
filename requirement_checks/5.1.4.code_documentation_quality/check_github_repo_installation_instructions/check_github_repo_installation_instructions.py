@@ -1,14 +1,15 @@
-import os, sys
+import os
+import sys
 from pathlib import Path
 
 # Add parent directories to Python path for local imports
 _this = Path(__file__).resolve()
-sys.path.insert(0, str(_this.parent.parent))          # 5.1.4.github_code_documentation_quality/
+sys.path.insert(0, str(_this.parent.parent))          # 5.1.4.code_documentation_quality/
 sys.path.insert(0, str(_this.parent.parent.parent))   # requirement_checks/
 
 from openpyxl import Workbook
 from common.fetch_and_parse_github_repo import (
-    load_dotenv, parse_github_repo, is_github, list_all_repo_files, fetch_file_content,
+    load_dotenv, list_all_repo_files, fetch_file_content,
 )
 from common.token_usage import TokenUsageTracker
 from common.result_status import count_statuses
@@ -23,7 +24,7 @@ from common.excel_output import (
     write_header_row, write_results_data_rows, write_summary_sheet,
     thin_border, auto_row_height,
 )
-from shared.check_paper_common import check_paper_generic
+from shared import check_paper_generic
 
 load_dotenv()
 
@@ -113,11 +114,6 @@ def llm_check_installation(repo_content, paper_title):
 
 # ─── Per-paper orchestration ──────────────────────────────────────────────────
 
-def _collect_wrapper(owner, repo, result):
-    """Adapter: call collect_repo_content and return (content, files_checked)."""
-    return collect_repo_content(owner, repo)
-
-
 def _map_installation(result, llm_result, owner, repo):
     """Copy installation-specific fields from LLM result into the paper result."""
     result["instruction_types"] = llm_result.get("instruction_types", [])
@@ -134,7 +130,7 @@ def check_paper(paper):
             "instruction_types": [],
             "installation_link": "",
         },
-        collect_content_fn=_collect_wrapper,
+        collect_content_fn=collect_repo_content,
         llm_check_fn=llm_check_installation,
         map_llm_result_fn=_map_installation,
         boolean_key="has_installation_instructions",
@@ -226,6 +222,8 @@ def save_results(results, path=None):
         ws2, results,
         positive_label="Have Installation Instructions",
         negative_label="Missing Installation Instructions",
+        token_usage=TOKEN_USAGE,
+        deployment=AZURE_OPENAI_DEPLOYMENT,
         fill_hex="2F5496",
         border=border,
     )

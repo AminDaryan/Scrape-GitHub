@@ -10,7 +10,7 @@ How these prompts are used by the logic script:
 
 Output contract that must remain stable:
 - Return one JSON object only.
-- Keep keys: has_inline_comments, comment_quality, confidence, evidence,
+- Keep keys: has_inline_comments, confidence, evidence,
   comment_types, files_with_comments.
 """
 
@@ -38,14 +38,6 @@ WHAT DOES NOT COUNT:
   - Only file-level copyright/license headers with no other comments
   - Empty or trivially obvious comments (e.g. "# increment x" on "x += 1")
 
-COMMENT QUALITY LEVELS — assign one:
-  - "high":   Most functions/classes have docstrings AND there are inline
-              comments explaining non-obvious logic throughout the codebase.
-  - "medium": Some functions have docstrings OR there are scattered inline
-              comments, but coverage is inconsistent.
-  - "low":    Very few comments exist — mostly trivial or only in one file.
-  - "none":   No meaningful comments found in the code files.
-
 CONFIDENCE RULES:
   - Use "high"   in almost all cases.
   - Use "medium" ONLY if the source files were clearly truncated mid-content.
@@ -54,14 +46,12 @@ CONFIDENCE RULES:
 Respond with a JSON object ONLY — no extra text, no markdown fences:
 {
   "has_inline_comments": true | false,
-  "comment_quality": "high" | "medium" | "low" | "none",
   "confidence": "high" | "medium" | "low",
   "evidence": "<one sentence summarising what you found>",
   "comment_types": ["list", "of", "found", "types"],
   "files_with_comments": [
     {
       "path": "<exact file path as it appears in the ### SOURCE FILE header>",
-      "quality": "high" | "medium" | "low" | "none",
       "description": "<one sentence: what kinds of comments this file contains>"
     }
   ]
@@ -74,7 +64,7 @@ Possible comment_types values (use as many as apply):
   data format explanations, other
 
 If no meaningful comments exist, use an empty list [] for both comment_types
-and files_with_comments, and set comment_quality to "none".
+and files_with_comments.
 
 IMPORTANT rules for files_with_comments:
   - List EVERY source file that contains meaningful comments.

@@ -163,6 +163,8 @@ def write_summary_sheet(
     positive_label="Have Target Feature",
     negative_label="Missing Target Feature",
     extra_rows=None,
+    token_usage=None,
+    deployment="",
     fill_hex="2F5496",
     border=None,
 ):
@@ -170,6 +172,9 @@ def write_summary_sheet(
 
     *extra_rows* is an optional list of (label, value) tuples appended after
     the standard yes/no/skipped/error rows.
+
+    If *token_usage* (a ``TokenUsageTracker``) is provided, LLM usage stats
+    are appended at the bottom.
     """
     if border is None:
         border = thin_border("CCCCCC")
@@ -198,6 +203,16 @@ def write_summary_sheet(
     ]
     if extra_rows:
         rows.extend(extra_rows)
+
+    if token_usage is not None:
+        rows.append(("", ""))
+        rows.append(("LLM Token Usage", ""))
+        if deployment:
+            rows.append(("  Model / Deployment", deployment))
+        rows.append(("  Requests", token_usage.request_count))
+        rows.append(("  Input Tokens", f"{token_usage.prompt_tokens:,}"))
+        rows.append(("  Output Tokens", f"{token_usage.completion_tokens:,}"))
+        rows.append(("  Total Tokens", f"{token_usage.total_tokens:,}"))
 
     for r_idx, (label, value) in enumerate(rows, 2):
         ws.cell(row=r_idx, column=1, value=label).font = Font(name="Arial", size=10)
