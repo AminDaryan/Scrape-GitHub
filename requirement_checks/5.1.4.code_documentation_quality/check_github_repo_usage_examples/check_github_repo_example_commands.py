@@ -36,6 +36,7 @@ from common.excel_output import (
     write_header_row, write_results_data_rows, write_summary_sheet,
     thin_border, auto_row_height, alignment_center, alignment_wrap_left,
 )
+from shared.check_paper_common import check_paper_generic
 
 load_dotenv()
 
@@ -51,47 +52,16 @@ except ImportError:
     DEPLOYMENT = os.getenv("OPENAI_MODEL", "gpt-4o")
 
 from prompts import SYSTEM_PROMPT
+from config import (
+    TARGET_FILENAMES, USAGE_EXTENSIONS, SCRIPT_EXTENSIONS,
+    EXAMPLE_FOLDER_PREFIXES, MAX_CONTENT_CHARS, MAX_NOTEBOOKS, MAX_SCRIPTS,
+)
 
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
 
-# Named documentation files we always want to fetch (compared in lowercase).
-TARGET_FILENAMES = {
-    "readme.md", "readme.rst", "readme.txt", "readme",
-    "usage.md", "usage.rst", "usage.txt",
-    "quickstart.md", "quick_start.md", "quick-start.md",
-    "tutorial.md", "tutorials.md",
-    "examples.md", "example.md",
-    "demo.md",
-    "getting_started.md", "getting-started.md",
-    "docs/usage.md", "docs/quickstart.md", "docs/tutorial.md",
-    "docs/examples.md", "docs/demo.md", "docs/getting_started.md",
-    "pyproject.toml", "setup.cfg",
-}
-
-# File extensions that are always usage examples by definition — we fetch ALL
-# of them regardless of where they live in the repo (not capped like before).
-# NOTE: .rmd and .qmd are excluded — they are analysis documents, not tutorials.
-USAGE_EXTENSIONS = {".ipynb"}
-
-# Extensions of plain example/demo scripts we also want to collect
-SCRIPT_EXTENSIONS = {".py", ".r", ".sh", ".bash", ".m", ".jl"}
-
-# Folder names whose entire contents are example/usage material
-EXAMPLE_FOLDER_PREFIXES = ("examples/", "tutorials/", "demo/", "demos/",
-                            "notebooks/", "notebook/", "scripts/", "sample/", "samples/")
-
-# Maximum characters sent to the LLM per request
-MAX_CONTENT_CHARS = 400_000
-
-# Maximum number of notebooks to fully fetch (summarised) in one pass.
-# We raised this from 5 → 20 so fewer notebooks are "skipped".
-MAX_NOTEBOOKS = 20
-
-# Maximum number of example scripts to fetch per pass
-MAX_SCRIPTS = 15
 TOKEN_USAGE = TokenUsageTracker()
 
 
@@ -312,66 +282,30 @@ def build_example_entries(example_files_raw, owner, repo):
 
 def check_paper(paper):
     """Validate, fetch, and classify one paper. Returns a result dict."""
-    url = paper.get("repo", "")
 
-    result = {
-        "title":           paper["title"],
-        "repo":            url,
-        "status":          None,   # "yes" | "no" | "skipped" | "error"
-        "evidence":        "",
-        "example_types":   [],
-        "example_entries": [],     # list of {path, type, description, link}
-        "files_checked":   [],
-        "all_example_meta": [],    # all example-like files spotted in the repo tree
-        "note":            "",
-    }
-
-    # ── Non-GitHub repos: record clearly rather than silently skip ────────────
-    if not is_github(url):
-        result["status"] = "skipped"
-        result["note"]   = (
-            f"Not a GitHub repo — manual review needed. URL: {url}"
-            if url else "No repo URL provided"
-        )
-        return result
-
-    owner, repo = parse_github_repo(url)
-    if not owner:
-        result["status"] = "error"
-        result["note"]   = "Could not parse GitHub URL"
-        return result
-
-    try:
+    def _collect_wrapper(owner, repo, result):
         repo_content, files_checked, all_example_meta = collect_repo_content(owner, repo)
-        result["files_checked"]    = files_checked
         result["all_example_meta"] = all_example_meta
+        return repo_content, files_checked
 
-        llm_result = llm_check_usage(repo_content, paper["title"])
-
-        result["evidence"]      = llm_result.get("evidence", "")
-        result["example_types"] = llm_result.get("example_types", [])
-
-        # Build enriched example entries (path + type + description + link)
+    def _map_usage(result, llm_result, owner, repo):
+        result["example_types"]   = llm_result.get("example_types", [])
         result["example_entries"] = build_example_entries(
             llm_result.get("example_files", []), owner, repo
         )
 
-        if llm_result.get("has_usage_examples") is None:
-            result["status"]     = "error"
-            result["note"]       = "Empty LLM response — content may be too large for this model"
-        else:
-            result["status"] = "yes" if llm_result["has_usage_examples"] else "no"
-
-    except RuntimeError as e:
-        result["status"] = "error"
-        result["note"]   = str(e)
-        return result
-    except Exception as e:
-        result["status"] = "error"
-        result["note"]   = f"Unexpected error: {e}"
-        return result
-
-    return result
+    return check_paper_generic(
+        paper,
+        extra_defaults={
+            "example_types":    [],
+            "example_entries":  [],
+            "all_example_meta": [],
+        },
+        collect_content_fn=_collect_wrapper,
+        llm_check_fn=llm_check_usage,
+        map_llm_result_fn=_map_usage,
+        boolean_key="has_usage_examples",
+    )
 
 
 # =============================================================================

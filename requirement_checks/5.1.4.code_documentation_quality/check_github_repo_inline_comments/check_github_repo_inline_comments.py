@@ -31,54 +31,19 @@ from common.excel_output import (
     write_header_row, write_results_data_rows, write_summary_sheet,
     thin_border, auto_row_height, alignment_center, alignment_wrap_left,
 )
+from shared.check_paper_common import check_paper_generic
 
 load_dotenv()
 
 from papers_from_database import PAPERS
 from openai_client import client, AZURE_OPENAI_DEPLOYMENT
 from prompts import SYSTEM_PROMPT
-
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
-
-# =============================================================================
-# CONFIGURATION
-# =============================================================================
-
-# Extensions of source code files we want to analyse for inline comments.
-SOURCE_CODE_EXTENSIONS = {
-    ".py", ".r", ".rmd", ".jl",                    # scripting / data-science
-    ".cpp", ".c", ".h", ".hpp", ".cc", ".cxx",     # C / C++
-    ".java", ".scala", ".kt",                       # JVM
-    ".js", ".ts", ".jsx", ".tsx",                   # JavaScript / TypeScript
-    ".go", ".rs", ".swift",                         # systems
-    ".m", ".matlab",                                # MATLAB
-    ".sh", ".bash",                                 # shell
-    ".lua", ".rb", ".php", ".pl",                   # other
-    ".cu", ".cuh",                                  # CUDA
-}
-
-# Folder prefixes to skip (test / CI / vendored / build artefacts).
-SKIP_FOLDER_PREFIXES = (
-    "test/", "tests/", "testing/", "__pycache__/",
-    ".github/", ".circleci/", ".gitlab/",
-    "node_modules/", "vendor/", "third_party/", "thirdparty/",
-    "build/", "dist/", "egg-info/",
+from config import (
+    SOURCE_CODE_EXTENSIONS, SKIP_FOLDER_PREFIXES, SKIP_BASENAMES,
+    MAX_SOURCE_FILES, MAX_CONTENT_CHARS, PER_FILE_CHAR_CAP,
 )
 
-# File basenames to skip (config, not real source code).
-SKIP_BASENAMES = {
-    "setup.py", "setup.cfg", "conftest.py",
-    "__init__.py", "manage.py",
-}
-
-# Maximum number of source files to fetch
-MAX_SOURCE_FILES = 25
-
-# Maximum characters sent to LLM per repo
-MAX_CONTENT_CHARS = 200_000
-
-# Per-file character cap so that one huge file doesn't eat the whole budget.
-PER_FILE_CHAR_CAP = 10_000
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 
 TOKEN_USAGE = TokenUsageTracker()
 
@@ -182,68 +147,34 @@ def llm_check_inline_comments(repo_content, paper_title):
 # PER-PAPER ORCHESTRATION
 # =============================================================================
 
+def _collect_wrapper(owner, repo, result):
+    """Adapter: call collect_repo_content and return (content, files_checked)."""
+    return collect_repo_content(owner, repo)
+
+
+def _map_inline_comments(result, llm_result, owner, repo):
+    """Copy inline-comment-specific fields from LLM result into the paper result."""
+    result["comment_quality"]     = llm_result.get("comment_quality", "none")
+    result["comment_types"]       = llm_result.get("comment_types", [])
+    result["files_with_comments"] = llm_result.get("files_with_comments", [])
+
+
 def check_paper(paper):
     """Validate, fetch, and classify one paper. Returns a result dict."""
-    url = paper.get("repo", "")
-
-    result = {
-        "title":                paper["title"],
-        "repo":                 url,
-        "status":               None,   # "yes" | "no" | "skipped" | "error"
-        "comment_quality":      "none",
-        "evidence":             "",
-        "comment_types":        [],
-        "files_with_comments":  [],
-        "files_checked":        [],
-        "note":                 "",
-    }
-
-    if not is_github(url):
-        result["status"] = "skipped"
-        result["note"] = (
-            f"Not a GitHub repo — manual review needed. URL: {url}"
-            if url else "No repo URL provided"
-        )
-        return result
-
-    owner, repo = parse_github_repo(url)
-    if not owner:
-        result["status"] = "error"
-        result["note"] = "Could not parse GitHub URL"
-        return result
-
-    try:
-        repo_content, files_checked = collect_repo_content(owner, repo)
-        result["files_checked"] = files_checked
-
-        if not files_checked:
-            result["status"] = "error"
-            result["note"] = "No source code files found in the repository"
-            return result
-
-        llm_result = llm_check_inline_comments(repo_content, paper["title"])
-
-        result["evidence"]           = llm_result.get("evidence", "")
-        result["comment_quality"]    = llm_result.get("comment_quality", "none")
-        result["comment_types"]      = llm_result.get("comment_types", [])
-        result["files_with_comments"] = llm_result.get("files_with_comments", [])
-
-        if llm_result.get("has_inline_comments") is None:
-            result["status"] = "error"
-            result["note"] = "Empty LLM response — content may be too large for this model"
-        else:
-            result["status"] = "yes" if llm_result["has_inline_comments"] else "no"
-
-    except RuntimeError as e:
-        result["status"] = "error"
-        result["note"] = str(e)
-        return result
-    except Exception as e:
-        result["status"] = "error"
-        result["note"] = f"Unexpected error: {e}"
-        return result
-
-    return result
+    return check_paper_generic(
+        paper,
+        extra_defaults={
+            "comment_quality":     "none",
+            "comment_types":       [],
+            "files_with_comments": [],
+        },
+        collect_content_fn=_collect_wrapper,
+        llm_check_fn=llm_check_inline_comments,
+        map_llm_result_fn=_map_inline_comments,
+        boolean_key="has_inline_comments",
+        require_files=True,
+        no_files_message="No source code files found in the repository",
+    )
 
 
 # =============================================================================
