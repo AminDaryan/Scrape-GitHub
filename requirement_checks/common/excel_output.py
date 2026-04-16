@@ -1,10 +1,73 @@
-"""Shared Excel output helpers for requirement-check scripts."""
+"""Shared Excel output helpers for requirement-check scripts.
+
+Also contains the four paper statuses (yes/no/skipped/error), their Excel row
+colors, and helpers for counting them and computing coverage.
+"""
 
 from pathlib import Path
+from typing import Any, Dict, Mapping, Sequence
+
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-from common.result_status import STATUS_FILL_COLORS, count_statuses, coverage_formula
+
+# ---------------------------------------------------------------------------
+# Status definitions (merged from result_status.py)
+# ---------------------------------------------------------------------------
+
+# Each paper we check gets one of these four statuses.
+# The hex values are the background colors used for that row in the Excel output.
+STATUS_FILL_COLORS = {
+    "yes": "C6EFCE",      # green  — the repo HAS the feature (e.g. has inline comments)
+    "no": "FFDDC1",       # orange — the repo does NOT have the feature
+    "skipped": "FFEB9C",  # yellow — not a GitHub repo, so we could not check
+    "error": "FFC7CE",    # red    — something went wrong during checking
+}
+
+
+def count_statuses(
+    results: Sequence[Mapping[str, Any]],
+    status_key: str = "status",
+) -> Dict[str, int]:
+    """Go through all paper results and count how many fall into each status.
+
+    Statuses:
+        "yes"     — the repo has the checked feature (e.g. has inline comments)
+        "no"      — the repo was checked but the feature is missing
+        "skipped" — the repo URL was not a GitHub link, so it was not checked
+        "error"   — the check failed (e.g. GitHub API error, LLM timeout)
+
+    Input:  a list of result dicts, each having a "status" key.
+    Output: {"yes": 5, "no": 2, "skipped": 1, "error": 0}
+            (all four keys always present, even when the count is 0)
+    """
+    counts: Dict[str, int] = {k: 0 for k in STATUS_FILL_COLORS}
+
+    for row in results:
+        status = str(row.get(status_key, "")).strip().lower()
+        if not status:
+            continue
+        counts[status] = counts.get(status, 0) + 1
+
+    return counts
+
+
+def coverage_formula(positive_count: int, total_count: int) -> str:
+    """Calculate what percentage of repos have the feature, as an Excel formula.
+
+    positive_count: number of repos with status "yes" (have the feature).
+    total_count:    total number of repos checked.
+
+    Returns a string like "=5/10*100" that gets placed in an Excel cell.
+    Excel evaluates it and shows the result (50 in this case, meaning 50%).
+    """
+    denom = total_count if total_count else 1
+    return f"={positive_count}/{denom}*100"
+
+
+# ---------------------------------------------------------------------------
+# Excel helpers
+# ---------------------------------------------------------------------------
 
 
 def default_results_path(script_file, filename):

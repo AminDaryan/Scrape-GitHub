@@ -4,7 +4,8 @@ This repository analyzes paper repositories and documentation quality using GitH
 
 It currently has two active pipelines under `requirement_checks/`:
 
-- `5.1.4.github_code_documentation_quality/`
+- `5.1.4.code_documentation_quality/`
+  - Check if repos contain inline comments
   - Check if repos contain installation instructions
   - Check if repos contain usage/example commands
 - `5.1.3.pre-processing_&_pipeline_code/`
@@ -15,9 +16,9 @@ It currently has two active pipelines under `requirement_checks/`:
 At a glance:
 
 - `requirement_checks/common/`
-  Shared helpers used by multiple scripts (GitHub fetch, parsing, confidence, token usage).
-- `requirement_checks/5.1.4.github_code_documentation_quality/`
-  Documentation-quality pipeline (installation instructions + usage examples).
+  Shared helpers used by multiple scripts (GitHub fetch, LLM calls, Excel output, pipeline runner, token usage).
+- `requirement_checks/5.1.4.code_documentation_quality/`
+  Documentation-quality pipeline (inline comments + installation instructions + usage examples).
 - `requirement_checks/5.1.3.pre-processing_&_pipeline_code/`
   Appendix preprocessing/pipeline checker (Q 5.1.3).
 - `requirement_checks/scrape_github_data.py`
@@ -32,6 +33,7 @@ flowchart TD
   root["Repo Root"]
   root --> common["requirement_checks/common<br/>shared helpers"]
   root --> q514["requirement_checks/5.1.4 documentation quality"]
+  q514 --> inline["inline comments checker"]
   q514 --> install["installation checker"]
   q514 --> usage["usage examples checker"]
   root --> q513["requirement_checks/5.1.3 preprocessing pipeline"]
@@ -46,8 +48,9 @@ If your editor shows Mermaid as code, open Markdown Preview (`Ctrl+Shift+V`) or 
 
 | Question | Script | Paper list input | Output |
 |---|---|---|---|
-| Q 5.1.4: Does the repository include installation instructions? | [check_github_repo_installation_instructions.py](requirement_checks/5.1.4.github_code_documentation_quality/check_github_repo_installation_instructions/check_github_repo_installation_instructions.py) | [papers_from_database.py](requirement_checks/5.1.4.github_code_documentation_quality/papers_from_database.py) | [installation_instructions_results.xlsx](requirement_checks/5.1.4.github_code_documentation_quality/check_github_repo_installation_instructions/installation_instructions_results.xlsx) |
-| Q 5.1.4: Does the repository include usage/example commands? | [check_github_repo_installation_example_commands.py](requirement_checks/5.1.4.github_code_documentation_quality/check_github_repo_installation_example_commands/check_github_repo_installation_example_commands.py) | [papers_from_database.py](requirement_checks/5.1.4.github_code_documentation_quality/papers_from_database.py) | [usage_examples_results.xlsx](requirement_checks/5.1.4.github_code_documentation_quality/check_github_repo_installation_example_commands/usage_examples_results.xlsx) |
+| Q 5.1.4: Does the repository include inline comments? | [check_github_repo_inline_comments.py](requirement_checks/5.1.4.code_documentation_quality/check_github_repo_inline_comments/check_github_repo_inline_comments.py) | [papers_from_database.py](requirement_checks/5.1.4.code_documentation_quality/papers_from_database.py) | [inline_comments_results.xlsx](requirement_checks/5.1.4.code_documentation_quality/check_github_repo_inline_comments/results/inline_comments_results.xlsx) |
+| Q 5.1.4: Does the repository include installation instructions? | [check_github_repo_installation_instructions.py](requirement_checks/5.1.4.code_documentation_quality/check_github_repo_installation_instructions/check_github_repo_installation_instructions.py) | [papers_from_database.py](requirement_checks/5.1.4.code_documentation_quality/papers_from_database.py) | [installation_instructions_results.xlsx](requirement_checks/5.1.4.code_documentation_quality/check_github_repo_installation_instructions/results/installation_instructions_results.xlsx) |
+| Q 5.1.4: Does the repository include usage/example commands? | [check_github_repo_example_commands.py](requirement_checks/5.1.4.code_documentation_quality/check_github_repo_usage_examples/check_github_repo_example_commands.py) | [papers_from_database.py](requirement_checks/5.1.4.code_documentation_quality/papers_from_database.py) | [usage_examples_results.xlsx](requirement_checks/5.1.4.code_documentation_quality/check_github_repo_usage_examples/results/usage_examples_results.xlsx) |
 | Q 5.1.3: Does the appendix include pre-processing/pipeline code? | [check_paper_appendix_for_data_preprocessing_code.py](requirement_checks/5.1.3.pre-processing_&_pipeline_code/check_paper_appendix_for_data_preprocessing_code.py) | [papers_from_database.py](requirement_checks/5.1.3.pre-processing_&_pipeline_code/papers_from_database.py) | [results.xlsx](requirement_checks/5.1.3.pre-processing_&_pipeline_code/results.xlsx) |
 
 ## Shared Utilities
@@ -56,10 +59,14 @@ If your editor shows Mermaid as code, open Markdown Preview (`Ctrl+Shift+V`) or 
   - parse GitHub URLs
   - list repo files
   - fetch file contents via GitHub API
-- `requirement_checks/common/llm_response_parser.py`
-  - robust JSON response parsing from LLM output
-- `requirement_checks/common/confidence_reporting.py`
-  - confidence diagnostics and reporting helpers
+- `requirement_checks/common/llm_helpers.py`
+  - LLM call with retry logic and JSON response parsing
+- `requirement_checks/common/checker_pipeline.py`
+  - pipeline runner that loops through papers and saves results
+- `requirement_checks/common/excel_output.py`
+  - Excel writing helpers, status colors, counting, and coverage formulas
+- `requirement_checks/common/repo_content_helpers.py`
+  - README prioritization and character-budget file fetching
 - `requirement_checks/common/token_usage.py`
   - counts request/input/output/total tokens across LLM calls
 - `requirement_checks/openai_client.py`
@@ -117,7 +124,8 @@ This setup will:
 ## Quick Run Commands (from repo root)
 
 ```bash
-python "requirement_checks/5.1.4.github_code_documentation_quality/check_github_repo_installation_instructions/check_github_repo_installation_instructions.py"
-python "requirement_checks/5.1.4.github_code_documentation_quality/check_github_repo_installation_example_commands/check_github_repo_installation_example_commands.py"
+python "requirement_checks/5.1.4.code_documentation_quality/check_github_repo_inline_comments/check_github_repo_inline_comments.py"
+python "requirement_checks/5.1.4.code_documentation_quality/check_github_repo_installation_instructions/check_github_repo_installation_instructions.py"
+python "requirement_checks/5.1.4.code_documentation_quality/check_github_repo_usage_examples/check_github_repo_example_commands.py"
 python "requirement_checks/5.1.3.pre-processing_&_pipeline_code/check_paper_appendix_for_data_preprocessing_code.py"
 ```

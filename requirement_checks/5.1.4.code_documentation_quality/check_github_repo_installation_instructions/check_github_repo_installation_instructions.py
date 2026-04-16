@@ -11,15 +11,15 @@ from openpyxl import Workbook
 from common.fetch_and_parse_github_repo import (
     load_dotenv, list_all_repo_files, fetch_file_content,
 )
-from common.result_status import count_statuses
 from common.repo_content_helpers import (
     fetch_paths_with_char_budget,
     first_readme_path,
     path_priority_with_readme_first,
 )
 from common.llm_helpers import llm_call_parse_retry
-from common.checker_pipeline import run_multi_model_pipeline
+from common.checker_pipeline import run_pipeline
 from common.excel_output import (
+    count_statuses,
     write_header_row, write_results_data_rows, write_summary_sheet,
     write_comparison_sheet, safe_sheet_name,
     thin_border, auto_row_height,
@@ -269,7 +269,7 @@ def save_results(all_model_results, path=None):
 def main():
     """Entry point: run the analysis pipeline."""
     _content_cache.clear()
-    run_multi_model_pipeline(
+    run_pipeline(
         papers=PAPERS,
         deployments=AZURE_OPENAI_DEPLOYMENTS,
         make_check_paper_fn=make_check_paper_fn,

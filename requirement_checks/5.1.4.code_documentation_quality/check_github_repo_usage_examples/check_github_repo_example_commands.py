@@ -22,14 +22,14 @@ sys.path.insert(0, str(_this.parent.parent.parent))   # requirement_checks/
 from common.fetch_and_parse_github_repo import (
     load_dotenv, parse_github_repo, list_all_repo_files, fetch_file_content,
 )
-from common.result_status import STATUS_FILL_COLORS, count_statuses
 from common.repo_content_helpers import (
     fetch_paths_with_char_budget,
     path_priority_with_readme_first,
 )
 from common.llm_helpers import llm_call_parse_retry
-from common.checker_pipeline import run_multi_model_pipeline
+from common.checker_pipeline import run_pipeline
 from common.excel_output import (
+    STATUS_FILL_COLORS, count_statuses,
     write_header_row, write_results_data_rows, write_summary_sheet,
     write_comparison_sheet, safe_sheet_name,
     thin_border, auto_row_height, alignment_center, alignment_wrap_left,
@@ -722,7 +722,7 @@ def main():
         gt_metrics = evaluate_against_ground_truth(results)
         print_ground_truth_report(gt_metrics)
 
-    run_multi_model_pipeline(
+    run_pipeline(
         papers=PAPERS,
         deployments=DEPLOYMENTS,
         make_check_paper_fn=make_check_paper_fn,
