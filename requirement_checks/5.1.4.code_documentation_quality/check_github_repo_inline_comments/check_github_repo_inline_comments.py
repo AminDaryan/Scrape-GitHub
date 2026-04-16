@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 from openpyxl import Workbook
-from openpyxl.styles import Font
+from openpyxl.styles import Alignment, Font
 
 # Add parent directories to Python path for local imports
 _this = Path(__file__).resolve()
@@ -19,13 +19,13 @@ sys.path.insert(0, str(_this.parent.parent.parent))   # requirement_checks/
 from common.fetch_and_parse_github_repo import (
     load_dotenv, parse_github_repo, list_all_repo_files, fetch_file_content,
 )
-from common.token_usage import TokenUsageTracker
 from common.result_status import count_statuses
 from common.repo_content_helpers import fetch_paths_with_char_budget
 from common.llm_helpers import llm_call_parse_retry
-from common.checker_pipeline import run_checker_pipeline
+from common.checker_pipeline import run_multi_model_pipeline
 from common.excel_output import (
     write_header_row, write_results_data_rows, write_summary_sheet,
+    write_comparison_sheet, safe_sheet_name,
     thin_border, auto_row_height, alignment_center, alignment_wrap_left,
 )
 from shared import check_paper_generic
@@ -33,7 +33,7 @@ from shared import check_paper_generic
 load_dotenv()
 
 from papers_from_database import PAPERS
-from openai_client import client, AZURE_OPENAI_DEPLOYMENT
+from openai_client import client, AZURE_OPENAI_DEPLOYMENTS
 from prompts import SYSTEM_PROMPT
 from config import (
     SOURCE_CODE_EXTENSIONS, SKIP_FOLDER_PREFIXES, SKIP_BASENAMES,
@@ -41,8 +41,6 @@ from config import (
 )
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
-
-TOKEN_USAGE = TokenUsageTracker()
 
 
 # =============================================================================
@@ -110,33 +108,16 @@ EMPTY_INLINE_COMMENTS_PAYLOAD = {
     "files_with_comments": [],
 }
 
+# Content cache — avoids re-fetching GitHub repos when running multiple models.
+_content_cache = {}
 
-def llm_check_inline_comments(repo_content, paper_title):
-    """Classify whether the repo code contains meaningful inline comments."""
-    def build_msg(content):
-        return (
-            f"Paper: {paper_title}\n\n"
-            "Below are the contents of source code files fetched from its GitHub repository.\n"
-            "Evaluate whether the code contains meaningful inline comments.\n\n"
-            + (content if content else "[No source code files found in the repository]")
-        )
 
-    token_budget = 4000 if len(repo_content) > 50_000 else 2000
-
-    return llm_call_parse_retry(
-        client=client,
-        deployment=AZURE_OPENAI_DEPLOYMENT,
-        system_prompt=SYSTEM_PROMPT,
-        build_user_message=build_msg,
-        content=repo_content,
-        token_usage=TOKEN_USAGE,
-        empty_payload=EMPTY_INLINE_COMMENTS_PAYLOAD,
-        required_list_fields=("comment_types", "files_with_comments"),
-        max_completion_tokens=token_budget,
-        retry_truncate_chars=30_000,
-        retry_max_tokens=8000,
-        preview_chars=1000,
-    )
+def _cached_collect_repo_content(owner, repo):
+    """Return cached collect_repo_content result, fetching only on first call."""
+    key = f"{owner}/{repo}"
+    if key not in _content_cache:
+        _content_cache[key] = collect_repo_content(owner, repo)
+    return _content_cache[key]
 
 
 # =============================================================================
@@ -149,21 +130,51 @@ def _map_inline_comments(result, llm_result, owner, repo):
     result["files_with_comments"] = llm_result.get("files_with_comments", [])
 
 
-def check_paper(paper):
-    """Validate, fetch, and classify one paper. Returns a result dict."""
-    return check_paper_generic(
-        paper,
-        extra_defaults={
-            "comment_types":       [],
-            "files_with_comments": [],
-        },
-        collect_content_fn=collect_repo_content,
-        llm_check_fn=llm_check_inline_comments,
-        map_llm_result_fn=_map_inline_comments,
-        boolean_key="has_inline_comments",
-        require_files=True,
-        no_files_message="No source code files found in the repository",
-    )
+def make_check_paper_fn(deployment, token_usage):
+    """Factory: create a check_paper function bound to a specific model."""
+
+    def _llm_check(repo_content, paper_title):
+        def build_msg(content):
+            return (
+                f"Paper: {paper_title}\n\n"
+                "Below are the contents of source code files fetched from its GitHub repository.\n"
+                "Evaluate whether the code contains meaningful inline comments.\n\n"
+                + (content if content else "[No source code files found in the repository]")
+            )
+
+        token_budget = 4000 if len(repo_content) > 50_000 else 2000
+
+        return llm_call_parse_retry(
+            client=client,
+            deployment=deployment,
+            system_prompt=SYSTEM_PROMPT,
+            build_user_message=build_msg,
+            content=repo_content,
+            token_usage=token_usage,
+            empty_payload=EMPTY_INLINE_COMMENTS_PAYLOAD,
+            required_list_fields=("comment_types", "files_with_comments"),
+            max_completion_tokens=token_budget,
+            retry_truncate_chars=30_000,
+            retry_max_tokens=8000,
+            preview_chars=1000,
+        )
+
+    def check_paper(paper):
+        return check_paper_generic(
+            paper,
+            extra_defaults={
+                "comment_types":       [],
+                "files_with_comments": [],
+            },
+            collect_content_fn=_cached_collect_repo_content,
+            llm_check_fn=_llm_check,
+            map_llm_result_fn=_map_inline_comments,
+            boolean_key="has_inline_comments",
+            require_files=True,
+            no_files_message="No source code files found in the repository",
+        )
+
+    return check_paper
 
 
 # =============================================================================
@@ -211,8 +222,8 @@ def print_results(results):
 # EXCEL OUTPUT
 # =============================================================================
 
-def save_results(results, path=None):
-    """Write Excel sheets: Results, Per-File Detail, Summary."""
+def save_results(all_model_results, path=None):
+    """Write per-model Results + Detail + Summary sheets, and a Model Comparison sheet."""
     if path is None:
         path = Path(__file__).resolve().parent / "results/inline_comments_results.xlsx"
 
@@ -221,83 +232,116 @@ def save_results(results, path=None):
     center = alignment_center()
     wrap = alignment_wrap_left()
 
-    # ── SHEET 1: Results (one row per paper) ─────────────────────────────────
-    ws1 = wb.active
-    ws1.title = "Results"
-    hdrs1 = ["#", "Status", "Title", "Repo",
-             "Comment Types", "Evidence", "Files Checked", "Note"]
-    widths1 = [5, 10, 45, 40, 35, 55, 50, 35]
-    write_header_row(ws1, hdrs1, widths1, fill_hex="2F5496", border=border)
+    deployments = list(all_model_results.keys())
+    first_sheet = True
 
-    def results_row_data(r, num):
-        return [
-            num,
-            (r.get("status") or "").upper(),
-            r.get("title") or "",
-            r.get("repo") or "",
-            ", ".join(r.get("comment_types") or []),
-            r.get("evidence") or "",
-            ", ".join(r.get("files_checked") or []),
-            r.get("note") or "",
-        ]
+    for deployment in deployments:
+        model_data = all_model_results[deployment]
+        results = model_data["results"]
+        token_usage = model_data["token_usage"]
 
-    write_results_data_rows(
-        ws1, results, results_row_data,
-        border=border,
-        row_height_fn=lambda vals: auto_row_height(vals),
-    )
+        # ── Results sheet (per model) ────────────────────────────────────
+        if first_sheet:
+            ws1 = wb.active
+            first_sheet = False
+        else:
+            ws1 = wb.create_sheet()
+        ws1.title = safe_sheet_name("Results", deployment)
 
-    # ── SHEET 2: Per-File Detail (one row per file with comments) ────────────
-    ws2 = wb.create_sheet("Per-File Detail")
-    hdrs2 = ["Paper #", "Paper Title", "Repo", "File Path",
-             "Description", "GitHub Link"]
-    widths2 = [8, 50, 45, 55, 60, 70]
-    write_header_row(ws2, hdrs2, widths2, fill_hex="2F5496", border=border)
+        hdrs1 = ["#", "Status", "Title", "Repo",
+                 "Comment Types", "Evidence", "Files Checked", "Note"]
+        widths1 = [5, 10, 45, 40, 35, 55, 50, 35]
+        write_header_row(ws1, hdrs1, widths1, fill_hex="2F5496", border=border)
 
-    detail_row = 2
-    for paper_num, r in enumerate(results, 1):
-        owner, repo_name = parse_github_repo(r.get("repo", ""))
-        for fc in r.get("files_with_comments", []):
-            fpath = (fc.get("path") or "").strip()
-            if not fpath:
-                continue
-            link = (
-                f"https://github.com/{owner}/{repo_name}/blob/HEAD/{fpath}"
-                if owner else ""
-            )
-            row_vals = [
-                paper_num,
+        def results_row_data(r, num):
+            return [
+                num,
+                (r.get("status") or "").upper(),
                 r.get("title") or "",
                 r.get("repo") or "",
-                fpath,
-                fc.get("description") or "",
-                link,
+                ", ".join(r.get("comment_types") or []),
+                r.get("evidence") or "",
+                ", ".join(r.get("files_checked") or []),
+                r.get("note") or "",
             ]
-            for col_idx, value in enumerate(row_vals, 1):
-                cell = ws2.cell(row=detail_row, column=col_idx, value=value)
-                cell.font = Font(name="Arial", size=10)
-                cell.border = border
-                cell.alignment = center if col_idx == 1 else wrap
-                if col_idx == 6 and value:
-                    cell.hyperlink = value
-                    cell.font = Font(name="Arial", size=10,
-                                     color="0563C1", underline="single")
-            ws2.row_dimensions[detail_row].height = auto_row_height(
-                row_vals, line_height=15 * 1.3,
-            )
-            detail_row += 1
 
-    # ── SHEET 3: Summary ─────────────────────────────────────────────────────
-    ws3 = wb.create_sheet("Summary")
-    write_summary_sheet(
-        ws3, results,
-        positive_label="Have Inline Comments",
-        negative_label="Missing Inline Comments",
-        token_usage=TOKEN_USAGE,
-        deployment=AZURE_OPENAI_DEPLOYMENT,
-        fill_hex="2F5496",
-        border=border,
-    )
+        write_results_data_rows(
+            ws1, results, results_row_data,
+            border=border,
+            row_height_fn=lambda vals: auto_row_height(vals),
+        )
+
+        # ── Per-File Detail sheet (per model) ────────────────────────────
+        ws2 = wb.create_sheet(safe_sheet_name("Detail", deployment))
+        hdrs2 = ["Paper #", "Paper Title", "Repo", "File Path",
+                 "Description", "GitHub Link"]
+        widths2 = [8, 50, 45, 55, 60, 70]
+        write_header_row(ws2, hdrs2, widths2, fill_hex="2F5496", border=border)
+
+        detail_row = 2
+        merge_center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        merge_left = Alignment(horizontal="left", vertical="center", wrap_text=True)
+        for paper_num, r in enumerate(results, 1):
+            owner, repo_name = parse_github_repo(r.get("repo", ""))
+            file_rows = [
+                fc for fc in r.get("files_with_comments", [])
+                if (fc.get("path") or "").strip()
+            ]
+            if not file_rows:
+                continue
+
+            start_row = detail_row
+            for fc in file_rows:
+                fpath = fc["path"].strip()
+                link = (
+                    f"https://github.com/{owner}/{repo_name}/blob/HEAD/{fpath}"
+                    if owner else ""
+                )
+                for col_idx, value in enumerate([fpath, fc.get("description") or "", link], 4):
+                    cell = ws2.cell(row=detail_row, column=col_idx, value=value)
+                    cell.font = Font(name="Arial", size=10)
+                    cell.border = border
+                    cell.alignment = wrap
+                    if col_idx == 6 and value:
+                        cell.hyperlink = value
+                        cell.font = Font(name="Arial", size=10,
+                                         color="0563C1", underline="single")
+                ws2.row_dimensions[detail_row].height = auto_row_height(
+                    [fpath, fc.get("description") or "", link], line_height=15 * 1.3,
+                )
+                detail_row += 1
+
+            end_row = detail_row - 1
+            ws2.cell(row=start_row, column=1, value=paper_num).font = Font(name="Arial", size=10)
+            ws2.cell(row=start_row, column=2, value=r.get("title") or "").font = Font(name="Arial", size=10)
+            ws2.cell(row=start_row, column=3, value=r.get("repo") or "").font = Font(name="Arial", size=10)
+            for col_idx in (1, 2, 3):
+                cell = ws2.cell(row=start_row, column=col_idx)
+                cell.border = border
+                cell.alignment = merge_center if col_idx == 1 else merge_left
+            if end_row > start_row:
+                ws2.merge_cells(start_row=start_row, start_column=1, end_row=end_row, end_column=1)
+                ws2.merge_cells(start_row=start_row, start_column=2, end_row=end_row, end_column=2)
+                ws2.merge_cells(start_row=start_row, start_column=3, end_row=end_row, end_column=3)
+
+        # ── Summary sheet (per model) ────────────────────────────────────
+        ws3 = wb.create_sheet(safe_sheet_name("Summary", deployment))
+        write_summary_sheet(
+            ws3, results,
+            positive_label="Have Inline Comments",
+            negative_label="Missing Inline Comments",
+            token_usage=token_usage,
+            deployment=deployment,
+            fill_hex="2F5496",
+            border=border,
+        )
+
+    # ── Model Comparison sheet ───────────────────────────────────────────
+    if len(deployments) > 1:
+        ws_cmp = wb.create_sheet("Model Comparison")
+        write_comparison_sheet(
+            ws_cmp, all_model_results, fill_hex="2F5496", border=border,
+        )
 
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     wb.save(path)
@@ -310,13 +354,13 @@ def save_results(results, path=None):
 
 def main():
     """Entry point: run the inline-comments analysis pipeline."""
-    run_checker_pipeline(
+    _content_cache.clear()
+    run_multi_model_pipeline(
         papers=PAPERS,
-        check_paper_fn=check_paper,
+        deployments=AZURE_OPENAI_DEPLOYMENTS,
+        make_check_paper_fn=make_check_paper_fn,
         print_results_fn=print_results,
         save_results_fn=save_results,
-        token_usage=TOKEN_USAGE,
-        deployment=AZURE_OPENAI_DEPLOYMENT,
         description="inline comments",
         github_token=GITHUB_TOKEN,
     )

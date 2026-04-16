@@ -1,3 +1,4 @@
+import json
 import os
 from openai import AzureOpenAI
 from dotenv import load_dotenv
@@ -10,7 +11,18 @@ load_dotenv()  # take environment variables from .env
 OPENAI_KEY = os.getenv("OPENAI_KEY")
 AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
 AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION")
-AZURE_OPENAI_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")  # default deployment
+
+# Support JSON array (e.g. '["gpt-5","gpt-5-mini"]') or comma-separated list
+_raw_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
+try:
+    _parsed = json.loads(_raw_deployment)
+    if isinstance(_parsed, list):
+        AZURE_OPENAI_DEPLOYMENTS = [str(d).strip() for d in _parsed if str(d).strip()]
+    else:
+        AZURE_OPENAI_DEPLOYMENTS = [str(_parsed).strip()]
+except (json.JSONDecodeError, TypeError):
+    AZURE_OPENAI_DEPLOYMENTS = [d.strip() for d in _raw_deployment.split(",") if d.strip()]
+AZURE_OPENAI_DEPLOYMENT = AZURE_OPENAI_DEPLOYMENTS[0]  # backward compat
 
 
 # Create the Azure OpenAI client

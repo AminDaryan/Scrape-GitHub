@@ -218,3 +218,119 @@ def write_summary_sheet(
         ws.cell(row=r_idx, column=1, value=label).font = Font(name="Arial", size=10)
         ws.cell(row=r_idx, column=2, value=value).font = Font(name="Arial", size=10)
         ws.cell(row=r_idx, column=2).alignment = center
+
+
+# ── Multi-model helpers ───────────────────────────────────────────────────
+
+
+def safe_sheet_name(base, model="", max_len=31):
+    """Create an Excel-safe sheet name, truncating the model suffix if needed."""
+    if not model:
+        return base[:max_len]
+    name = f"{base} ({model})"
+    if len(name) <= max_len:
+        return name
+    available = max_len - len(base) - 3      # room inside " ()"
+    return f"{base} ({model[:max(available, 3)]})"
+
+
+def write_comparison_sheet(
+    ws,
+    all_model_results,
+    *,
+    fill_hex="2F5496",
+    border=None,
+):
+    """Write a model comparison sheet: per-paper status across deployments.
+
+    *all_model_results* is ``{deployment: {"results": [...], ...}}``.
+    """
+    if border is None:
+        border = thin_border("CCCCCC")
+    center = alignment_center(wrap_text=True)
+    wrap = alignment_wrap_left()
+
+    deployments = list(all_model_results.keys())
+    headers = ["#", "Title", "Repo"] + deployments + ["Agreement"]
+    widths = [5, 45, 40] + [15] * len(deployments) + [12]
+
+    write_header_row(ws, headers, widths, fill_hex=fill_hex, border=border)
+
+    first_results = all_model_results[deployments[0]]["results"]
+    agree_count = 0
+
+    for row_idx, paper in enumerate(first_results, 2):
+        title = paper.get("title", "")
+        repo = paper.get("repo", "")
+
+        statuses = []
+        for dep in deployments:
+            dep_results = all_model_results[dep]["results"]
+            paper_idx = row_idx - 2
+            if paper_idx < len(dep_results):
+                status = (dep_results[paper_idx].get("status") or "").upper()
+            else:
+                status = "N/A"
+            statuses.append(status)
+
+        all_agree = len(set(statuses)) == 1
+        if all_agree:
+            agree_count += 1
+
+        row_vals = [row_idx - 1, title, repo] + statuses + [
+            "Yes" if all_agree else "No",
+        ]
+
+        for col_idx, value in enumerate(row_vals, 1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.font = Font(name="Arial", size=10)
+            cell.border = border
+            cell.alignment = center if col_idx == 1 or col_idx > 3 else wrap
+            if col_idx == len(row_vals):
+                color = "C6EFCE" if all_agree else "FFC7CE"
+                cell.fill = PatternFill("solid", start_color=color)
+
+    # Agreement summary
+    total = len(first_results)
+    summary_row = total + 3
+    ws.cell(row=summary_row, column=2, value="Agreement Rate").font = Font(
+        name="Arial", size=10, bold=True,
+    )
+    pct = (
+        f"{agree_count}/{total} ({agree_count / total * 100:.0f}%)"
+        if total else "N/A"
+    )
+    ws.cell(row=summary_row, column=3, value=pct).font = Font(
+        name="Arial", size=10,
+    )
+
+    # Token usage per model
+    token_row = summary_row + 2
+    ws.cell(row=token_row, column=1, value="Token Usage per Model").font = Font(
+        name="Arial", size=11, bold=True,
+    )
+    token_row += 1
+    token_headers = ["Model", "Requests", "Input Tokens",
+                     "Output Tokens", "Total Tokens"]
+    for col_idx, hdr in enumerate(token_headers, 1):
+        cell = ws.cell(row=token_row, column=col_idx, value=hdr)
+        cell.font = Font(name="Arial", size=10, bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", start_color=fill_hex)
+        cell.border = border
+        cell.alignment = center
+    token_row += 1
+    for dep in deployments:
+        tu = all_model_results[dep].get("token_usage")
+        row_vals = [
+            dep,
+            tu.request_count if tu else 0,
+            f"{tu.prompt_tokens:,}" if tu else "0",
+            f"{tu.completion_tokens:,}" if tu else "0",
+            f"{tu.total_tokens:,}" if tu else "0",
+        ]
+        for col_idx, value in enumerate(row_vals, 1):
+            cell = ws.cell(row=token_row, column=col_idx, value=value)
+            cell.font = Font(name="Arial", size=10)
+            cell.border = border
+            cell.alignment = center if col_idx >= 2 else wrap
+        token_row += 1

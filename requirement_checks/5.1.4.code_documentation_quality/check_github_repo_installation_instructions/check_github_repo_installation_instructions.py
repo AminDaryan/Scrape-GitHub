@@ -11,7 +11,6 @@ from openpyxl import Workbook
 from common.fetch_and_parse_github_repo import (
     load_dotenv, list_all_repo_files, fetch_file_content,
 )
-from common.token_usage import TokenUsageTracker
 from common.result_status import count_statuses
 from common.repo_content_helpers import (
     fetch_paths_with_char_budget,
@@ -19,9 +18,10 @@ from common.repo_content_helpers import (
     path_priority_with_readme_first,
 )
 from common.llm_helpers import llm_call_parse_retry
-from common.checker_pipeline import run_checker_pipeline
+from common.checker_pipeline import run_multi_model_pipeline
 from common.excel_output import (
     write_header_row, write_results_data_rows, write_summary_sheet,
+    write_comparison_sheet, safe_sheet_name,
     thin_border, auto_row_height,
 )
 from shared import check_paper_generic
@@ -29,13 +29,11 @@ from shared import check_paper_generic
 load_dotenv()
 
 from papers_from_database import PAPERS
-from openai_client import client, AZURE_OPENAI_DEPLOYMENT
+from openai_client import client, AZURE_OPENAI_DEPLOYMENTS
 from prompts import SYSTEM_PROMPT
 from config import TARGET_FILENAMES, MAX_CONTENT_CHARS
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
-
-TOKEN_USAGE = TokenUsageTracker()
 
 # ─── GitHub API helpers ───────────────────────────────────────────────────────
 
@@ -87,29 +85,16 @@ EMPTY_INSTALLATION_PAYLOAD = {
     "instruction_types": [],
 }
 
+# Content cache — avoids re-fetching GitHub repos when running multiple models.
+_content_cache = {}
 
-def llm_check_installation(repo_content, paper_title):
-    """Classify whether the repo content contains installation instructions."""
-    def build_msg(content):
-        return (
-            f"Paper: {paper_title}\n\n"
-            "Below are the contents of key files fetched from its GitHub repository.\n"
-            "Does this repository contain installation instructions?\n\n"
-            + (content if content else "[No relevant files found in the repository]")
-        )
 
-    return llm_call_parse_retry(
-        client=client,
-        deployment=AZURE_OPENAI_DEPLOYMENT,
-        system_prompt=SYSTEM_PROMPT,
-        build_user_message=build_msg,
-        content=repo_content,
-        token_usage=TOKEN_USAGE,
-        empty_payload=EMPTY_INSTALLATION_PAYLOAD,
-        required_list_fields=("instruction_types",),
-        max_completion_tokens=1000,
-        retry_truncate_chars=15_000,
-    )
+def _cached_collect_repo_content(owner, repo):
+    """Return cached collect_repo_content result, fetching only on first call."""
+    key = f"{owner}/{repo}"
+    if key not in _content_cache:
+        _content_cache[key] = collect_repo_content(owner, repo)
+    return _content_cache[key]
 
 
 # ─── Per-paper orchestration ──────────────────────────────────────────────────
@@ -122,19 +107,45 @@ def _map_installation(result, llm_result, owner, repo):
         result["installation_link"] = f"https://github.com/{owner}/{repo}/blob/HEAD/{install_file}"
 
 
-def check_paper(paper):
-    """Validate, fetch, and classify one paper. Returns a result dict."""
-    return check_paper_generic(
-        paper,
-        extra_defaults={
-            "instruction_types": [],
-            "installation_link": "",
-        },
-        collect_content_fn=collect_repo_content,
-        llm_check_fn=llm_check_installation,
-        map_llm_result_fn=_map_installation,
-        boolean_key="has_installation_instructions",
-    )
+def make_check_paper_fn(deployment, token_usage):
+    """Factory: create a check_paper function bound to a specific model."""
+
+    def _llm_check(repo_content, paper_title):
+        def build_msg(content):
+            return (
+                f"Paper: {paper_title}\n\n"
+                "Below are the contents of key files fetched from its GitHub repository.\n"
+                "Does this repository contain installation instructions?\n\n"
+                + (content if content else "[No relevant files found in the repository]")
+            )
+
+        return llm_call_parse_retry(
+            client=client,
+            deployment=deployment,
+            system_prompt=SYSTEM_PROMPT,
+            build_user_message=build_msg,
+            content=repo_content,
+            token_usage=token_usage,
+            empty_payload=EMPTY_INSTALLATION_PAYLOAD,
+            required_list_fields=("instruction_types",),
+            max_completion_tokens=1000,
+            retry_truncate_chars=15_000,
+        )
+
+    def check_paper(paper):
+        return check_paper_generic(
+            paper,
+            extra_defaults={
+                "instruction_types": [],
+                "installation_link": "",
+            },
+            collect_content_fn=_cached_collect_repo_content,
+            llm_check_fn=_llm_check,
+            map_llm_result_fn=_map_installation,
+            boolean_key="has_installation_instructions",
+        )
+
+    return check_paper
 
 
 # ─── Console reporting ────────────────────────────────────────────────────────
@@ -180,53 +191,74 @@ def print_results(results):
 
 
 
-def save_results(results, path=None):
-    """Export results and summary to an Excel workbook."""
+def save_results(all_model_results, path=None):
+    """Export per-model results and summary sheets, plus a comparison sheet."""
     if path is None:
         path = Path(__file__).resolve().parent / "results/installation_instructions_results.xlsx"
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Results"
 
-    headers = ["#", "Status", "Title", "Repo",
-               "Instruction Types", "Evidence", "Installation Link",
-               "Files Checked", "Note"]
-    col_widths = [5, 10, 45, 40, 35, 50, 45, 45, 30]
+    wb = Workbook()
     border = thin_border()
 
-    write_header_row(ws, headers, col_widths, fill_hex="2F5496", border=border)
+    deployments = list(all_model_results.keys())
+    first_sheet = True
 
-    def row_data_fn(r, num):
-        return [
-            num,
-            (r.get("status") or "").upper(),
-            r.get("title") or "",
-            r.get("repo") or "",
-            ", ".join(r.get("instruction_types") or []),
-            r.get("evidence") or "",
-            r.get("installation_link") or "",
-            ", ".join(r.get("files_checked") or []),
-            r.get("note") or "",
-        ]
+    for deployment in deployments:
+        model_data = all_model_results[deployment]
+        results = model_data["results"]
+        token_usage = model_data["token_usage"]
 
-    write_results_data_rows(
-        ws, results, row_data_fn,
-        border=border,
-        link_cols={7},
-        row_height_fn=lambda vals: auto_row_height(vals),
-    )
+        # ── Results sheet (per model) ────────────────────────────────────
+        if first_sheet:
+            ws = wb.active
+            first_sheet = False
+        else:
+            ws = wb.create_sheet()
+        ws.title = safe_sheet_name("Results", deployment)
 
-    # Summary sheet
-    ws2 = wb.create_sheet("Summary")
-    write_summary_sheet(
-        ws2, results,
-        positive_label="Have Installation Instructions",
-        negative_label="Missing Installation Instructions",
-        token_usage=TOKEN_USAGE,
-        deployment=AZURE_OPENAI_DEPLOYMENT,
-        fill_hex="2F5496",
-        border=border,
-    )
+        headers = ["#", "Status", "Title", "Repo",
+                   "Instruction Types", "Evidence", "Installation Link",
+                   "Files Checked", "Note"]
+        col_widths = [5, 10, 45, 40, 35, 50, 45, 45, 30]
+        write_header_row(ws, headers, col_widths, fill_hex="2F5496", border=border)
+
+        def row_data_fn(r, num):
+            return [
+                num,
+                (r.get("status") or "").upper(),
+                r.get("title") or "",
+                r.get("repo") or "",
+                ", ".join(r.get("instruction_types") or []),
+                r.get("evidence") or "",
+                r.get("installation_link") or "",
+                ", ".join(r.get("files_checked") or []),
+                r.get("note") or "",
+            ]
+
+        write_results_data_rows(
+            ws, results, row_data_fn,
+            border=border,
+            link_cols={7},
+            row_height_fn=lambda vals: auto_row_height(vals),
+        )
+
+        # ── Summary sheet (per model) ────────────────────────────────────
+        ws2 = wb.create_sheet(safe_sheet_name("Summary", deployment))
+        write_summary_sheet(
+            ws2, results,
+            positive_label="Have Installation Instructions",
+            negative_label="Missing Installation Instructions",
+            token_usage=token_usage,
+            deployment=deployment,
+            fill_hex="2F5496",
+            border=border,
+        )
+
+    # ── Model Comparison sheet ───────────────────────────────────────────
+    if len(deployments) > 1:
+        ws_cmp = wb.create_sheet("Model Comparison")
+        write_comparison_sheet(
+            ws_cmp, all_model_results, fill_hex="2F5496", border=border,
+        )
 
     wb.save(path)
     print(f"Full results saved to {path}")
@@ -236,13 +268,13 @@ def save_results(results, path=None):
 
 def main():
     """Entry point: run the analysis pipeline."""
-    run_checker_pipeline(
+    _content_cache.clear()
+    run_multi_model_pipeline(
         papers=PAPERS,
-        check_paper_fn=check_paper,
+        deployments=AZURE_OPENAI_DEPLOYMENTS,
+        make_check_paper_fn=make_check_paper_fn,
         print_results_fn=print_results,
         save_results_fn=save_results,
-        token_usage=TOKEN_USAGE,
-        deployment=AZURE_OPENAI_DEPLOYMENT,
         description="installation instructions",
         github_token=GITHUB_TOKEN,
     )
