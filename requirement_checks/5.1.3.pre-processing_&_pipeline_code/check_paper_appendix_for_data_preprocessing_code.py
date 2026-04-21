@@ -1,19 +1,26 @@
 """
-Question 5.1.3 - Pre-processing & Pipeline Code classifier
+Question 5.1.3 — Pre-processing & Pipeline Code classifier
 
-Checks ONLY the paper appendix. No repo inspection.
+Checks ONLY the paper appendix (no repo inspection) for structured preprocessing
+pseudocode or template tables.
+
+Logic:
+  1. Resolve the paper's arXiv ID by title.                           → fetch_appendix()
+  2. Fetch the HTML render (ar5iv first, arxiv.org/html as fallback)
+     and reject navigation/stub pages.                                → fetch_appendix(), is_junk()
+  3. Slice out the appendix section; fall back to the last 25% of
+     the text when no explicit appendix heading is found.             → fetch_appendix()
+  4. Send the appendix to the LLM and classify it.                   → process(), call_gpt()
+  5. Parse the JSON response, applying heuristic overrides to
+     suppress false positives from auxiliary prompts.                 → parse()
+  6. When arXiv fetch fails, fall back to GPT's training knowledge.  → process()
 
 Labels:
   SEPARATE_APPENDIX — appendix has structured pseudocode/template table for preprocessing
   MISSING           — everything else
 """
 
-import json 
-
-"""
-environment_instructions_existance_check_paper_appendix.py
-Question 5.1.3 classifier — preprocessing pseudocode detection
-"""
+import json
 
 import os, re, sys, time, urllib.parse, requests
 from pathlib import Path
@@ -42,6 +49,15 @@ TOKEN_USAGE = TokenUsageTracker()
 # ---------------------------------------------------------------------------
 
 def call_gpt(messages):
+    """Send a list of role-tagged messages (system + user) to the configured Azure OpenAI
+    deployment via the chat completions API and return the model's reply as a raw string.
+
+    The messages list follows the OpenAI chat format: each entry has a 'role'
+    ('system' or 'user') and a 'content' string. The model generates the next
+    message in the conversation — in this case, a JSON classification verdict.
+    Tracks token usage for the post-run cost report and logs a preview of
+    the response so long runs can be monitored without opening the Excel file.
+    """
     total_chars = sum(len(m["content"]) for m in messages)
     print(f"  [GPT] Calling {AZURE_OPENAI_DEPLOYMENT} — "
           f"{total_chars:,} total chars, max_completion_tokens=16000")
@@ -71,6 +87,13 @@ PAPER_SIGNALS = re.compile(
     re.IGNORECASE)
 
 def is_junk(text):
+    """Return True if the fetched page is a navigation/stub rather than actual paper content.
+
+    arXiv HTML renders sometimes return the site's landing page instead of the
+    paper when the ID is not yet processed by ar5iv. We reject pages that are
+    too short or that contain multiple arXiv site navigation phrases without
+    enough academic signal words.
+    """
     junk_phrases = [
         "arXivLabs", "Papers with Code", "Help | Advanced Search",
         "Subscribe to arXiv", "Privacy Policy", "Cornell University",
@@ -87,6 +110,14 @@ def is_junk(text):
     return False
 
 def fetch_appendix(title):
+    """Resolve a paper by title on arXiv and return its appendix text.
+
+    Tries ar5iv (a more reliable HTML renderer) first, then falls back to the
+    official arxiv.org HTML endpoint. If no explicit appendix heading is found,
+    returns the last 25% of the paper as a best-effort approximation — many
+    papers place supplementary material at the end without labelling it.
+    Returns None if both fetch attempts fail or the page is junk.
+    """
     print(f"  [arXiv] Searching: {title[:70]}")
     try:
         query = urllib.parse.quote(f'ti:"{title}"')
@@ -150,6 +181,16 @@ def fetch_appendix(title):
 # ---------------------------------------------------------------------------
 
 def parse(raw):
+    """Parse the LLM's JSON response and apply post-processing overrides.
+
+    Two override layers correct the most common false positives:
+    - Heuristic phrase list: certain phrases (e.g. "auto interpretation",
+      "dataset generation") signal that the appendix describes an *auxiliary*
+      LLM prompt rather than preprocessing pseudocode, so we downgrade to MISSING.
+    - Model self-report: if the LLM sets `is_primary_input_to_target_llm` in its
+      JSON, that field takes precedence over both the classification and the
+      heuristic, since it directly answers what we care about.
+    """
     result = {
         "classification": "MISSING",
         "confidence": 0,
@@ -198,6 +239,13 @@ def parse(raw):
 # ---------------------------------------------------------------------------
 
 def process(entry):
+    """Run the full classification pipeline for a single paper.
+
+    Primary path: fetch the appendix from arXiv and classify it with the main prompt.
+    Fallback path: when arXiv is unreachable or returns junk, use a knowledge-only
+    prompt so the LLM answers from its training data — less reliable but better than
+    skipping the paper entirely.
+    """
     title    = entry["title"]
     appendix = fetch_appendix(title)
 
@@ -228,6 +276,11 @@ def process(entry):
 # ---------------------------------------------------------------------------
 
 def accuracy_report(results):
+    """Compare predictions against ground_truth labels in PAPERS and return metrics.
+
+    Only papers that have a ground_truth entry are included in the counts.
+    Papers without a ground_truth label are ignored, not penalised.
+    """
     gt_map = {p["title"]: p["ground_truth"] for p in PAPERS if "ground_truth" in p}
     correct, total, wrong, per_label = 0, 0, [], {}
     for r in results:
@@ -255,6 +308,12 @@ def accuracy_report(results):
 # ---------------------------------------------------------------------------
 
 def save_excel(results, path, acc):
+    """Write per-paper predictions and a Summary sheet to an Excel workbook.
+
+    The Results sheet colour-codes each row by predicted label and marks
+    correct/wrong predictions against ground truth. The Summary sheet shows
+    per-label accuracy and lists all wrong predictions for quick review.
+    """
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment
 

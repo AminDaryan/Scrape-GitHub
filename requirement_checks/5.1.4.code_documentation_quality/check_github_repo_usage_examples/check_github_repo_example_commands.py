@@ -1,7 +1,22 @@
-"""Usage-examples checker for academic paper GitHub repositories.
+"""
+Checks whether a GitHub repository linked to an academic paper provides usage
+examples — such as Jupyter notebooks, demo scripts, or documented CLI/API commands.
 
-Fetches README, docs, notebooks, and example scripts via the GitHub API,
-then asks the LLM to list every usage example. Results export to Excel.
+Logic:
+  1. List every file in the repo, splitting into three buckets:
+     docs, notebooks, and example scripts.                             → collect_repo_content()
+  2. For each notebook: discard rich cell outputs (images, DataFrames,
+     tracebacks) and keep only code, markdown, and short text outputs
+     (< 500 chars), then truncate to a per-notebook character cap.    → summarise_notebook()
+  3. Fetch all three buckets within a shared character budget,
+     prioritising docs first, then notebooks, then scripts.            → collect_repo_content()
+  4. Pass the combined text to the LLM, asking it to enumerate
+     every usage example with type, description, and commands.         → make_check_paper_fn()
+  5. Enrich the LLM output with direct GitHub hyperlinks.              → build_example_entries()
+  6. Optionally evaluate predictions against ground-truth labels.      → evaluate_against_ground_truth()
+  7. Run across all configured models and export to Excel.             → main(), save_results()
+
+Results export to Excel.
 """
 
 import os
@@ -55,7 +70,12 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 
 
 def summarise_notebook(raw_json_text, max_chars=8_000):
-    """Distil a Jupyter notebook JSON into compact plain text (code + markdown only)."""
+    """Distil a Jupyter notebook JSON into compact plain text (code + markdown only).
+
+    Raw notebook JSON includes rich outputs (images, DataFrames, full tracebacks)
+    that consume the character budget without helping the LLM find usage examples.
+    We keep only short text outputs (< 500 chars) and drop everything else.
+    """
     try:
         nb = json.loads(raw_json_text)
     except Exception:
@@ -80,7 +100,12 @@ def summarise_notebook(raw_json_text, max_chars=8_000):
 
 
 def collect_repo_content(owner, repo):
-    """Fetch docs, notebooks, and example scripts; return combined text and metadata."""
+    """Fetch docs, notebooks, and example scripts; return combined text and metadata.
+
+    Returns a tuple of (combined_text, fetched_paths, all_example_meta).
+    all_example_meta lists every notebook and script discovered (even those not
+    fetched due to the budget cap) so Excel output can link to all of them.
+    """
     all_files = list_all_repo_files(owner, repo)
     if not all_files:
         return "", [], []
@@ -215,14 +240,18 @@ def _cached_collect_repo_content(owner, repo):
 # =============================================================================
 
 def build_example_entries(example_files_raw, owner, repo):
-    """Enrich raw LLM example_files with GitHub hyperlinks."""
+    """Enrich raw LLM example_files list with GitHub hyperlinks and normalised fields.
+
+    The LLM occasionally returns `commands` as a plain string instead of a list;
+    we normalise it here so the rest of the pipeline can always iterate over a list.
+    """
     entries = []
     for item in (example_files_raw or []):
         path = (item.get("path") or "").strip()
         if not path:
             continue
         cmds = item.get("commands", [])
-        if isinstance(cmds, str):   # graceful fallback if LLM returns a string
+        if isinstance(cmds, str):
             cmds = [cmds] if cmds else []
         entry = {
             "path":        path,
@@ -236,9 +265,15 @@ def build_example_entries(example_files_raw, owner, repo):
 
 
 def make_check_paper_fn(deployment, token_usage):
-    """Factory: create a check_paper function bound to a specific model."""
+    """Factory: return a check_paper function bound to a specific LLM deployment.
+
+    Using a factory instead of a plain function lets run_pipeline swap in different
+    models without re-fetching GitHub content — the content cache is shared across
+    all model instances for the same repo.
+    """
 
     def _llm_check(repo_content, paper_title):
+        """Call the LLM and parse the usage-examples verdict for one paper."""
         def build_msg(content):
             return (
                 f"Paper: {paper_title}\n\n"
@@ -275,6 +310,11 @@ def make_check_paper_fn(deployment, token_usage):
         return result
 
     def _collect_wrapper(owner, repo, result):
+        """Fetch repo content and stash example metadata on the result dict.
+
+        all_example_meta is saved here (before the LLM call) so that the Excel
+        output can produce links for every discovered file, not just the fetched ones.
+        """
         repo_content, files_checked, all_example_meta = _cached_collect_repo_content(owner, repo)
         result["all_example_meta"] = all_example_meta
         return repo_content, files_checked

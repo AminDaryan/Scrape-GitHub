@@ -1,3 +1,19 @@
+"""
+Environment / installation instructions checker (rule-based, no LLM).
+
+Answers: does this GitHub repo's README contain installation instructions?
+
+Logic — four priority tiers, checked in order; the first match wins:
+  1. Regex scan for definitive install commands.                       → classify_text_for_setup()
+  2. Strong heading + keyword confirmation.                            → classify_text_for_setup(), split_into_sections()
+  3. Partial heading + keyword + NLP confirmation.                     → classify_text_for_setup()
+  4. NLP zero-shot classification on every section as last resort.     → classify_text_for_setup()
+
+Entry point: check_setup_with_nlp() fetches the README and calls classify_text_for_setup().
+
+Returns "Yes" / "No" along with the matched evidence tier.
+"""
+
 import re
 import base64
 import requests
@@ -154,6 +170,12 @@ SETUP_LABELS = {
 # If no headings found, returns whole text as one section.
 # =============================================================================
 def split_into_sections(text):
+    """Split a Markdown README into sections based on heading lines (# to ####).
+
+    Returns a list of {"heading": str, "content": str} dicts. If the README has
+    no headings at all (plain-prose style), the entire text is returned as one
+    unnamed section so the rest of the detection logic still works.
+    """
     heading_pattern = re.compile(r"^(#{1,4})\s+(.+)$", re.MULTILINE)
     matches = list(heading_pattern.finditer(text))
 
@@ -177,6 +199,14 @@ def split_into_sections(text):
 # Tries 4 strategies in order — stops as soon as one succeeds.
 # =============================================================================
 def classify_text_for_setup(text, threshold=0.7):
+    """Run the four-tier detection pipeline on README text.
+
+    Returns (label, confidence, snippet) where label is one of the CANDIDATE_LABELS
+    on a hit, or None on a miss. Tiers are tried in order and the function returns
+    immediately on the first match so cheap regex checks always run before the NLP model.
+    The NLP tier uses a higher confidence threshold (threshold + 0.15) because there
+    is no corroborating signal from headings or keywords to back it up.
+    """
     if not text.strip():
         return None, 0.0, ""
 
@@ -275,6 +305,13 @@ def classify_text_for_setup(text, threshold=0.7):
 # FETCH README AND RUN DETECTION
 # =============================================================================
 def check_setup_with_nlp(owner, repo, headers=None, threshold=0.7, check_all_readmes=False):
+    """Fetch the root README from GitHub and run install-instruction detection on it.
+
+    When check_all_readmes=True, also scans every README found in subdirectories.
+    This catches monorepos where each sub-package has its own setup instructions,
+    but it triggers many extra API calls so it is off by default.
+    Returns a human-readable string: "Yes: <evidence>" or "No".
+    """
     readme_url = f"https://api.github.com/repos/{owner}/{repo}/readme"
     readme_response = requests.get(readme_url, headers=headers)
 

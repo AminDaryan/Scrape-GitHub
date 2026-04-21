@@ -1,3 +1,23 @@
+"""
+Installation-instructions checker for academic paper GitHub repositories.
+
+Logic:
+  1. List every file in the repo via the GitHub API.                  → collect_repo_content()
+  2. Select setup-relevant files by name (README, requirements.txt,
+     setup.py, Dockerfile, environment.yml, etc.); fall back to the
+     root README if nothing named matches.                            → collect_repo_content()
+  3. Sort selected files: root README first, then other setup files,
+     then nested READMEs last — so content truncation preferentially
+     keeps the most informative file intact.                          → collect_repo_content()
+  4. Fetch file contents up to a total character limit.               → collect_repo_content()
+  5. Pass the concatenated documentation to the LLM, asking whether
+     installation instructions are present, what types they cover,
+     and which file contains them.                                     → make_check_paper_fn()
+  6. Run across all configured models and export to Excel.            → main(), save_results()
+
+Results export to Excel.
+"""
+
 import os
 import sys
 from pathlib import Path
@@ -39,7 +59,12 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 
 
 def collect_repo_content(owner, repo):
-    """Fetch and concatenate setup-relevant files from a GitHub repo."""
+    """Fetch and concatenate setup-relevant files from a GitHub repo.
+
+    Targets files that commonly contain installation instructions (TARGET_FILENAMES).
+    If none are found, falls back to just the root README so the LLM always gets
+    at least some documentation to evaluate rather than returning empty-handed.
+    """
     all_files = list_all_repo_files(owner, repo)
     if not all_files:
         return "", []
@@ -100,7 +125,11 @@ def _cached_collect_repo_content(owner, repo):
 # ─── Per-paper orchestration ──────────────────────────────────────────────────
 
 def _map_installation(result, llm_result, owner, repo):
-    """Copy installation-specific fields from LLM result into the paper result."""
+    """Copy installation-specific fields from the LLM result into the paper result.
+
+    Also builds a direct GitHub link to the installation file when the LLM
+    identifies one, so auditors can navigate straight to the relevant file.
+    """
     result["instruction_types"] = llm_result.get("instruction_types", [])
     install_file = llm_result.get("installation_file")
     if install_file and owner:
@@ -108,9 +137,15 @@ def _map_installation(result, llm_result, owner, repo):
 
 
 def make_check_paper_fn(deployment, token_usage):
-    """Factory: create a check_paper function bound to a specific model."""
+    """Factory: return a check_paper function bound to a specific LLM deployment.
+
+    Using a factory instead of a plain function lets run_pipeline swap in different
+    models without re-fetching GitHub content — the content cache is shared across
+    all model instances for the same repo.
+    """
 
     def _llm_check(repo_content, paper_title):
+        """Call the LLM and parse the installation-instructions verdict for one paper."""
         def build_msg(content):
             return (
                 f"Paper: {paper_title}\n\n"
@@ -119,6 +154,7 @@ def make_check_paper_fn(deployment, token_usage):
                 + (content if content else "[No relevant files found in the repository]")
             )
 
+        # 1000 tokens is enough — the answer is binary yes/no plus a short evidence list.
         return llm_call_parse_retry(
             client=client,
             deployment=deployment,

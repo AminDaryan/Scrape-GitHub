@@ -1,7 +1,26 @@
-"""Inline-comments checker for academic paper GitHub repositories.
+"""
+Inline-comments checker for academic paper GitHub repositories.
 
-Fetches source code files via the GitHub API, then asks the LLM to evaluate
-whether the code contains meaningful inline comments. Results export to Excel.
+Logic:
+  1. List every file in the repo via the GitHub API.                  → collect_repo_content()
+  2. Keep only files with a recognized source extension (.py, .java,
+     .cpp, .js, .r, .cu, etc.) and skip folders that contain
+     third-party or generated code (node_modules/, vendor/,
+     build/, .github/, tests/, __pycache__/, etc.).                  → _is_source_file()
+  3. Sort files by path depth (fewest slashes first) so files closest
+     to the repo root — more likely to be the main authored code —
+     are fetched first; hard-cap at 25 files (MAX_SOURCE_FILES) so
+     large repos don't trigger hundreds of individual GitHub API calls.
+                                                                      → collect_repo_content()
+  4. Fetch the selected files, stopping once the total character
+     budget is reached; a per-file cap prevents one large file from
+     crowding out the rest of the LLM context.                        → collect_repo_content()
+  5. Pass the concatenated file contents to the LLM, asking whether
+     meaningful inline comments are present, which types they are,
+     and which files contain them.                                     → make_check_paper_fn()
+  6. Run across all configured models and export to Excel.            → main(), save_results()
+
+Results export to Excel.
 """
 
 import os
@@ -49,7 +68,12 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 
 
 def _is_source_file(path_lower, basename):
-    """Return True if the file looks like a source code file worth checking."""
+    """Return True if the file is a source code file worth evaluating for comments.
+
+    Excludes vendored dependencies, auto-generated files, and test fixtures
+    (configured in SKIP_FOLDER_PREFIXES / SKIP_BASENAMES) because comments in
+    those are not authored by the paper's developers and would skew the result.
+    """
     ext = "." + basename.rsplit(".", 1)[-1] if "." in basename else ""
     if ext not in SOURCE_CODE_EXTENSIONS:
         return False
@@ -77,7 +101,7 @@ def collect_repo_content(owner, repo):
     if not source_paths:
         return "", []
 
-    # Prioritize: root-level files first, then shallowest, then alphabetical.
+    # Sort by path depth (fewest "/" first), then alphabetically within each depth level.
     source_paths.sort(key=lambda p: (p.count("/"), p.lower()))
 
     # Cap to avoid fetching too many files.
@@ -131,9 +155,15 @@ def _map_inline_comments(result, llm_result, owner, repo):
 
 
 def make_check_paper_fn(deployment, token_usage):
-    """Factory: create a check_paper function bound to a specific model."""
+    """Factory: return a check_paper function bound to a specific LLM deployment.
+
+    Using a factory instead of a plain function lets run_pipeline swap in different
+    models without re-fetching GitHub content — the content cache is shared across
+    all model instances for the same repo.
+    """
 
     def _llm_check(repo_content, paper_title):
+        """Call the LLM and parse the inline-comments verdict for one paper."""
         def build_msg(content):
             return (
                 f"Paper: {paper_title}\n\n"
@@ -142,6 +172,7 @@ def make_check_paper_fn(deployment, token_usage):
                 + (content if content else "[No source code files found in the repository]")
             )
 
+        # Large repos need more output tokens so the LLM can list all commented files.
         token_budget = 4000 if len(repo_content) > 50_000 else 2000
 
         return llm_call_parse_retry(
