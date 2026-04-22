@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(.venv/Scripts/pip install *)",
+      "Bash(.venv/Scripts/python -c \"import litellm; print\\('litellm', litellm.__version__\\)\")",
+      "Bash(.venv/Scripts/pip uninstall *)",
+      "Bash(../.venv/Scripts/python -c ' *)",
+      "Bash(.venv/Scripts/python -c \"import openai; print\\('openai', openai.__version__\\)\")",
+      "Bash(\"../../.venv/Scripts/python\" check_github_repo_example_commands.py)"
+    ]
+  }
+}
