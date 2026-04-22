@@ -547,8 +547,9 @@ def save_results(all_model_results, path=None):
 
         hdrs1   = ["#", "Status", "Title", "Repo",
                    "# Examples", "Example Types", "Evidence",
-                   "All Example Links", "Files Checked", "Note"]
-        widths1 = [5, 10, 45, 40, 10, 35, 55, 60, 50, 35]
+                   "All Example Links", "Files Checked", "Note",
+                   "Tokens Used"]
+        widths1 = [5, 10, 45, 40, 10, 35, 55, 60, 50, 35, 12]
         write_header_row(ws1, hdrs1, widths1, fill_hex="2F5496", border=border)
 
         def results_row_data(r, num):
@@ -567,6 +568,7 @@ def save_results(all_model_results, path=None):
                 all_links_text,
                 ", ".join(r.get("files_checked") or []),
                 r.get("note") or "",
+                r.get("tokens_used") or "",
             ]
 
         write_results_data_rows(

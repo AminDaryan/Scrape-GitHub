@@ -11,4 +11,4 @@ venv/
 # Python caches
 __pycache__/
 *.py[cod]
-requirement_checks/5.1.4.code_documentation_quality/papers_from_database.py
+*/papers_from_database.py

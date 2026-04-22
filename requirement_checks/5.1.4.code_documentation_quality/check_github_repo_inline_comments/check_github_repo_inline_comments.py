@@ -280,8 +280,9 @@ def save_results(all_model_results, path=None):
         ws1.title = safe_sheet_name("Results", deployment)
 
         hdrs1 = ["#", "Status", "Title", "Repo",
-                 "Comment Types", "Evidence", "Files Checked", "Note"]
-        widths1 = [5, 10, 45, 40, 35, 55, 50, 35]
+                 "Comment Types", "Evidence", "Files Checked", "Note",
+                 "Tokens Used"]
+        widths1 = [5, 10, 45, 40, 35, 55, 50, 35, 12]
         write_header_row(ws1, hdrs1, widths1, fill_hex="2F5496", border=border)
 
         def results_row_data(r, num):
@@ -294,6 +295,7 @@ def save_results(all_model_results, path=None):
                 r.get("evidence") or "",
                 ", ".join(r.get("files_checked") or []),
                 r.get("note") or "",
+                r.get("tokens_used") or "",
             ]
 
         write_results_data_rows(

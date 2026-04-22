@@ -253,8 +253,8 @@ def save_results(all_model_results, path=None):
 
         headers = ["#", "Status", "Title", "Repo",
                    "Instruction Types", "Evidence", "Installation Link",
-                   "Files Checked", "Note"]
-        col_widths = [5, 10, 45, 40, 35, 50, 45, 45, 30]
+                   "Files Checked", "Note", "Tokens Used"]
+        col_widths = [5, 10, 45, 40, 35, 50, 45, 45, 30, 12]
         write_header_row(ws, headers, col_widths, fill_hex="2F5496", border=border)
 
         def row_data_fn(r, num):
@@ -268,6 +268,7 @@ def save_results(all_model_results, path=None):
                 r.get("installation_link") or "",
                 ", ".join(r.get("files_checked") or []),
                 r.get("note") or "",
+                r.get("tokens_used") or "",
             ]
 
         write_results_data_rows(

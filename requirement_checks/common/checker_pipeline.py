@@ -26,6 +26,7 @@ def _run_single_pass(
     description,
     github_token="",
     format_check_extra=None,
+    token_usage=None,
 ):
     """Loop through every paper, call check_paper_fn on each, print progress.
 
@@ -51,6 +52,9 @@ def _run_single_pass(
         Optional GitHub API token; prints a rate-limit warning if empty.
     format_check_extra : callable(result) -> str or None
         Optional function to append extra info to each console line.
+    token_usage : TokenUsageTracker or None
+        When provided, the number of tokens consumed for each paper is stored
+        in ``result["tokens_used"]`` so it can be written to Excel.
     """
     print(
         f"Checking {len(papers)} repos for {description} "
@@ -69,7 +73,12 @@ def _run_single_pass(
         label = f"{owner}/{repo_name}" if owner else paper.get("repo", "?")
         print(f"[{i:>2}/{len(papers)}] {label} ...", end=" ", flush=True)
 
+        tokens_before = token_usage.total_tokens if token_usage is not None else 0
         result = check_paper_fn(paper)
+        result["tokens_used"] = (
+            token_usage.total_tokens - tokens_before
+            if token_usage is not None else None
+        )
         results.append(result)
 
         icon = {
@@ -158,6 +167,7 @@ def run_pipeline(
             description=description,
             github_token=github_token,
             format_check_extra=format_check_extra,
+            token_usage=token_usage,
         )
 
         print_results_fn(results)
