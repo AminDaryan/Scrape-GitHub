@@ -1,33 +1,34 @@
 """
-Checks whether a GitHub repository linked to an academic paper provides usage
-examples — such as Jupyter notebooks, demo scripts, or documented CLI/API commands.
+Checks whether a GitHub repository linked to an academic paper provides API
+documentation — either generated documentation (Sphinx, Doxygen, MkDocs, etc.)
+or docstrings written directly in the source code.
 
 Logic:
-  1. List every file in the repo, splitting into three buckets:
-     docs, notebooks, and example scripts.                             → collect_repo_content()
-  2. For each notebook: discard rich cell outputs (images, DataFrames,
-     tracebacks) and keep only code, markdown, and short text outputs
-     (< 500 chars), then truncate to a per-notebook character cap.    → summarise_notebook()
-  3. Fetch all three buckets within a shared character budget,
-     prioritising docs first, then notebooks, then scripts.            → collect_repo_content()
-  4. Pass the combined text to the LLM, asking it to enumerate
-     every usage example with type, description, and commands.         → make_check_paper_fn()
-  5. Enrich the LLM output with direct GitHub hyperlinks.              → build_example_entries()
-  6. Optionally evaluate predictions against ground-truth labels.      → evaluate_against_ground_truth()
-  7. Run across all configured models and export to Excel.             → main(), save_results()
+  1. List every file in the repo via the GitHub API.                → collect_repo_content()
+  2. Sort files into four buckets:
+       doc-tool config files (mkdocs.yml, Doxyfile, conf.py, etc.)
+       API spec files (openapi.yaml, swagger.json, etc.)
+       documentation pages (docs/api/, docs/reference/, etc.)
+       source code files (scanned for docstrings).                  → collect_repo_content()
+  3. Fetch all buckets within a shared character budget, prioritising
+     doc-tool configs first, then API specs, then doc pages,
+     then source code.                                               → collect_repo_content()
+  4. Pass the combined text to the LLM, asking it to identify every
+     form of API documentation present.                             → make_check_paper_fn()
+  5. Enrich the LLM output with direct GitHub hyperlinks.           → build_doc_file_entries()
+  6. Optionally evaluate predictions against ground-truth labels.   → evaluate_against_ground_truth()
+  7. Run across all configured models and export to Excel.          → main(), save_results()
 
 Results export to Excel.
 """
 
 import os
 import sys
-import time
-import json
 from collections import Counter
 from pathlib import Path
 
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill
+from openpyxl.styles import Alignment, Font, PatternFill
 
 # Add parent directories to Python path for local imports
 _this = Path(__file__).resolve()
@@ -37,10 +38,7 @@ sys.path.insert(0, str(_this.parent.parent.parent))   # requirement_checks/
 from common.fetch_and_parse_github_repo import (
     load_dotenv, parse_github_repo, list_all_repo_files, fetch_file_content,
 )
-from common.repo_content_helpers import (
-    fetch_paths_with_char_budget,
-    path_priority_with_readme_first,
-)
+from common.repo_content_helpers import fetch_paths_with_char_budget
 from common.llm_helpers import llm_call_parse_retry
 from common.checker_pipeline import run_pipeline
 from common.excel_output import (
@@ -57,8 +55,10 @@ from papers_from_database import PAPERS
 from openai_client import client, AZURE_OPENAI_DEPLOYMENTS as DEPLOYMENTS
 from prompts import SYSTEM_PROMPT
 from config import (
-    TARGET_FILENAMES, USAGE_EXTENSIONS, SCRIPT_EXTENSIONS,
-    EXAMPLE_FOLDER_PREFIXES, MAX_CONTENT_CHARS, MAX_NOTEBOOKS, MAX_SCRIPTS,
+    SOURCE_CODE_EXTENSIONS, SKIP_FOLDER_PREFIXES, SKIP_BASENAMES,
+    TARGET_DOC_FILENAMES, DOC_FOLDER_PREFIXES, DOC_PAGE_EXTENSIONS,
+    MAX_SOURCE_FILES, MAX_DOC_FILES,
+    MAX_CONTENT_CHARS, SOURCE_FILE_CHAR_CAP, DOC_FILE_CHAR_CAP,
 )
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
@@ -69,50 +69,40 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 # =============================================================================
 
 
-def summarise_notebook(raw_json_text, max_chars=8_000):
-    """Distil a Jupyter notebook JSON into compact plain text (code + markdown only).
+def _is_source_file(path_lower, basename):
+    """Return True if the file is a source code file worth scanning for docstrings.
 
-    Raw notebook JSON includes rich outputs (images, DataFrames, full tracebacks)
-    that consume the character budget without helping the LLM find usage examples.
-    We keep only short text outputs (< 500 chars) and drop everything else.
+    Excludes vendored dependencies, auto-generated files, and test fixtures so
+    that only code authored by the paper's developers is evaluated.
     """
-    try:
-        nb = json.loads(raw_json_text)
-    except Exception:
-        return raw_json_text[:max_chars]
-
-    lines = []
-    for cell in nb.get("cells", []):
-        ct  = cell.get("cell_type", "")
-        src = "".join(cell.get("source", []))
-        if not src.strip():
-            continue
-        if ct == "code":
-            lines.append(f"[CODE]\n{src}")
-            for out in cell.get("outputs", []):
-                text = "".join(out.get("text", []))
-                if text and len(text) < 500:
-                    lines.append(f"[OUTPUT]\n{text}")
-        elif ct == "markdown":
-            lines.append(f"[MARKDOWN]\n{src}")
-
-    return "\n\n".join(lines)[:max_chars]
+    ext = "." + basename.rsplit(".", 1)[-1] if "." in basename else ""
+    if ext not in SOURCE_CODE_EXTENSIONS:
+        return False
+    if any(path_lower.startswith(prefix) for prefix in SKIP_FOLDER_PREFIXES):
+        return False
+    if basename in SKIP_BASENAMES:
+        return False
+    return True
 
 
 def collect_repo_content(owner, repo):
-    """Fetch docs, notebooks, and example scripts; return combined text and metadata.
+    """Fetch documentation artefacts and source code; return combined text and metadata.
 
-    Returns a tuple of (combined_text, fetched_paths, all_example_meta).
-    all_example_meta lists every notebook and script discovered (even those not
-    fetched due to the budget cap) so Excel output can link to all of them.
+    Files are collected in four prioritised buckets:
+      1. Documentation tool config files (mkdocs.yml, conf.py, Doxyfile, etc.)
+         and API spec files — strongest evidence of generated documentation.
+      2. Documentation page files from docs/api/, docs/reference/, docs/, etc.
+      3. Source code files — inspected for docstrings.
+
+    Returns a tuple of (combined_text, fetched_paths).
     """
     all_files = list_all_repo_files(owner, repo)
     if not all_files:
-        return "", [], []
+        return "", []
 
-    docs_paths     = []   # named documentation files
-    notebook_paths = []   # .ipynb / .Rmd / .qmd files
-    script_paths   = []   # example/demo scripts
+    doc_config_paths = []   # tool config + api spec files
+    doc_page_paths   = []   # documentation pages from doc folders
+    source_paths     = []   # source code files for docstring scanning
 
     for f in all_files:
         fpath     = f["path"]
@@ -120,107 +110,90 @@ def collect_repo_content(owner, repo):
         basename  = fpath_low.split("/")[-1]
         ext       = "." + basename.rsplit(".", 1)[-1] if "." in basename else ""
 
-        # Notebooks anywhere in the tree
-        if ext in USAGE_EXTENSIONS:
-            notebook_paths.append(fpath)
+        # Named documentation config / spec files (exact match or nested)
+        if fpath_low in TARGET_DOC_FILENAMES or basename in TARGET_DOC_FILENAMES:
+            doc_config_paths.append(fpath)
 
-        # Named doc files
-        elif fpath_low in TARGET_FILENAMES or basename in TARGET_FILENAMES:
-            docs_paths.append(fpath)
+        # Documentation pages inside designated doc folders
+        elif any(fpath_low.startswith(p) for p in DOC_FOLDER_PREFIXES):
+            if ext in DOC_PAGE_EXTENSIONS:
+                doc_page_paths.append(fpath)
 
-        # Markdown inside special folders
-        elif any(fpath_low.startswith(p) for p in EXAMPLE_FOLDER_PREFIXES):
-            if ext in (".md", ".rst", ".txt"):
-                docs_paths.append(fpath)
-            elif ext in SCRIPT_EXTENSIONS:
-                script_paths.append(fpath)
+        # Source code files for docstring inspection
+        elif _is_source_file(fpath_low, basename):
+            source_paths.append(fpath)
 
-        # Script files whose name suggests they are examples
-        elif ext in SCRIPT_EXTENSIONS and any(
-            kw in basename for kw in
-            ["example", "demo", "tutorial", "quickstart", "sample", "run_", "test_usage"]
-        ):
-            script_paths.append(fpath)
+    # Sort config/spec files: root-level first, then nested
+    doc_config_paths.sort(key=lambda p: (p.count("/"), p.lower()))
 
-    # Sort docs: root README first, then other root-level files, then nested
-    docs_paths.sort(key=path_priority_with_readme_first)
+    # Sort doc pages: api/reference subfolders first, then by depth
+    def _doc_page_priority(p):
+        p_low = p.lower()
+        if any(p_low.startswith(x) for x in ("docs/api/", "docs/reference/",
+                                               "apidoc/", "api_docs/", "api-docs/")):
+            return (0, p_low)
+        return (1, p_low)
 
-    # Sort notebooks and scripts: shallowest first (root-level ones are most
-    # likely to be the "main" usage example)
-    notebook_paths.sort(key=lambda p: (p.count("/"), p.lower()))
-    script_paths.sort(key=lambda p: (p.count("/"), p.lower()))
+    doc_page_paths.sort(key=_doc_page_priority)
+    doc_page_paths = doc_page_paths[:MAX_DOC_FILES]
 
-    # Build the metadata list for ALL example-like files (even unfetched ones),
-    # so we can produce GitHub links for every one of them later.
-    all_example_meta = (
-        [{"path": p, "kind": "notebook"} for p in notebook_paths] +
-        [{"path": p, "kind": "script"}   for p in script_paths]
-    )
-
-    # Cap how many we actually fetch to stay within the character budget
-    notebooks_to_fetch = notebook_paths[:MAX_NOTEBOOKS]
-    scripts_to_fetch   = script_paths[:MAX_SCRIPTS]
+    # Sort source files: shallowest first (root-level code is most likely core code)
+    source_paths.sort(key=lambda p: (p.count("/"), p.lower()))
+    source_paths = source_paths[:MAX_SOURCE_FILES]
 
     fetched     = []
     combined    = []
     total_chars = 0
 
-    # ── 1. Fetch documentation files ─────────────────────────────────────────
-    doc_blocks, fetched_docs, total_chars = fetch_paths_with_char_budget(
-        owner,
-        repo,
-        docs_paths,
-        MAX_CONTENT_CHARS,
+    # ── 1. Fetch documentation tool config / API spec files ──────────────────
+    config_blocks, fetched_configs, total_chars = fetch_paths_with_char_budget(
+        owner, repo, doc_config_paths, MAX_CONTENT_CHARS,
         fetch_content=fetch_file_content,
         start_total_chars=total_chars,
         pause_seconds=0.15,
-        header_label="FILE",
+        header_label="DOC CONFIG",
+        per_file_char_cap=DOC_FILE_CHAR_CAP,
     )
-    combined.extend(doc_blocks)
-    fetched.extend(fetched_docs)
+    combined.extend(config_blocks)
+    fetched.extend(fetched_configs)
 
-    # ── 2. Fetch and summarise notebooks ─────────────────────────────────────
-    remaining     = MAX_CONTENT_CHARS - total_chars
-    budget_per_nb = min(8_000, remaining // max(len(notebooks_to_fetch), 1))
-
-    for nb_path in notebooks_to_fetch:
-        if total_chars >= MAX_CONTENT_CHARS:
-            break
-        raw = fetch_file_content(owner, repo, nb_path)
-        if raw:
-            summary = summarise_notebook(raw, max_chars=budget_per_nb)
-            combined.append(f"### NOTEBOOK: {nb_path}\n{summary}")
-            total_chars += len(summary)
-            fetched.append(nb_path)
-        time.sleep(0.15)
-
-    # ── 3. Fetch example scripts ──────────────────────────────────────────────
-    script_blocks, fetched_scripts, total_chars = fetch_paths_with_char_budget(
-        owner,
-        repo,
-        scripts_to_fetch,
-        MAX_CONTENT_CHARS,
+    # ── 2. Fetch documentation page files ────────────────────────────────────
+    page_blocks, fetched_pages, total_chars = fetch_paths_with_char_budget(
+        owner, repo, doc_page_paths, MAX_CONTENT_CHARS,
         fetch_content=fetch_file_content,
         start_total_chars=total_chars,
         pause_seconds=0.15,
-        header_label="SCRIPT",
-        per_file_char_cap=4_000,
+        header_label="DOC PAGE",
+        per_file_char_cap=DOC_FILE_CHAR_CAP,
     )
-    combined.extend(script_blocks)
-    fetched.extend(fetched_scripts)
+    combined.extend(page_blocks)
+    fetched.extend(fetched_pages)
 
-    return "\n\n".join(combined), fetched, all_example_meta
+    # ── 3. Fetch source code files for docstring inspection ──────────────────
+    source_blocks, fetched_sources, total_chars = fetch_paths_with_char_budget(
+        owner, repo, source_paths, MAX_CONTENT_CHARS,
+        fetch_content=fetch_file_content,
+        start_total_chars=total_chars,
+        pause_seconds=0.15,
+        header_label="SOURCE FILE",
+        per_file_char_cap=SOURCE_FILE_CHAR_CAP,
+    )
+    combined.extend(source_blocks)
+    fetched.extend(fetched_sources)
+
+    return "\n\n".join(combined), fetched
 
 
 # =============================================================================
 # LLM CALL WRAPPER
 # =============================================================================
 
-EMPTY_USAGE_PAYLOAD = {
-    "has_usage_examples": None,
-    "evidence": "Empty LLM response after retry",
-    "example_types": [],
-    "example_files": [],
+EMPTY_API_DOC_PAYLOAD = {
+    "has_api_documentation": None,
+    "evidence": "Empty LLM response after retry — content may exceed context window",
+    "documentation_types": [],
+    "doc_tool": "none",
+    "doc_files": [],
 }
 
 # Content cache — avoids re-fetching GitHub repos when running multiple models.
@@ -239,28 +212,19 @@ def _cached_collect_repo_content(owner, repo):
 # PER-PAPER ORCHESTRATION
 # =============================================================================
 
-def build_example_entries(example_files_raw, owner, repo):
-    """Enrich raw LLM example_files list with GitHub hyperlinks and normalised fields.
-
-    The LLM occasionally returns `commands` as a plain string instead of a list;
-    we normalise it here so the rest of the pipeline can always iterate over a list.
-    """
+def build_doc_file_entries(doc_files_raw, owner, repo):
+    """Enrich raw LLM doc_files list with GitHub hyperlinks and normalised fields."""
     entries = []
-    for item in (example_files_raw or []):
+    for item in (doc_files_raw or []):
         path = (item.get("path") or "").strip()
         if not path:
             continue
-        cmds = item.get("commands", [])
-        if isinstance(cmds, str):
-            cmds = [cmds] if cmds else []
-        entry = {
+        entries.append({
             "path":        path,
             "type":        item.get("type", "other"),
             "description": item.get("description", ""),
-            "commands":    cmds,
             "link":        f"https://github.com/{owner}/{repo}/blob/HEAD/{path}",
-        }
-        entries.append(entry)
+        })
     return entries
 
 
@@ -273,70 +237,53 @@ def make_check_paper_fn(deployment, token_usage):
     """
 
     def _llm_check(repo_content, paper_title):
-        """Call the LLM and parse the usage-examples verdict for one paper."""
+        """Call the LLM and parse the API-documentation verdict for one paper."""
         def build_msg(content):
             return (
                 f"Paper: {paper_title}\n\n"
-                "Below are the contents of key files from its GitHub repository.\n"
-                "Find ALL usage examples present.\n\n"
+                "Below are the contents of documentation configuration files, "
+                "documentation pages, and source code files fetched from its GitHub repository.\n"
+                "Determine whether the repository contains API documentation "
+                "(generated docs or docstrings).\n\n"
                 + (content if content else "[No relevant files found in the repository]")
             )
 
-        token_budget = 8000 if len(repo_content) > 50_000 else 4000
+        token_budget = 6000 if len(repo_content) > 50_000 else 3000
 
-        result = llm_call_parse_retry(
+        return llm_call_parse_retry(
             client=client,
             deployment=deployment,
             system_prompt=SYSTEM_PROMPT,
             build_user_message=build_msg,
             content=repo_content,
             token_usage=token_usage,
-            empty_payload=EMPTY_USAGE_PAYLOAD,
-            required_list_fields=("example_types", "example_files"),
+            empty_payload=EMPTY_API_DOC_PAYLOAD,
+            required_list_fields=("documentation_types", "doc_files"),
             max_completion_tokens=token_budget,
             retry_truncate_chars=30_000,
-            retry_max_tokens=16000,
-            preview_chars=1500,
+            retry_max_tokens=12000,
+            preview_chars=1000,
         )
 
-        if "example_file" in result and not result.get("example_files"):
-            ef = result.pop("example_file")
-            result["example_files"] = (
-                [{"path": ef, "type": "other", "description": ""}] if ef else []
-            )
-        else:
-            result.pop("example_file", None)
-
-        return result
-
-    def _collect_wrapper(owner, repo, result):
-        """Fetch repo content and stash example metadata on the result dict.
-
-        all_example_meta is saved here (before the LLM call) so that the Excel
-        output can produce links for every discovered file, not just the fetched ones.
-        """
-        repo_content, files_checked, all_example_meta = _cached_collect_repo_content(owner, repo)
-        result["all_example_meta"] = all_example_meta
-        return repo_content, files_checked
-
-    def _map_usage(result, llm_result, owner, repo):
-        result["example_types"]   = llm_result.get("example_types", [])
-        result["example_entries"] = build_example_entries(
-            llm_result.get("example_files", []), owner, repo
+    def _map_api_doc(result, llm_result, owner, repo):
+        result["documentation_types"] = llm_result.get("documentation_types", [])
+        result["doc_tool"]            = llm_result.get("doc_tool", "none") or "none"
+        result["doc_files"]           = build_doc_file_entries(
+            llm_result.get("doc_files", []), owner, repo
         )
 
     def check_paper(paper):
         return check_paper_generic(
             paper,
             extra_defaults={
-                "example_types":    [],
-                "example_entries":  [],
-                "all_example_meta": [],
+                "documentation_types": [],
+                "doc_tool":            "none",
+                "doc_files":           [],
             },
-            collect_content_fn=_collect_wrapper,
+            collect_content_fn=_cached_collect_repo_content,
             llm_check_fn=_llm_check,
-            map_llm_result_fn=_map_usage,
-            boolean_key="has_usage_examples",
+            map_llm_result_fn=_map_api_doc,
+            boolean_key="has_api_documentation",
         )
 
     return check_paper
@@ -350,20 +297,11 @@ def _normalise_ground_truth_label(value):
     """Map common ground-truth label formats to a boolean, or None if unknown."""
     if isinstance(value, bool):
         return value
-
     if value is None:
         return None
-
     text = str(value).strip().lower()
-    positive = {
-        "yes", "true", "1", "has_usage_examples", "has examples",
-        "present", "exists", "with_examples", "with examples",
-    }
-    negative = {
-        "no", "false", "0", "missing", "none", "absent",
-        "without_examples", "without examples", "no examples",
-    }
-
+    positive = {"yes", "true", "1", "present", "exists", "has_api_documentation"}
+    negative = {"no", "false", "0", "missing", "none", "absent"}
     if text in positive:
         return True
     if text in negative:
@@ -389,7 +327,7 @@ def evaluate_against_ground_truth(results):
             continue
 
         gt_bool = gt_by_title[title]
-        status = (row.get("status") or "").lower()
+        status  = (row.get("status") or "").lower()
         if status == "yes":
             pred_bool = True
         elif status == "no":
@@ -399,7 +337,7 @@ def evaluate_against_ground_truth(results):
 
         if pred_bool is None:
             match = "unknown"
-            note = f"prediction unavailable (status={status or 'n/a'})"
+            note  = f"prediction unavailable (status={status or 'n/a'})"
             if row.get("note"):
                 note += f"; {row['note']}"
         else:
@@ -412,34 +350,33 @@ def evaluate_against_ground_truth(results):
                 true_neg += 1
             else:
                 false_neg += 1
-
             match = "correct" if pred_bool == gt_bool else "wrong"
-            note = row.get("note") or ""
+            note  = row.get("note") or ""
 
         per_paper.append({
-            "title": title,
-            "prediction": "yes" if pred_bool is True else "no" if pred_bool is False else "unknown",
+            "title":        title,
+            "prediction":   "yes" if pred_bool is True else "no" if pred_bool is False else "unknown",
             "ground_truth": "yes" if gt_bool else "no",
-            "match": match,
-            "note": note,
+            "match":        match,
+            "note":         note,
         })
 
-    labelled = len(per_paper)
-    accuracy = ((true_pos + true_neg) / evaluated) if evaluated else 0.0
+    labelled  = len(per_paper)
+    accuracy  = ((true_pos + true_neg) / evaluated) if evaluated else 0.0
     precision = (true_pos / (true_pos + false_pos)) if (true_pos + false_pos) else 0.0
-    recall = (true_pos / (true_pos + false_neg)) if (true_pos + false_neg) else 0.0
-    f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) else 0.0
+    recall    = (true_pos / (true_pos + false_neg)) if (true_pos + false_neg) else 0.0
+    f1        = (2 * precision * recall / (precision + recall)) if (precision + recall) else 0.0
 
     return {
-        "labelled": labelled,
+        "labelled":  labelled,
         "evaluated": evaluated,
-        "accuracy": accuracy,
+        "accuracy":  accuracy,
         "precision": precision,
-        "recall": recall,
-        "f1": f1,
-        "true_pos": true_pos,
+        "recall":    recall,
+        "f1":        f1,
+        "true_pos":  true_pos,
         "false_pos": false_pos,
-        "true_neg": true_neg,
+        "true_neg":  true_neg,
         "false_neg": false_neg,
         "per_paper": per_paper,
     }
@@ -466,15 +403,16 @@ def print_ground_truth_report(metrics):
         f"TN={metrics['true_neg']}, FN={metrics['false_neg']}"
     )
 
+
 # =============================================================================
 # CONSOLE REPORTING
 # =============================================================================
 
 def print_results(results):
-    """Print a compact console table of per-paper results with example counts."""
+    """Print a compact console table of per-paper results with documentation types."""
     W = 110
     print("\n" + "=" * W)
-    print(f"{'#':<4} {'STATUS':<10} {'# EX':<6} {'EXAMPLE TYPES':<30} TITLE")
+    print(f"{'#':<4} {'STATUS':<10} {'DOC TOOL':<14} {'DOC TYPES':<30} TITLE")
     print("=" * W)
 
     for i, r in enumerate(results, 1):
@@ -482,18 +420,18 @@ def print_results(results):
             "yes": "YES", "no": "NO", "skipped": "SKIP", "error": "ERR",
         }.get(r["status"], "?")
 
-        types_str = ", ".join(r.get("example_types", []))[:28]
+        types_str = ", ".join(r.get("documentation_types", []))[:28]
         if not types_str and r.get("note"):
             types_str = r["note"][:28]
 
-        n_ex        = len(r.get("example_entries", []))
-        title_short = r["title"][:48] + ("..." if len(r["title"]) > 48 else "")
-        print(f"{i:<4} {icon:<10} {n_ex:<6} {types_str:<30} {title_short}")
+        doc_tool    = (r.get("doc_tool") or "none")[:12]
+        title_short = r["title"][:46] + ("..." if len(r["title"]) > 46 else "")
+        print(f"{i:<4} {icon:<10} {doc_tool:<14} {types_str:<30} {title_short}")
 
         if r.get("evidence"):
             print(f"       evidence: {r['evidence']}")
-        for ex in r.get("example_entries", []):
-            print(f"       [{ex['type']}] {ex['path']}  →  {ex['description']}")
+        for df in r.get("doc_files", [])[:3]:
+            print(f"       [{df['type']}] {df['path']}  →  {df['description']}")
 
     print("=" * W)
     counts  = count_statuses(results)
@@ -501,10 +439,10 @@ def print_results(results):
     no      = counts.get("no", 0)
     skipped = counts.get("skipped", 0)
     errors  = counts.get("error", 0)
-    total_ex = sum(len(r.get("example_entries", [])) for r in results)
+    total_files = sum(len(r.get("doc_files", [])) for r in results)
     print(
-        f"\nSUMMARY: {yes} repos have examples | {no} missing | "
-        f"{skipped} skipped | {errors} errors | {total_ex} total example files found\n"
+        f"\nSUMMARY: {yes} repos have API docs | {no} missing | "
+        f"{skipped} skipped | {errors} errors | {total_files} total doc files found\n"
     )
 
 
@@ -515,13 +453,12 @@ def print_results(results):
 def save_results(all_model_results, path=None):
     """Write per-model Excel sheets + Model Comparison sheet.
 
-    *all_model_results* is ``{deployment: {"results": [...], "token_usage": tracker}}``.
-    Per model: Results, All Examples, Skipped & Errors, Summary, Ground Truth.
+    Per model: Results, Doc Files Detail, Skipped & Errors, Summary, Ground Truth.
     """
     if path is None:
-        path = Path(__file__).resolve().parent / "results/usage_examples_results.xlsx"
+        path = Path(__file__).resolve().parent / "results/api_documentation_results.xlsx"
 
-    wb = Workbook()
+    wb     = Workbook()
     border = thin_border()
     center = alignment_center()
     wrap   = alignment_wrap_left()
@@ -530,12 +467,12 @@ def save_results(all_model_results, path=None):
     first_sheet = True
 
     for deployment in deployments:
-        model_data   = all_model_results[deployment]
-        results      = model_data["results"]
-        token_usage  = model_data["token_usage"]
+        model_data  = all_model_results[deployment]
+        results     = model_data["results"]
+        token_usage = model_data["token_usage"]
 
         # =====================================================================
-        # Results (one row per paper)
+        # Results sheet (one row per paper)
         # =====================================================================
         if first_sheet:
             ws1 = wb.active
@@ -545,24 +482,24 @@ def save_results(all_model_results, path=None):
         ws1.title = safe_sheet_name("Results", deployment)
 
         hdrs1   = ["#", "Status", "Title", "Repo",
-                   "# Examples", "Example Types", "Evidence",
-                   "All Example Links", "Files Checked", "Note",
-                   "Tokens Used"]
-        widths1 = [5, 10, 45, 40, 10, 35, 55, 60, 50, 35, 12]
+                   "# Doc Files", "Doc Tool", "Documentation Types", "Evidence",
+                   "All Doc Links", "Files Checked", "Note", "Tokens Used"]
+        widths1 = [5, 10, 45, 40, 10, 18, 40, 55, 60, 50, 35, 12]
         write_header_row(ws1, hdrs1, widths1, fill_hex="2F5496", border=border)
 
         def results_row_data(r, num):
             all_links_text = "\n".join(
-                f"{ex['path']}  ({ex['type']})"
-                for ex in r.get("example_entries", [])
+                f"{df['path']}  ({df['type']})"
+                for df in r.get("doc_files", [])
             )
             return [
                 num,
                 (r.get("status") or "").upper(),
                 r.get("title") or "",
                 r.get("repo") or "",
-                len(r.get("example_entries", [])),
-                ", ".join(r.get("example_types") or []),
+                len(r.get("doc_files", [])),
+                r.get("doc_tool") or "none",
+                ", ".join(r.get("documentation_types") or []),
                 r.get("evidence") or "",
                 all_links_text,
                 ", ".join(r.get("files_checked") or []),
@@ -577,46 +514,62 @@ def save_results(all_model_results, path=None):
         )
 
         # =====================================================================
-        # All Examples (one row per individual example file)
+        # Doc Files Detail sheet (one row per individual documented file)
         # =====================================================================
-        ws2    = wb.create_sheet(safe_sheet_name("All Examples", deployment))
-        hdrs2  = ["Paper #", "Paper Title", "Repo", "File Path",
-                  "Type", "Description", "Example Command", "GitHub Link"]
-        widths2 = [8, 50, 45, 55, 22, 60, 70, 70]
+        ws2     = wb.create_sheet(safe_sheet_name("Doc Files", deployment))
+        hdrs2   = ["Paper #", "Paper Title", "Repo", "File Path",
+                   "Type", "Description", "GitHub Link"]
+        widths2 = [8, 50, 45, 55, 30, 65, 70]
         write_header_row(ws2, hdrs2, widths2, fill_hex="2F5496", border=border)
 
-        ex_row = 2
+        detail_row   = 2
+        merge_center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        merge_left   = Alignment(horizontal="left",   vertical="center", wrap_text=True)
+
         for paper_num, r in enumerate(results, 1):
-            for ex in r.get("example_entries", []):
-                row_vals = [
-                    paper_num,
-                    r.get("title") or "",
-                    r.get("repo") or "",
-                    ex.get("path") or "",
-                    ex.get("type") or "",
-                    ex.get("description") or "",
-                    "\n---\n".join(ex.get("commands") or []),
-                    ex.get("link") or "",
-                ]
-                for col_idx, value in enumerate(row_vals, 1):
-                    cell = ws2.cell(row=ex_row, column=col_idx, value=value)
+            file_rows = [
+                df for df in r.get("doc_files", [])
+                if (df.get("path") or "").strip()
+            ]
+            if not file_rows:
+                continue
+
+            start_row = detail_row
+            for df in file_rows:
+                fpath = df["path"].strip()
+                link  = df.get("link") or ""
+                for col_idx, value in enumerate([fpath, df.get("type") or "", df.get("description") or "", link], 4):
+                    cell = ws2.cell(row=detail_row, column=col_idx, value=value)
                     cell.font      = Font(name="Arial", size=10)
                     cell.border    = border
-                    cell.alignment = center if col_idx == 1 else wrap
-                    if col_idx == 8 and value:
+                    cell.alignment = wrap
+                    if col_idx == 7 and value:
                         cell.hyperlink = value
                         cell.font = Font(name="Arial", size=10,
                                          color="0563C1", underline="single")
-                ws2.row_dimensions[ex_row].height = auto_row_height(
-                    row_vals, line_height=15 * 1.3,
+                ws2.row_dimensions[detail_row].height = auto_row_height(
+                    [fpath, df.get("description") or ""], line_height=15 * 1.3,
                 )
-                ex_row += 1
+                detail_row += 1
+
+            end_row = detail_row - 1
+            ws2.cell(row=start_row, column=1, value=paper_num).font = Font(name="Arial", size=10)
+            ws2.cell(row=start_row, column=2, value=r.get("title") or "").font = Font(name="Arial", size=10)
+            ws2.cell(row=start_row, column=3, value=r.get("repo") or "").font = Font(name="Arial", size=10)
+            for col_idx in (1, 2, 3):
+                cell           = ws2.cell(row=start_row, column=col_idx)
+                cell.border    = border
+                cell.alignment = merge_center if col_idx == 1 else merge_left
+            if end_row > start_row:
+                ws2.merge_cells(start_row=start_row, start_column=1, end_row=end_row, end_column=1)
+                ws2.merge_cells(start_row=start_row, start_column=2, end_row=end_row, end_column=2)
+                ws2.merge_cells(start_row=start_row, start_column=3, end_row=end_row, end_column=3)
 
         # =====================================================================
-        # Skipped / Errors
+        # Skipped / Errors sheet
         # =====================================================================
-        ws3    = wb.create_sheet(safe_sheet_name("Skipped", deployment))
-        hdrs3  = ["#", "Status", "Title", "Repo / URL", "Note"]
+        ws3     = wb.create_sheet(safe_sheet_name("Skipped", deployment))
+        hdrs3   = ["#", "Status", "Title", "Repo / URL", "Note"]
         widths3 = [5, 10, 55, 55, 60]
         write_header_row(ws3, hdrs3, widths3, fill_hex="7B3F00", border=border)
 
@@ -643,32 +596,40 @@ def save_results(all_model_results, path=None):
             se_row += 1
 
         # =====================================================================
-        # Summary (uses shared helper)
+        # Summary sheet
         # =====================================================================
-        counts   = count_statuses(results)
-        yes      = counts.get("yes", 0)
-        total_ex = sum(len(r.get("example_entries", [])) for r in results)
+        counts      = count_statuses(results)
+        yes         = counts.get("yes", 0)
+        total_files = sum(len(r.get("doc_files", [])) for r in results)
 
+        tool_counter = Counter()
         type_counter = Counter()
         for r in results:
-            for t in (r.get("example_types") or []):
+            tool = r.get("doc_tool") or "none"
+            if tool and tool != "none":
+                tool_counter[tool] += 1
+            for t in (r.get("documentation_types") or []):
                 type_counter[t] += 1
 
         extra_summary = [
-            ("Total Example Files Found", total_ex),
-            ("Avg Examples per Repo (w/ any)",
-             f"={total_ex}/{yes if yes else 1}"),
+            ("Total Doc Files Found", total_files),
+            ("Avg Doc Files per Repo (w/ any)",
+             f"={total_files}/{yes if yes else 1}"),
             ("", ""),
-            ("Example Type Breakdown", ""),
+            ("Doc Tool Breakdown", ""),
         ]
+        for tool, cnt in tool_counter.most_common():
+            extra_summary.append((f"  • {tool}", cnt))
+        extra_summary.append(("", ""))
+        extra_summary.append(("Documentation Type Breakdown", ""))
         for t, cnt in type_counter.most_common():
             extra_summary.append((f"  • {t}", cnt))
 
         ws4 = wb.create_sheet(safe_sheet_name("Summary", deployment))
         write_summary_sheet(
             ws4, results,
-            positive_label="Repos with Usage Examples",
-            negative_label="Repos Missing Usage Examples",
+            positive_label="Repos with API Documentation",
+            negative_label="Repos Missing API Documentation",
             extra_rows=extra_summary,
             token_usage=token_usage,
             deployment=deployment,
@@ -677,12 +638,12 @@ def save_results(all_model_results, path=None):
         )
 
         # =====================================================================
-        # Ground Truth Comparison (only when labels exist)
+        # Ground Truth sheet (only when labels exist)
         # =====================================================================
         metrics = evaluate_against_ground_truth(results)
         if metrics["labelled"] > 0:
-            ws5    = wb.create_sheet(safe_sheet_name("Ground Truth", deployment))
-            hdrs5  = ["#", "Paper Title", "Prediction", "Ground Truth", "Match", "Note"]
+            ws5     = wb.create_sheet(safe_sheet_name("Ground Truth", deployment))
+            hdrs5   = ["#", "Paper Title", "Prediction", "Ground Truth", "Match", "Note"]
             widths5 = [5, 60, 14, 14, 10, 55]
             write_header_row(ws5, hdrs5, widths5, fill_hex="2E7D32", border=border)
 
@@ -693,7 +654,7 @@ def save_results(all_model_results, path=None):
                     p["ground_truth"], p["match"], p["note"],
                 ]
                 gt_fill_hex = MATCH_COLORS.get(p["match"], "FFFFFF")
-                row_fill = PatternFill("solid", start_color=gt_fill_hex)
+                row_fill    = PatternFill("solid", start_color=gt_fill_hex)
                 for col_idx, value in enumerate(row_vals, 1):
                     cell           = ws5.cell(row=r_idx, column=col_idx, value=value)
                     cell.font      = Font(name="Arial", size=10)
@@ -730,21 +691,21 @@ def save_results(all_model_results, path=None):
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     wb.save(path)
 
-    # ── Console summary ──────────────────────────────────────────────────
+    # ── Console summary ───────────────────────────────────────────────────────
     for deployment in deployments:
-        results  = all_model_results[deployment]["results"]
-        counts   = count_statuses(results)
-        total    = len(results)
-        skipped  = counts.get("skipped", 0)
-        errors   = counts.get("error", 0)
-        total_ex = sum(len(r.get("example_entries", [])) for r in results)
-        metrics  = evaluate_against_ground_truth(results)
+        results     = all_model_results[deployment]["results"]
+        counts      = count_statuses(results)
+        total       = len(results)
+        skipped     = counts.get("skipped", 0)
+        errors      = counts.get("error", 0)
+        total_files = sum(len(r.get("doc_files", [])) for r in results)
+        metrics     = evaluate_against_ground_truth(results)
         print(f"\n[{deployment}]")
-        print(f"  → Results:       {total} papers")
-        print(f"  → All Examples:  {total_ex} individual example files")
-        print(f"  → Skipped/Err:   {skipped + errors} entries")
+        print(f"  → Results:    {total} papers")
+        print(f"  → Doc Files:  {total_files} individual documentation files")
+        print(f"  → Skipped/Err: {skipped + errors} entries")
         if metrics["labelled"] > 0:
-            print(f"  → Ground Truth:  {metrics['labelled']} labelled, accuracy {metrics['accuracy']:.1%}")
+            print(f"  → Ground Truth: {metrics['labelled']} labelled, accuracy {metrics['accuracy']:.1%}")
     print(f"\nFull results saved to: {path}")
 
 
@@ -753,11 +714,11 @@ def save_results(all_model_results, path=None):
 # =============================================================================
 
 def main():
-    """Run the analysis pipeline over all configured papers."""
+    """Run the API documentation analysis pipeline over all configured papers."""
     _content_cache.clear()
 
     def _format_check_extra(result):
-        return f"{len(result.get('example_entries', []))} examples"
+        return f"{len(result.get('doc_files', []))} doc files"
 
     def _finalize(results):
         gt_metrics = evaluate_against_ground_truth(results)
@@ -769,7 +730,7 @@ def main():
         make_check_paper_fn=make_check_paper_fn,
         print_results_fn=print_results,
         save_results_fn=save_results,
-        description="usage examples",
+        description="API documentation",
         github_token=GITHUB_TOKEN,
         format_check_extra=_format_check_extra,
         finalize_fn=_finalize,

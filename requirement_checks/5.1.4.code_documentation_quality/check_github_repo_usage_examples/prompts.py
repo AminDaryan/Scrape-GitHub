@@ -8,7 +8,7 @@ How these prompts are used by the logic script:
 1) SYSTEM_PROMPT
   Default first pass in llm_check_usage().
 2) RETRY_SYSTEM_PROMPT
-  Used when first pass returns medium/low confidence.
+  Used as a second pass to enforce decisive recall.
 3) TARGETED_README_PROMPT
   Used in healing when README truncation is suspected.
 4) DEEP_SCAN_PROMPT
@@ -17,7 +17,7 @@ How these prompts are used by the logic script:
 Output contract that must remain stable:
 - Return one JSON object only.
 - Keep keys and nested schema expected by parser/export logic:
-  has_usage_examples, confidence, evidence, example_types, example_files.
+  has_usage_examples, evidence, example_types, example_files.
 """
 
 # First-pass policy over all fetched repository snippets.
@@ -46,15 +46,9 @@ Does NOT count as a usage example:
   - A command only counts if it actually RUNS the tool/model, not just sets up the environment.
     If cd or conda commands appear alongside a real run command, include only the run command.
 
-CONFIDENCE RULES:
-  - Use "high"   in almost all cases.
-  - Use "medium" ONLY if the content was clearly truncated mid-sentence.
-  - Use "low"    ONLY if absolutely no files were fetched.
-
 Respond with a JSON object ONLY — no extra text, no markdown fences:
 {
   "has_usage_examples": true | false,
-  "confidence": "high" | "medium" | "low",
   "evidence": "<one sentence summarising what you found overall>",
   "example_types": ["distinct", "types", "found"],
   "example_files": [
@@ -84,11 +78,9 @@ IMPORTANT rules for example_files:
 Return ONLY valid JSON. No explanation, no markdown, no preamble.
 """
 
-# Second-pass policy after uncertain first-pass confidence.
-# Goal: enforce decisive recall of notebooks, scripts, and README run examples.
+# Second-pass policy to enforce decisive recall of notebooks, scripts, and README run examples.
 RETRY_SYSTEM_PROMPT = """\
-You are an expert code reviewer. A previous analysis of this repository returned
-uncertain confidence. Re-examine the content and list ALL usage examples found.
+You are an expert code reviewer. Re-examine the content and list ALL usage examples found.
 
 Hard rules:
   - Every .ipynb file IS a usage example — list each one.
@@ -96,12 +88,11 @@ Hard rules:
   - An examples/, tutorials/, or demo/ directory mentioned in the README → list
     the folder as one entry of type "demo folder".
   - A purely abstract / citation README with zero runnable content → empty list.
-  - You MUST return "high" confidence. Only "medium" if genuinely mid-truncation.
 
 Respond with a JSON object ONLY:
 {
   "has_usage_examples": true | false,
-  "confidence": "high",
+
   "evidence": "<one decisive sentence>",
   "example_types": ["list", "of", "found", "types"],
   "example_files": [
@@ -121,7 +112,7 @@ references to notebooks or example files.
 Respond with a JSON object ONLY:
 {
   "has_usage_examples": true | false,
-  "confidence": "high",
+
   "evidence": "<one decisive sentence>",
   "example_types": ["list", "of", "found", "types"],
   "example_files": [
@@ -140,7 +131,7 @@ folders) have been fetched. List EVERY usage example you find in the content.
 Respond with a JSON object ONLY:
 {
   "has_usage_examples": true | false,
-  "confidence": "high",
+
   "evidence": "<one decisive sentence>",
   "example_types": ["list", "of", "found", "types"],
   "example_files": [

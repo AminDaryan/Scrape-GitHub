@@ -10,7 +10,7 @@ How these prompts are used by the logic script:
 
 Output contract that must remain stable:
 - Return one JSON object only.
-- Keep keys: has_inline_comments, confidence, evidence,
+- Keep keys: has_inline_comments, evidence,
   comment_types, files_with_comments.
 """
 
@@ -38,15 +38,9 @@ WHAT DOES NOT COUNT:
   - Only file-level copyright/license headers with no other comments
   - Empty or trivially obvious comments (e.g. "# increment x" on "x += 1")
 
-CONFIDENCE RULES:
-  - Use "high"   in almost all cases.
-  - Use "medium" ONLY if the source files were clearly truncated mid-content.
-  - Use "low"    ONLY if no source code files were fetched at all.
-
 Respond with a JSON object ONLY — no extra text, no markdown fences:
 {
   "has_inline_comments": true | false,
-  "confidence": "high" | "medium" | "low",
   "evidence": "<one sentence summarising what you found>",
   "comment_types": ["list", "of", "found", "types"],
   "files_with_comments": [
