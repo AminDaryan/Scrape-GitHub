@@ -16,8 +16,7 @@ Logic:
   4. Pass the combined text to the LLM, asking it to identify every
      form of API documentation present.                             → make_check_paper_fn()
   5. Enrich the LLM output with direct GitHub hyperlinks.           → build_doc_file_entries()
-  6. Optionally evaluate predictions against ground-truth labels.   → evaluate_against_ground_truth()
-  7. Run across all configured models and export to Excel.          → main(), save_results()
+  6. Run across all configured models and export to Excel.          → main(), save_results()
 
 Results export to Excel.
 """
@@ -290,121 +289,6 @@ def make_check_paper_fn(deployment, token_usage):
 
 
 # =============================================================================
-# GROUND-TRUTH EVALUATION
-# =============================================================================
-
-def _normalise_ground_truth_label(value):
-    """Map common ground-truth label formats to a boolean, or None if unknown."""
-    if isinstance(value, bool):
-        return value
-    if value is None:
-        return None
-    text = str(value).strip().lower()
-    positive = {"yes", "true", "1", "present", "exists", "has_api_documentation"}
-    negative = {"no", "false", "0", "missing", "none", "absent"}
-    if text in positive:
-        return True
-    if text in negative:
-        return False
-    return None
-
-
-def evaluate_against_ground_truth(results):
-    """Compute binary metrics when PAPERS includes a usable ground_truth field."""
-    gt_by_title = {}
-    for paper in PAPERS:
-        gt = _normalise_ground_truth_label(paper.get("ground_truth"))
-        if gt is not None:
-            gt_by_title[paper.get("title", "")] = gt
-
-    per_paper = []
-    true_pos = false_pos = true_neg = false_neg = 0
-    evaluated = 0
-
-    for row in results:
-        title = row.get("title", "")
-        if title not in gt_by_title:
-            continue
-
-        gt_bool = gt_by_title[title]
-        status  = (row.get("status") or "").lower()
-        if status == "yes":
-            pred_bool = True
-        elif status == "no":
-            pred_bool = False
-        else:
-            pred_bool = None
-
-        if pred_bool is None:
-            match = "unknown"
-            note  = f"prediction unavailable (status={status or 'n/a'})"
-            if row.get("note"):
-                note += f"; {row['note']}"
-        else:
-            evaluated += 1
-            if pred_bool and gt_bool:
-                true_pos += 1
-            elif pred_bool and not gt_bool:
-                false_pos += 1
-            elif not pred_bool and not gt_bool:
-                true_neg += 1
-            else:
-                false_neg += 1
-            match = "correct" if pred_bool == gt_bool else "wrong"
-            note  = row.get("note") or ""
-
-        per_paper.append({
-            "title":        title,
-            "prediction":   "yes" if pred_bool is True else "no" if pred_bool is False else "unknown",
-            "ground_truth": "yes" if gt_bool else "no",
-            "match":        match,
-            "note":         note,
-        })
-
-    labelled  = len(per_paper)
-    accuracy  = ((true_pos + true_neg) / evaluated) if evaluated else 0.0
-    precision = (true_pos / (true_pos + false_pos)) if (true_pos + false_pos) else 0.0
-    recall    = (true_pos / (true_pos + false_neg)) if (true_pos + false_neg) else 0.0
-    f1        = (2 * precision * recall / (precision + recall)) if (precision + recall) else 0.0
-
-    return {
-        "labelled":  labelled,
-        "evaluated": evaluated,
-        "accuracy":  accuracy,
-        "precision": precision,
-        "recall":    recall,
-        "f1":        f1,
-        "true_pos":  true_pos,
-        "false_pos": false_pos,
-        "true_neg":  true_neg,
-        "false_neg": false_neg,
-        "per_paper": per_paper,
-    }
-
-
-def print_ground_truth_report(metrics):
-    """Print a compact summary of ground-truth comparison metrics."""
-    if metrics.get("labelled", 0) == 0:
-        print("\nGround-truth evaluation skipped: no usable ground_truth labels in PAPERS.")
-        return
-
-    print("\n" + "=" * 78)
-    print("GROUND-TRUTH REPORT")
-    print("=" * 78)
-    print(f"Labelled papers : {metrics['labelled']}")
-    print(f"Evaluated       : {metrics['evaluated']}")
-    print(f"Accuracy        : {metrics['accuracy']:.1%}")
-    print(f"Precision       : {metrics['precision']:.1%}")
-    print(f"Recall          : {metrics['recall']:.1%}")
-    print(f"F1 score        : {metrics['f1']:.3f}")
-    print(
-        "Confusion matrix: "
-        f"TP={metrics['true_pos']}, FP={metrics['false_pos']}, "
-        f"TN={metrics['true_neg']}, FN={metrics['false_neg']}"
-    )
-
-
-# =============================================================================
 # CONSOLE REPORTING
 # =============================================================================
 
@@ -453,7 +337,7 @@ def print_results(results):
 def save_results(all_model_results, path=None):
     """Write per-model Excel sheets + Model Comparison sheet.
 
-    Per model: Results, Doc Files Detail, Skipped & Errors, Summary, Ground Truth.
+    Per model: Results, Doc Files Detail, Skipped & Errors, Summary.
     """
     if path is None:
         path = Path(__file__).resolve().parent / "results/api_documentation_results.xlsx"
@@ -637,49 +521,6 @@ def save_results(all_model_results, path=None):
             border=border,
         )
 
-        # =====================================================================
-        # Ground Truth sheet (only when labels exist)
-        # =====================================================================
-        metrics = evaluate_against_ground_truth(results)
-        if metrics["labelled"] > 0:
-            ws5     = wb.create_sheet(safe_sheet_name("Ground Truth", deployment))
-            hdrs5   = ["#", "Paper Title", "Prediction", "Ground Truth", "Match", "Note"]
-            widths5 = [5, 60, 14, 14, 10, 55]
-            write_header_row(ws5, hdrs5, widths5, fill_hex="2E7D32", border=border)
-
-            MATCH_COLORS = {"correct": "C6EFCE", "wrong": "FFC7CE"}
-            for r_idx, p in enumerate(metrics["per_paper"], 2):
-                row_vals = [
-                    r_idx - 1, p["title"], p["prediction"],
-                    p["ground_truth"], p["match"], p["note"],
-                ]
-                gt_fill_hex = MATCH_COLORS.get(p["match"], "FFFFFF")
-                row_fill    = PatternFill("solid", start_color=gt_fill_hex)
-                for col_idx, value in enumerate(row_vals, 1):
-                    cell           = ws5.cell(row=r_idx, column=col_idx, value=value)
-                    cell.font      = Font(name="Arial", size=10)
-                    cell.border    = border
-                    cell.alignment = center if col_idx in (1, 3, 4, 5) else wrap
-                    if col_idx == 5:
-                        cell.fill = row_fill
-
-            summary_start = len(metrics["per_paper"]) + 3
-            summary_pairs = [
-                ("Labelled papers",  metrics["labelled"]),
-                ("Accuracy",         f"{metrics['accuracy']:.1%}"),
-                ("Precision",        f"{metrics['precision']:.1%}"),
-                ("Recall",           f"{metrics['recall']:.1%}"),
-                ("F1 score",         f"{metrics['f1']:.3f}"),
-                ("True positives",   metrics["true_pos"]),
-                ("False positives",  metrics["false_pos"]),
-                ("True negatives",   metrics["true_neg"]),
-                ("False negatives",  metrics["false_neg"]),
-            ]
-            for i, (label, value) in enumerate(summary_pairs, summary_start):
-                ws5.cell(row=i, column=1, value=label).font = Font(name="Arial", size=10, bold=True)
-                ws5.cell(row=i, column=2, value=value).font = Font(name="Arial", size=10)
-                ws5.cell(row=i, column=2).alignment = center
-
     # =========================================================================
     # Model Comparison sheet (only when multiple models)
     # =========================================================================
@@ -699,13 +540,10 @@ def save_results(all_model_results, path=None):
         skipped     = counts.get("skipped", 0)
         errors      = counts.get("error", 0)
         total_files = sum(len(r.get("doc_files", [])) for r in results)
-        metrics     = evaluate_against_ground_truth(results)
         print(f"\n[{deployment}]")
         print(f"  → Results:    {total} papers")
         print(f"  → Doc Files:  {total_files} individual documentation files")
         print(f"  → Skipped/Err: {skipped + errors} entries")
-        if metrics["labelled"] > 0:
-            print(f"  → Ground Truth: {metrics['labelled']} labelled, accuracy {metrics['accuracy']:.1%}")
     print(f"\nFull results saved to: {path}")
 
 
@@ -720,10 +558,6 @@ def main():
     def _format_check_extra(result):
         return f"{len(result.get('doc_files', []))} doc files"
 
-    def _finalize(results):
-        gt_metrics = evaluate_against_ground_truth(results)
-        print_ground_truth_report(gt_metrics)
-
     run_pipeline(
         papers=PAPERS,
         deployments=DEPLOYMENTS,
@@ -733,7 +567,6 @@ def main():
         description="API documentation",
         github_token=GITHUB_TOKEN,
         format_check_extra=_format_check_extra,
-        finalize_fn=_finalize,
     )
 
 
