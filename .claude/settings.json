@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s http://localhost:11434/api/tags)",
+      "PowerShell(ollama list 2>&1)",
+      "PowerShell(if \\(-not $?\\) { \"ollama not found in PATH\" })",
+      "PowerShell(& \"$env:LOCALAPPDATA\\\\Programs\\\\Ollama\\\\ollama.exe\" list 2>&1)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\\", \"$env:USERPROFILE\", \"$env:LOCALAPPDATA\", \"$env:PROGRAMFILES\" -Recurse -Filter \"ollama.exe\" -ErrorAction SilentlyContinue | Select-Object -First 5 FullName)",
+      "PowerShell(Invoke-RestMethod -Uri \"http://localhost:11434/api/tags\" -Method GET -ErrorAction SilentlyContinue 2>&1)",
+      "PowerShell(netstat -ano)",
+      "PowerShell(netstat -ano 2>&1)"
+    ]
+  }
+}

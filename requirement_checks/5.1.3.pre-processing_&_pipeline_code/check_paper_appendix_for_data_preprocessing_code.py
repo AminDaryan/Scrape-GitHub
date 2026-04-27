@@ -1,71 +1,250 @@
 """
-Question 5.1.3 — Pre-processing & Pipeline Code classifier
+Question 5.1.3 — Pre-processing & Pipeline Code classifier (repo-only)
 
-Checks ONLY the paper appendix (no repo inspection) for structured preprocessing
-pseudocode or template tables.
+Checks ONLY the GitHub repository for actual preprocessing / pipeline source
+code (tokenization, filtering / deduplication / cleaning, or prompting-wrapper
+construction). The paper text is no longer consulted.
 
 Logic:
-  1. Resolve the paper's arXiv ID by title.                           → fetch_appendix()
-  2. Fetch the HTML render (ar5iv first, arxiv.org/html as fallback)
-     and reject navigation/stub pages.                                → fetch_appendix(), is_junk()
-  3. Slice out the appendix section; fall back to the last 25% of
-     the text when no explicit appendix heading is found.             → fetch_appendix()
-  4. Send the appendix to the LLM and classify it.                   → process(), call_gpt()
-  5. Parse the JSON response, applying heuristic overrides to
-     suppress false positives from auxiliary prompts.                 → parse()
-  6. When arXiv fetch fails, fall back to GPT's training knowledge.  → process()
+  1. Parse the GitHub URL from each paper entry. Non-GitHub repos are
+     classified as NOT_APPLICABLE up front.                          → process()
+  2. List every file in the repo via the GitHub API.                 → collect_repo_content()
+  3. Sort files into three prioritised buckets:
+       preprocessing-named source files (preprocess.py, tokenize.py …)
+       files inside preprocessing-relevant folders (data/, pipeline/ …)
+       other source files as a fallback.                             → collect_repo_content()
+  4. Fetch the buckets within a shared character budget.             → collect_repo_content()
+  5. Pass the combined text to the LLM and parse the verdict.        → process(), call_gpt()
 
 Labels:
-  SEPARATE_APPENDIX — appendix has structured pseudocode/template table for preprocessing
-  MISSING           — everything else
+  EXISTS         — repo contains real preprocessing / pipeline code
+  NOT_APPLICABLE — everything else (no code, only training/inference, or no GitHub URL)
 """
 
 import json
-
-import os, re, sys, time, urllib.parse, requests
-from pathlib import Path
+import os
+import re
+import sys
+import time
+import urllib.parse
 from collections import Counter
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 load_dotenv()
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
-from openai_client import client, AZURE_OPENAI_DEPLOYMENT
+# Make both the parent package and the requirement_checks/ root importable,
+# matching the layout used by check_github_repo_api_documentation.py.
+_this = Path(__file__).resolve()
+sys.path.insert(0, str(_this.parent.parent))
+sys.path.insert(0, str(_this.parent.parent.parent))
+
+from common.fetch_and_parse_github_repo import (
+    parse_github_repo, list_all_repo_files, fetch_file_content,
+)
+from common.repo_content_helpers import fetch_paths_with_char_budget
 from common.token_usage import TokenUsageTracker, print_token_usage_report
+
+from openai_client import client, AZURE_OPENAI_DEPLOYMENT
 from papers_from_database import PAPERS
-from prompts import SYSTEM_PROMPT, USER_PROMPT, FALLBACK_PROMPT
+from prompts import SYSTEM_PROMPT, USER_PROMPT
 
-PAUSE   = 1.5
-ALLOWED = {"SEPARATE_APPENDIX", "MISSING"}
-TOKEN_USAGE = TokenUsageTracker()
+
+PAUSE        = 0.5
+ALLOWED      = {"EXISTS", "NOT_APPLICABLE"}
+TOKEN_USAGE  = TokenUsageTracker()
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 
 # ---------------------------------------------------------------------------
-# Prompts
+# File-classification rules
 # ---------------------------------------------------------------------------
-# Prompt templates are defined in neighboring prompts.py.
+
+# A file's basename matching this pattern is treated as preprocessing-relevant.
+PREPROC_NAME_RE = re.compile(
+    r"(preprocess|pre[_-]?proc|tokeniz|"
+    r"clean(?:up|ing|er)?|filter|dedup(?:lic)?|"
+    r"dataset|data[_-]?loader|dataloader|"
+    r"prepare[_-]?data|prep[_-]?data|build[_-]?data|process[_-]?data|make[_-]?data|"
+    r"prompt[_-]?(?:build|wrap|template)|pipeline|wrapper)",
+    re.IGNORECASE,
+)
+
+# Any file under one of these top-level folders is treated as preprocessing-relevant.
+PREPROC_FOLDER_PREFIXES = (
+    "data/", "data_processing/", "data-processing/",
+    "preprocessing/", "preprocess/",
+    "pipeline/", "pipelines/",
+    "tokenizer/", "tokenization/",
+    "scripts/",
+    "src/data/", "src/preprocessing/", "src/pipeline/",
+)
+
+SOURCE_EXTS = (
+    ".py", ".sh", ".ipynb", ".js", ".ts",
+    ".rb", ".go", ".jl", ".r", ".scala", ".rs",
+)
+
+# Folders we never look inside — vendored/test/build artefacts.
+SKIP_FOLDER_PREFIXES = (
+    "test/", "tests/", "__tests__/", ".github/",
+    "node_modules/", "vendor/", "third_party/", "third-party/",
+    "examples/", "docs/", "doc/",
+    "build/", "dist/", ".cache/",
+)
+
+MAX_TOTAL_CHARS    = 80_000
+PER_FILE_CHAR_CAP  = 8_000
+MAX_NAMED_FILES    = 12
+MAX_FOLDER_FILES   = 12
+MAX_GENERIC_FILES  = 8
+
+# ---------------------------------------------------------------------------
+# Repo URL parsing
+# ---------------------------------------------------------------------------
+
+def parse_repo_url(url):
+    """Extract (owner, repo) from a GitHub URL.
+
+    Handles standard github.com URLs via the project's shared parser, and
+    falls back to a regex for `<owner>.github.io/<repo>` GitHub Pages links
+    that often appear as the project page in academic papers. Returns None
+    for any URL that isn't on GitHub (HuggingFace, anonymous.4open.science,
+    project websites, etc.) — those are skipped at the call site.
+    """
+    if not url:
+        return None
+    url = url.strip()
+
+    try:
+        result = parse_github_repo(url)
+    except Exception:
+        result = None
+
+    if result:
+        if isinstance(result, tuple) and len(result) >= 2:
+            return (result[0], result[1])
+        if isinstance(result, dict):
+            owner = result.get("owner")
+            repo  = result.get("repo")
+            if owner and repo:
+                return (owner, repo)
+
+    # GitHub Pages URL: https://<owner>.github.io/<repo>
+    m = re.match(r"https?://([^./]+)\.github\.io/([^/?#]+)", url)
+    if m:
+        return (m.group(1), m.group(2))
+
+    return None
+
+# ---------------------------------------------------------------------------
+# Repo content collection
+# ---------------------------------------------------------------------------
+
+def _is_skippable(path_lower):
+    return any(path_lower.startswith(p) for p in SKIP_FOLDER_PREFIXES)
+
+def _is_source(path_lower):
+    if "." not in path_lower:
+        return False
+    ext = "." + path_lower.rsplit(".", 1)[-1]
+    return ext in SOURCE_EXTS
+
+def collect_repo_content(owner, repo):
+    """Fetch preprocessing-relevant files from a GitHub repo.
+
+    Files are sorted into three priority buckets and fetched within a shared
+    character budget so that named preprocessing files (preprocess.py,
+    tokenize.py, …) are guaranteed to make it into the LLM's context before
+    generic source code can crowd them out. Returns a (combined_text,
+    fetched_paths) tuple; combined_text is empty if the repo is unreachable.
+    """
+    print(f"  [GitHub] Listing {owner}/{repo}")
+    try:
+        all_files = list_all_repo_files(owner, repo)
+    except Exception as e:
+        print(f"  [GitHub] ERROR during listing: {type(e).__name__}: {e}")
+        return "", []
+
+    if not all_files:
+        print(f"  [GitHub] Repo empty or unreachable")
+        return "", []
+
+    print(f"  [GitHub] {len(all_files)} files in repo")
+
+    named_paths   = []   # source files whose basename matches PREPROC_NAME_RE
+    folder_paths  = []   # source files inside a preprocessing-relevant folder
+    generic_paths = []   # other source files — fallback context
+
+    for f in all_files:
+        fpath     = f["path"] if isinstance(f, dict) else f
+        fpath_low = fpath.lower()
+        basename  = fpath_low.split("/")[-1]
+
+        if _is_skippable(fpath_low):
+            continue
+        if not _is_source(fpath_low):
+            continue
+
+        if PREPROC_NAME_RE.search(basename):
+            named_paths.append(fpath)
+        elif any(fpath_low.startswith(p) for p in PREPROC_FOLDER_PREFIXES):
+            folder_paths.append(fpath)
+        else:
+            generic_paths.append(fpath)
+
+    # Sort by depth then name for determinism. Shallower paths come first
+    # because top-level scripts are usually the canonical entry points.
+    for lst in (named_paths, folder_paths, generic_paths):
+        lst.sort(key=lambda p: (p.count("/"), p.lower()))
+
+    named_paths   = named_paths[:MAX_NAMED_FILES]
+    folder_paths  = folder_paths[:MAX_FOLDER_FILES]
+    generic_paths = generic_paths[:MAX_GENERIC_FILES]
+
+    print(f"  [GitHub] Selected: {len(named_paths)} named, "
+          f"{len(folder_paths)} in folders, {len(generic_paths)} generic")
+
+    combined    = []
+    fetched     = []
+    total_chars = 0
+
+    for label, paths in (("PREPROCESS-NAMED",  named_paths),
+                         ("PREPROCESS-FOLDER", folder_paths),
+                         ("GENERIC SOURCE",    generic_paths)):
+        if not paths:
+            continue
+        blocks, got, total_chars = fetch_paths_with_char_budget(
+            owner, repo, paths, MAX_TOTAL_CHARS,
+            fetch_content=fetch_file_content,
+            start_total_chars=total_chars,
+            pause_seconds=0.15,
+            header_label=label,
+            per_file_char_cap=PER_FILE_CHAR_CAP,
+        )
+        combined.extend(blocks)
+        fetched.extend(got)
+
+    return "\n\n".join(combined), fetched
 
 # ---------------------------------------------------------------------------
 # GPT call
 # ---------------------------------------------------------------------------
 
 def call_gpt(messages):
-    """Send a list of role-tagged messages (system + user) to the configured Azure OpenAI
-    deployment via the chat completions API and return the model's reply as a raw string.
+    """Send role-tagged messages to the configured Azure OpenAI deployment.
 
-    The messages list follows the OpenAI chat format: each entry has a 'role'
-    ('system' or 'user') and a 'content' string. The model generates the next
-    message in the conversation — in this case, a JSON classification verdict.
-    Tracks token usage for the post-run cost report and logs a preview of
-    the response so long runs can be monitored without opening the Excel file.
+    Returns the raw response string. Empty string on error so the caller can
+    fall through to the parser's default NOT_APPLICABLE without raising.
     """
     total_chars = sum(len(m["content"]) for m in messages)
     print(f"  [GPT] Calling {AZURE_OPENAI_DEPLOYMENT} — "
-          f"{total_chars:,} total chars, max_completion_tokens=16000")
+          f"{total_chars:,} total chars, max_completion_tokens=4000")
     try:
         resp = client.chat.completions.create(
             model=AZURE_OPENAI_DEPLOYMENT,
             messages=messages,
-            max_completion_tokens=16000,
+            max_completion_tokens=4000,
         )
         TOKEN_USAGE.add_from_response(resp)
         raw = (resp.choices[0].message.content or "").strip()
@@ -79,128 +258,24 @@ def call_gpt(messages):
         return ""
 
 # ---------------------------------------------------------------------------
-# arXiv fetcher
-# ---------------------------------------------------------------------------
-
-PAPER_SIGNALS = re.compile(
-    r"(?:abstract|introduction|related work|references|appendix|theorem|figure|table)\b",
-    re.IGNORECASE)
-
-def is_junk(text):
-    """Return True if the fetched page is a navigation/stub rather than actual paper content.
-
-    arXiv HTML renders sometimes return the site's landing page instead of the
-    paper when the ID is not yet processed by ar5iv. We reject pages that are
-    too short or that contain multiple arXiv site navigation phrases without
-    enough academic signal words.
-    """
-    junk_phrases = [
-        "arXivLabs", "Papers with Code", "Help | Advanced Search",
-        "Subscribe to arXiv", "Privacy Policy", "Cornell University",
-        "What is ScienceCast", "What is Replicate", "Hugging Face Spaces",
-    ]
-    junk_count = sum(1 for p in junk_phrases if p in text[:3000])
-    paper_hits = len(PAPER_SIGNALS.findall(text[:5000]))
-    if len(text) < 10_000:
-        print(f"  [arXiv] JUNK: only {len(text):,} chars — stub or nav page")
-        return True
-    if junk_count >= 2 and paper_hits < 5:
-        print(f"  [arXiv] JUNK: {junk_count} nav phrases, {paper_hits} paper signals")
-        return True
-    return False
-
-def fetch_appendix(title):
-    """Resolve a paper by title on arXiv and return its appendix text.
-
-    Tries ar5iv (a more reliable HTML renderer) first, then falls back to the
-    official arxiv.org HTML endpoint. If no explicit appendix heading is found,
-    returns the last 25% of the paper as a best-effort approximation — many
-    papers place supplementary material at the end without labelling it.
-    Returns None if both fetch attempts fail or the page is junk.
-    """
-    print(f"  [arXiv] Searching: {title[:70]}")
-    try:
-        query = urllib.parse.quote(f'ti:"{title}"')
-        resp  = requests.get(
-            f"https://export.arxiv.org/api/query?search_query={query}&max_results=1",
-            timeout=15, headers={"User-Agent": "Mozilla/5.0"})
-        resp.raise_for_status()
-        m = re.search(r"<id>http://arxiv\.org/abs/([^<\s]+)</id>", resp.text)
-        if not m:
-            print(f"  [arXiv] ERROR: No paper ID. Snippet: {resp.text[:200]}")
-            return None
-        arxiv_id = re.sub(r"v\d+$", "", m.group(1).strip())
-        print(f"  [arXiv] Resolved ID: {arxiv_id}")
-    except Exception as e:
-        print(f"  [arXiv] ERROR during ID lookup: {type(e).__name__}: {e}")
-        return None
-
-    for url in [f"https://ar5iv.labs.arxiv.org/html/{arxiv_id}",
-                f"https://arxiv.org/html/{arxiv_id}"]:
-        print(f"  [arXiv] Fetching: {url}")
-        try:
-            resp = requests.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
-            print(f"  [arXiv] HTTP {resp.status_code}, raw HTML: {len(resp.text):,} chars")
-            if resp.status_code != 200:
-                continue
-
-            text = re.sub(r"<script[^>]*>.*?</script>", " ", resp.text, flags=re.DOTALL)
-            text = re.sub(r"<style[^>]*>.*?</style>",   " ", text,      flags=re.DOTALL)
-            text = re.sub(r"<[^>]+>", " ", text)
-            text = re.sub(r"\s{3,}", "\n\n", text).strip()
-            print(f"  [arXiv] After tag stripping: {len(text):,} chars")
-
-            if is_junk(text):
-                print(f"  [arXiv] Skipping {url} — junk content")
-                continue
-
-            APPENDIX_RE = re.compile(
-                r"(?:^|\n\n)((?:Appendix|Supplementary\s+(?:Material|Notes?)|Appendices)\b)",
-                re.IGNORECASE)
-            m2 = APPENDIX_RE.search(text)
-            if m2:
-                appendix = text[m2.start():]
-                print(f"  [arXiv] Appendix heading at char {m2.start():,} — "
-                      f"full appendix: {len(appendix):,} chars")
-            else:
-                appendix = text[len(text) * 3 // 4:]
-                print(f"  [arXiv] WARNING: No appendix heading — "
-                      f"using last 25%: {len(appendix):,} chars")
-
-            print(f"  [arXiv] Preview: {appendix[:300]!r}")
-            return appendix
-
-        except Exception as e:
-            print(f"  [arXiv] ERROR at {url}: {type(e).__name__}: {e}")
-
-    print(f"  [arXiv] ERROR: All fetch attempts failed")
-    return None
-
-# ---------------------------------------------------------------------------
 # Parse GPT response
 # ---------------------------------------------------------------------------
 
 def parse(raw):
-    """Parse the LLM's JSON response and apply post-processing overrides.
+    """Parse the LLM's JSON response and validate its classification field.
 
-    Two override layers correct the most common false positives:
-    - Heuristic phrase list: certain phrases (e.g. "auto interpretation",
-      "dataset generation") signal that the appendix describes an *auxiliary*
-      LLM prompt rather than preprocessing pseudocode, so we downgrade to MISSING.
-    - Model self-report: if the LLM sets `is_primary_input_to_target_llm` in its
-      JSON, that field takes precedence over both the classification and the
-      heuristic, since it directly answers what we care about.
+    Anything outside {EXISTS, NOT_APPLICABLE} is coerced to NOT_APPLICABLE so a
+    malformed reply degrades safely instead of being silently mis-counted.
     """
     result = {
-        "classification": "MISSING",
-        "confidence": 0,
-        "appendix_quality": "unknown",
-        "key_quotes": [],
-        "matched_criteria": [],
-        "is_auxiliary_prompt": False,
-        "diagnostic_notes": "N/A",
-        "final_reason": "N/A",
-        "evidence": "N/A"
+        "classification":       "NOT_APPLICABLE",
+        "confidence":           0,
+        "key_quotes":           [],
+        "matched_categories":   [],
+        "preprocessing_files":  [],
+        "diagnostic_notes":     "N/A",
+        "final_reason":         "N/A",
+        "evidence":             "N/A",
     }
     if not raw:
         result["diagnostic_notes"] = "EMPTY GPT RESPONSE"
@@ -209,28 +284,15 @@ def parse(raw):
     try:
         data = json.loads(raw)
         result.update(data)
-        result["evidence"] = "; ".join(data.get("key_quotes", [])) or data.get("diagnostic_notes", "N/A")
+        result["evidence"] = (
+            "; ".join(data.get("key_quotes", [])) or
+            data.get("diagnostic_notes", "N/A")
+        )
     except json.JSONDecodeError:
         result["diagnostic_notes"] = f"INVALID JSON — raw started: {raw[:100]}"
 
-    # STRONGER HEURISTIC (kills the exact false positives we saw)
-    if result["classification"] == "SEPARATE_APPENDIX":
-        evidence_lower = (result.get("evidence", "") + result.get("diagnostic_notes", "")).lower()
-        bad_phrases = ["auto interpretation", "monosemanticity", "question generation", "feature labeling",
-                       "dataset generation", "corpus creation", "auditing", "auto-interpret"]
-        if any(phrase in evidence_lower for phrase in bad_phrases):
-            result["classification"] = "MISSING"
-            result["is_auxiliary_prompt"] = True
-            result["diagnostic_notes"] += " [HEURISTIC OVERRIDE: auxiliary prompt detected]"
-
-    # <<<=== ADD THE OVERRIDE RIGHT HERE ===>>>
-    # FINAL OVERRIDE — model’s self-reported field decides
-    if result.get("is_primary_input_to_target_llm") is True:
-        result["classification"] = "SEPARATE_APPENDIX"
-        result["diagnostic_notes"] += " [OVERRIDE: primary pseudocode confirmed]"
-    elif result.get("is_primary_input_to_target_llm") is False and result.get("is_auxiliary_prompt") is True:
-        result["classification"] = "MISSING"
-        result["diagnostic_notes"] += " [OVERRIDE: auxiliary only]"
+    if result.get("classification") not in ALLOWED:
+        result["classification"] = "NOT_APPLICABLE"
 
     return result
 
@@ -239,101 +301,96 @@ def parse(raw):
 # ---------------------------------------------------------------------------
 
 def process(entry):
-    """Run the full classification pipeline for a single paper.
+    """Run the classification pipeline on a single paper entry's GitHub repo.
 
-    Primary path: fetch the appendix from arXiv and classify it with the main prompt.
-    Fallback path: when arXiv is unreachable or returns junk, use a knowledge-only
-    prompt so the LLM answers from its training data — less reliable but better than
-    skipping the paper entirely.
+    Sources reported on the result dict:
+      GITHUB     — repo was fetched and the LLM produced a verdict
+      NO_GITHUB  — entry's repo URL is not a GitHub URL (HuggingFace, etc.)
+      EMPTY_REPO — repo was reachable but yielded no source files
     """
-    title    = entry["title"]
-    appendix = fetch_appendix(title)
+    title    = entry.get("title", "")
+    repo_url = entry.get("repo", "") or ""
 
-    if appendix:
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user",   "content": USER_PROMPT.format(
-                title=title, appendix_text=appendix)},
-        ]
-        source = "ARXIV"
-    else:
-        print(f"  [PIPELINE] No appendix retrieved — falling back to GPT training knowledge")
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user",   "content": FALLBACK_PROMPT.format(title=title)},
-        ]
-        source = "KNOWLEDGE"
+    parsed = parse_repo_url(repo_url)
+    if not parsed:
+        print(f"  [PIPELINE] Not a GitHub URL: {repo_url!r}")
+        return {
+            "title":             title,
+            "semanticscholarid": entry.get("semanticscholarid", ""),
+            "repo":              repo_url,
+            "classification":    "NOT_APPLICABLE",
+            "evidence":          "Repository URL is not a GitHub URL",
+            "reasoning":         "Skipped — non-GitHub repository",
+            "source":            "NO_GITHUB",
+            "files_checked":     [],
+        }
 
+    owner, repo = parsed
+    print(f"  [PIPELINE] GitHub: {owner}/{repo}")
+    content, fetched_paths = collect_repo_content(owner, repo)
+
+    if not content:
+        return {
+            "title":             title,
+            "semanticscholarid": entry.get("semanticscholarid", ""),
+            "repo":              repo_url,
+            "classification":    "NOT_APPLICABLE",
+            "evidence":          "No source files retrievable from the repo",
+            "reasoning":         "Empty or inaccessible repository",
+            "source":            "EMPTY_REPO",
+            "files_checked":     [],
+        }
+
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user",   "content": USER_PROMPT.format(
+            title=title, repo_url=repo_url, repo_content=content)},
+    ]
     raw    = call_gpt(messages)
     result = parse(raw)
-    result["source"]            = source
+
     result["title"]             = title
     result["semanticscholarid"] = entry.get("semanticscholarid", "")
+    result["repo"]              = repo_url
+    result["source"]            = "GITHUB"
+    result["files_checked"]     = fetched_paths
+    result["reasoning"]         = result.get("final_reason") or result.get("diagnostic_notes", "")
     return result
-
-# ---------------------------------------------------------------------------
-# Accuracy
-# ---------------------------------------------------------------------------
-
-def accuracy_report(results):
-    """Compare predictions against ground_truth labels in PAPERS and return metrics.
-
-    Only papers that have a ground_truth entry are included in the counts.
-    Papers without a ground_truth label are ignored, not penalised.
-    """
-    gt_map = {p["title"]: p["ground_truth"] for p in PAPERS if "ground_truth" in p}
-    correct, total, wrong, per_label = 0, 0, [], {}
-    for r in results:
-        gt = gt_map.get(r["title"])
-        if not gt:
-            continue
-        total += 1
-        per_label.setdefault(gt, {"correct": 0, "total": 0})
-        per_label[gt]["total"] += 1
-        if r["classification"] == gt:
-            correct += 1
-            per_label[gt]["correct"] += 1
-        else:
-            wrong.append({"title": r["title"],
-                          "pred":  r["classification"],
-                          "gt":    gt})
-    return {"accuracy":  correct / total if total else 0,
-            "correct":   correct,
-            "total":     total,
-            "per_label": per_label,
-            "wrong":     wrong}
 
 # ---------------------------------------------------------------------------
 # Excel export
 # ---------------------------------------------------------------------------
 
-def save_excel(results, path, acc):
+def save_excel(results, path):
     """Write per-paper predictions and a Summary sheet to an Excel workbook.
 
-    The Results sheet colour-codes each row by predicted label and marks
-    correct/wrong predictions against ground truth. The Summary sheet shows
-    per-label accuracy and lists all wrong predictions for quick review.
+    The Results sheet colour-codes each row by predicted label and source.
+    The Summary sheet shows label counts and a breakdown by source.
     """
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment
 
     COLOR = {
-        "SEPARATE_APPENDIX": "FFEB9C",
-        "MISSING":           "FCE4D6",
+        "EXISTS":         "FFEB9C",
+        "NOT_APPLICABLE": "FCE4D6",
     }
     LABEL = {
-        "SEPARATE_APPENDIX": "SEPARATE APPENDIX",
-        "MISSING":           "MISSING",
+        "EXISTS":         "Exists",
+        "NOT_APPLICABLE": "Not applicable",
     }
-    gt_map    = {p["title"]: p.get("ground_truth", "") for p in PAPERS}
-    gt_reason = {p["title"]: p.get("gt_reason",    "") for p in PAPERS}
+    SOURCE_COLOR = {
+        "GITHUB":     "BDD7EE",
+        "NO_GITHUB":  "F2F2F2",
+        "EMPTY_REPO": "FFE4B5",
+        "ERROR":      "FFC7CE",
+    }
 
     wb = Workbook()
     ws = wb.active
     ws.title = "Results"
 
-    headers = ["#", "Title", "Prediction", "Ground Truth", "Correct?",
-               "Source", "Evidence", "Reasoning", "GT Reason"]
+    headers = ["#", "Title", "Repo", "Prediction", "Source",
+               "Files Checked", "Evidence", "Reasoning"]
     for col, h in enumerate(headers, 1):
         c = ws.cell(row=1, column=col, value=h)
         c.font      = Font(bold=True, color="FFFFFF", name="Arial", size=11)
@@ -343,68 +400,64 @@ def save_excel(results, path, acc):
 
     for i, r in enumerate(results, 1):
         row = i + 1
-        clf = r.get("classification", "MISSING")
-        gt  = gt_map.get(r["title"], "")
-        ok  = (clf == gt) if gt else None
+        clf = r.get("classification", "NOT_APPLICABLE")
         bg  = "F9F9F9" if i % 2 == 0 else "FFFFFF"
 
         def cell(col, val, bold=False, fg="000000", bg_ov=None):
             c = ws.cell(row=row, column=col, value=val)
             c.font      = Font(name="Arial", size=10, bold=bold, color=fg)
             c.alignment = Alignment(
-                horizontal="center" if col in (1,3,4,5,6) else "left",
+                horizontal="center" if col in (1, 4, 5) else "left",
                 vertical="top", wrap_text=True)
             c.fill = PatternFill("solid", start_color=bg_ov or bg)
 
         cell(1, i)
-        cell(2, r["title"])
-        for col_i, key in [(3, clf), (4, gt)]:
-            c = ws.cell(row=row, column=col_i, value=LABEL.get(key, key))
-            c.font      = Font(bold=True, name="Arial", size=10)
-            c.alignment = Alignment(horizontal="center", vertical="top", wrap_text=True)
-            c.fill      = PatternFill("solid", start_color=COLOR.get(key, "F2F2F2"))
-        if ok is True:
-            cell(5, "✓", bold=True, fg="276221", bg_ov="C6EFCE")
-        elif ok is False:
-            cell(5, "✗", bold=True, fg="9C0006", bg_ov="FFC7CE")
-        else:
-            cell(5, "—")
-        src_color = {"ARXIV": "BDD7EE", "KNOWLEDGE": "FFE4B5"}.get(r.get("source",""), bg)
-        c6 = ws.cell(row=row, column=6, value=r.get("source",""))
-        c6.font      = Font(name="Arial", size=10, bold=True)
-        c6.alignment = Alignment(horizontal="center", vertical="top")
-        c6.fill      = PatternFill("solid", start_color=src_color)
+        cell(2, r.get("title", ""))
+        cell(3, r.get("repo",  ""))
+
+        c4 = ws.cell(row=row, column=4, value=LABEL.get(clf, clf))
+        c4.font      = Font(bold=True, name="Arial", size=10)
+        c4.alignment = Alignment(horizontal="center", vertical="top", wrap_text=True)
+        c4.fill      = PatternFill("solid", start_color=COLOR.get(clf, "F2F2F2"))
+
+        src = r.get("source", "")
+        c5 = ws.cell(row=row, column=5, value=src)
+        c5.font      = Font(name="Arial", size=10, bold=True)
+        c5.alignment = Alignment(horizontal="center", vertical="top")
+        c5.fill      = PatternFill("solid", start_color=SOURCE_COLOR.get(src, bg))
+
+        cell(6, "\n".join(r.get("files_checked", [])))
         cell(7, r.get("evidence",  ""))
         cell(8, r.get("reasoning", ""))
-        cell(9, gt_reason.get(r["title"], ""))
         ws.row_dimensions[row].height = 60
 
     ws2 = wb.create_sheet("Summary")
-    ws2["A1"] = "Overall Accuracy"
-    ws2["B1"] = f"{acc['accuracy']:.1%}  ({acc['correct']}/{acc['total']})"
+    ws2["A1"] = "Total papers"
+    ws2["B1"] = len(results)
     ws2["A1"].font = ws2["B1"].font = Font(bold=True, name="Arial", size=12)
-    for col, h in enumerate(["Label","Correct","Total","Accuracy"], 1):
+
+    for col, h in enumerate(["Label", "Count"], 1):
         ws2.cell(row=3, column=col, value=h).font = Font(bold=True, name="Arial")
+    counts = Counter(r.get("classification", "NOT_APPLICABLE") for r in results)
     r2 = 4
-    for lbl, s in sorted(acc["per_label"].items()):
-        a = s["correct"] / s["total"] if s["total"] else 0
-        ws2.cell(row=r2, column=1, value=lbl)
-        ws2.cell(row=r2, column=2, value=s["correct"])
-        ws2.cell(row=r2, column=3, value=s["total"])
-        ws2.cell(row=r2, column=4, value=f"{a:.1%}")
+    for lbl in ("EXISTS", "NOT_APPLICABLE"):
+        ws2.cell(row=r2, column=1, value=LABEL.get(lbl, lbl))
+        ws2.cell(row=r2, column=2, value=counts.get(lbl, 0))
         r2 += 1
+
     r2 += 1
-    ws2.cell(row=r2, column=1, value="Wrong predictions").font = Font(bold=True)
+    ws2.cell(row=r2, column=1, value="By source").font = Font(bold=True, name="Arial")
     r2 += 1
-    for w in acc["wrong"]:
-        ws2.cell(row=r2, column=1, value=w["title"])
-        ws2.cell(row=r2, column=2, value=w["pred"])
-        ws2.cell(row=r2, column=3, value=w["gt"])
+    sources = Counter(r.get("source", "") for r in results)
+    for src, cnt in sources.most_common():
+        ws2.cell(row=r2, column=1, value=src or "(none)")
+        ws2.cell(row=r2, column=2, value=cnt)
         r2 += 1
-    for col, w in [("A",10),("B",22),("C",22),("D",10)]:
+
+    for col, w in [("A", 22), ("B", 14)]:
         ws2.column_dimensions[col].width = w
-    for col, w in [("A",5),("B",48),("C",22),("D",22),
-                   ("E",10),("F",12),("G",50),("H",50),("I",50)]:
+    for col, w in [("A", 5), ("B", 42), ("C", 38), ("D", 14),
+                   ("E", 12), ("F", 35), ("G", 50), ("H", 50)]:
         ws.column_dimensions[col].width = w
     ws.freeze_panes = "A2"
     wb.save(path)
@@ -428,10 +481,12 @@ if __name__ == "__main__":
             result = {
                 "title":             title,
                 "semanticscholarid": entry.get("semanticscholarid", ""),
-                "classification":    "MISSING",
+                "repo":              entry.get("repo", ""),
+                "classification":    "NOT_APPLICABLE",
                 "evidence":          f"ERROR: {e}",
                 "reasoning":         "Exception during processing",
                 "source":            "ERROR",
+                "files_checked":     [],
             }
         results.append(result)
         print(f"  -> FINAL: [{result['source']}] {result['classification']}")
@@ -440,15 +495,6 @@ if __name__ == "__main__":
     print(f"\n{'='*60}\nSUMMARY\n{'='*60}")
     print(f"  Labels:  {dict(Counter(r['classification'] for r in results))}")
     print(f"  Sources: {dict(Counter(r['source']         for r in results))}")
-    acc = accuracy_report(results)
-    print(f"\n  Accuracy: {acc['accuracy']:.1%} ({acc['correct']}/{acc['total']})")
-    for lbl, s in sorted(acc["per_label"].items()):
-        a = s["correct"] / s["total"] if s["total"] else 0
-        print(f"    {lbl:25s}: {a:.0%} ({s['correct']}/{s['total']})")
-    if acc["wrong"]:
-        print(f"\n  Wrong ({len(acc['wrong'])}):")
-        for w in acc["wrong"]:
-            print(f"    PRED={w['pred']:25s}  GT={w['gt']:25s}  {w['title'][:50]}")
     print_token_usage_report(TOKEN_USAGE, AZURE_OPENAI_DEPLOYMENT)
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results_513.xlsx")
-    save_excel(results, out, acc)
+    save_excel(results, out)
