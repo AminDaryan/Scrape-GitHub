@@ -84,6 +84,50 @@ def _is_source_file(path_lower, basename):
     return True
 
 
+def _diversified_source_sample(paths, max_files):
+    """Pick up to ``max_files`` source paths, spread across top-level directories.
+
+    Files are bucketed by their first path component (root-level files form
+    their own bucket). Within each bucket, files are ordered alphabetically.
+    The function then walks the buckets round-robin — one file from each on
+    each pass — so that no single directory can monopolise the budget.
+
+    Root-level files are visited first on each round because they tend to be
+    entry points or core modules; the remaining buckets are visited in
+    alphabetical order for determinism.
+    """
+    if not paths or max_files <= 0:
+        return []
+
+    buckets = {}
+    for p in paths:
+        top = "" if "/" not in p else p.split("/", 1)[0]
+        buckets.setdefault(top, []).append(p)
+
+    for key in buckets:
+        buckets[key].sort(key=str.lower)
+
+    # Root-level bucket ("") first, then remaining directories alphabetically.
+    ordered_keys = [""] if "" in buckets else []
+    ordered_keys += sorted((k for k in buckets if k != ""), key=str.lower)
+
+    selected = []
+    round_idx = 0
+    while len(selected) < max_files:
+        added_this_round = False
+        for key in ordered_keys:
+            if round_idx < len(buckets[key]):
+                selected.append(buckets[key][round_idx])
+                added_this_round = True
+                if len(selected) >= max_files:
+                    break
+        if not added_this_round:
+            break
+        round_idx += 1
+
+    return selected
+
+
 def collect_repo_content(owner, repo):
     """Fetch documentation artefacts and source code; return combined text and metadata.
 
@@ -136,9 +180,17 @@ def collect_repo_content(owner, repo):
     doc_page_paths.sort(key=_doc_page_priority)
     doc_page_paths = doc_page_paths[:MAX_DOC_FILES]
 
-    # Sort source files: shallowest first (root-level code is most likely core code)
-    source_paths.sort(key=lambda p: (p.count("/"), p.lower()))
-    source_paths = source_paths[:MAX_SOURCE_FILES]
+    # Sample source files with directory diversification.
+    #
+    # A plain `sort + [:MAX_SOURCE_FILES]` would fill the budget with whichever
+    # top-level folder sorts first alphabetically (e.g. `a_test_online_model/`,
+    # `fintune/`) and silently drop every file in late-alphabet folders
+    # (`utils/`, `src/`, `tools/`). Docstrings commonly live in utility/helper
+    # modules, so that systematically hides positive cases.
+    #
+    # Instead: bucket files by top-level directory, then round-robin across
+    # buckets so every directory contributes before any single one dominates.
+    source_paths = _diversified_source_sample(source_paths, MAX_SOURCE_FILES)
 
     fetched     = []
     combined    = []
