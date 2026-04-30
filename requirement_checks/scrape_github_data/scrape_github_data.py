@@ -1,3 +1,13 @@
+"""
+Answering the questions:
+5.1.5 Is the code released under an explicit license?
+5.2.1 
+
+
+
+"""
+
+
 import requests
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
