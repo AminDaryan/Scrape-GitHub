@@ -7,110 +7,69 @@ construction). The paper text is no longer consulted.
 
 Logic:
   1. Parse the GitHub URL from each paper entry. Non-GitHub repos are
-     classified as NOT_APPLICABLE up front.                          → process()
-  2. List every file in the repo via the GitHub API.                 → collect_repo_content()
+     classified as NOT_APPLICABLE.                                     → check_paper()
+  2. List every file in the repo via the GitHub API.                   → collect_repo_content()
   3. Sort files into three prioritised buckets:
        preprocessing-named source files (preprocess.py, tokenize.py …)
        files inside preprocessing-relevant folders (data/, pipeline/ …)
-       other source files as a fallback.                             → collect_repo_content()
-  4. Fetch the buckets within a shared character budget.             → collect_repo_content()
-  5. Pass the combined text to the LLM and parse the verdict.        → process(), call_gpt()
+       other source files as a fallback.                               → collect_repo_content()
+  4. Fetch the buckets within a shared character budget.               → collect_repo_content()
+  5. Pass the combined text to the LLM and parse the verdict.          → make_check_paper_fn()
+  6. Run across all configured models and export to Excel.             → main(), save_results()
 
 Labels:
   EXISTS         — repo contains real preprocessing / pipeline code
-  NOT_APPLICABLE — everything else (no code, only training/inference, or no GitHub URL)
+  NOT_APPLICABLE — everything else (no code, non-GitHub URL, empty repo, or error)
 """
 
-import json
 import os
-import re
 import sys
-import time
-import urllib.parse
-from collections import Counter
 from pathlib import Path
+import re
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Make both the parent package and the requirement_checks/ root importable,
-# matching the layout used by check_github_repo_api_documentation.py.
 _this = Path(__file__).resolve()
-sys.path.insert(0, str(_this.parent.parent))
 sys.path.insert(0, str(_this.parent.parent.parent))
+sys.path.insert(0, str(_this.parent.parent))
 
 from common.fetch_and_parse_github_repo import (
     parse_github_repo, list_all_repo_files, fetch_file_content,
 )
 from common.repo_content_helpers import fetch_paths_with_char_budget
-from common.token_usage import TokenUsageTracker, print_token_usage_report
+from common.llm_helpers import llm_call_parse_retry
+from common.checker_pipeline import run_pipeline
+from common.excel_output import (
+    count_statuses,
+    write_header_row, write_results_data_rows, write_summary_sheet,
+    write_comparison_sheet, safe_sheet_name,
+    thin_border, auto_row_height, alignment_center, alignment_wrap_left,
+)
 
-from openai_client import client, AZURE_OPENAI_DEPLOYMENT
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font
+
+from openai_client import client, AZURE_OPENAI_DEPLOYMENTS
 from papers_from_database import PAPERS
 from prompts import SYSTEM_PROMPT, USER_PROMPT
+from config import (
+    PREPROC_NAME_RE, PREPROC_FOLDER_PREFIXES, SOURCE_EXTS,
+    SKIP_FOLDER_PREFIXES, MAX_TOTAL_CHARS, PER_FILE_CHAR_CAP,
+    MAX_NAMED_FILES, MAX_FOLDER_FILES, MAX_GENERIC_FILES,
+)
 
-
-PAUSE        = 0.5
-ALLOWED      = {"EXISTS", "NOT_APPLICABLE"}
-TOKEN_USAGE  = TokenUsageTracker()
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
-
-# ---------------------------------------------------------------------------
-# File-classification rules
-# ---------------------------------------------------------------------------
-
-# A file's basename matching this pattern is treated as preprocessing-relevant.
-PREPROC_NAME_RE = re.compile(
-    r"(preprocess|pre[_-]?proc|tokeniz|"
-    r"clean(?:up|ing|er)?|filter|dedup(?:lic)?|"
-    r"dataset|data[_-]?loader|dataloader|"
-    r"prepare[_-]?data|prep[_-]?data|build[_-]?data|process[_-]?data|make[_-]?data|"
-    r"prompt[_-]?(?:build|wrap|template)|pipeline|wrapper)",
-    re.IGNORECASE,
-)
-
-# Any file under one of these top-level folders is treated as preprocessing-relevant.
-PREPROC_FOLDER_PREFIXES = (
-    "data/", "data_processing/", "data-processing/",
-    "preprocessing/", "preprocess/",
-    "pipeline/", "pipelines/",
-    "tokenizer/", "tokenization/",
-    "scripts/",
-    "src/data/", "src/preprocessing/", "src/pipeline/",
-)
-
-SOURCE_EXTS = (
-    ".py", ".sh", ".ipynb", ".js", ".ts",
-    ".rb", ".go", ".jl", ".r", ".scala", ".rs",
-)
-
-# Folders we never look inside — vendored/test/build artefacts.
-SKIP_FOLDER_PREFIXES = (
-    "test/", "tests/", "__tests__/", ".github/",
-    "node_modules/", "vendor/", "third_party/", "third-party/",
-    "examples/", "docs/", "doc/",
-    "build/", "dist/", ".cache/",
-)
-
-MAX_TOTAL_CHARS    = 80_000
-PER_FILE_CHAR_CAP  = 8_000
-MAX_NAMED_FILES    = 12
-MAX_FOLDER_FILES   = 12
-MAX_GENERIC_FILES  = 8
 
 # ---------------------------------------------------------------------------
 # Repo URL parsing
 # ---------------------------------------------------------------------------
 
 def parse_repo_url(url):
-    """Extract (owner, repo) from a GitHub URL.
+    """Extract (owner, repo) from a GitHub URL, including GitHub Pages links.
 
-    Handles standard github.com URLs via the project's shared parser, and
-    falls back to a regex for `<owner>.github.io/<repo>` GitHub Pages links
-    that often appear as the project page in academic papers. Returns None
-    for any URL that isn't on GitHub (HuggingFace, anonymous.4open.science,
-    project websites, etc.) — those are skipped at the call site.
+    Returns None for non-GitHub URLs (HuggingFace, anonymous repos, etc.).
     """
     if not url:
         return None
@@ -144,20 +103,21 @@ def parse_repo_url(url):
 def _is_skippable(path_lower):
     return any(path_lower.startswith(p) for p in SKIP_FOLDER_PREFIXES)
 
+
 def _is_source(path_lower):
     if "." not in path_lower:
         return False
     ext = "." + path_lower.rsplit(".", 1)[-1]
     return ext in SOURCE_EXTS
 
+
 def collect_repo_content(owner, repo):
     """Fetch preprocessing-relevant files from a GitHub repo.
 
     Files are sorted into three priority buckets and fetched within a shared
-    character budget so that named preprocessing files (preprocess.py,
-    tokenize.py, …) are guaranteed to make it into the LLM's context before
-    generic source code can crowd them out. Returns a (combined_text,
-    fetched_paths) tuple; combined_text is empty if the repo is unreachable.
+    character budget so that named preprocessing files are guaranteed to make
+    it into the LLM's context before generic source code can crowd them out.
+    Returns a (combined_text, fetched_paths) tuple.
     """
     print(f"  [GitHub] Listing {owner}/{repo}")
     try:
@@ -227,274 +187,325 @@ def collect_repo_content(owner, repo):
 
     return "\n\n".join(combined), fetched
 
+
 # ---------------------------------------------------------------------------
-# GPT call
+# LLM call wrapper
 # ---------------------------------------------------------------------------
 
-def call_gpt(messages):
-    """Send role-tagged messages to the configured Azure OpenAI deployment.
+EMPTY_PREPROCESSING_PAYLOAD = {
+    "classification":      None,
+    "evidence":            "Empty LLM response after retry — content may exceed context window",
+    "key_quotes":          [],
+    "matched_categories":  [],
+    "preprocessing_files": [],
+    "diagnostic_notes":    "Empty response",
+    "final_reason":        "",
+}
 
-    Returns the raw response string. Empty string on error so the caller can
-    fall through to the parser's default NOT_APPLICABLE without raising.
+# Content cache — avoids re-fetching GitHub repos when running multiple models.
+_content_cache = {}
+
+
+def _cached_collect_repo_content(owner, repo):
+    """Return cached collect_repo_content result, fetching only on first call."""
+    key = f"{owner}/{repo}"
+    if key not in _content_cache:
+        _content_cache[key] = collect_repo_content(owner, repo)
+    return _content_cache[key]
+
+
+# ---------------------------------------------------------------------------
+# Per-paper orchestration
+# ---------------------------------------------------------------------------
+
+def make_check_paper_fn(deployment, token_usage):
+    """Factory: return a check_paper function bound to a specific LLM deployment.
+
+    Using a factory lets run_pipeline swap in different models without
+    re-fetching GitHub content — the content cache is shared across all model
+    instances for the same repo.
     """
-    total_chars = sum(len(m["content"]) for m in messages)
-    print(f"  [GPT] Calling {AZURE_OPENAI_DEPLOYMENT} — "
-          f"{total_chars:,} total chars, max_completion_tokens=4000")
-    try:
-        resp = client.chat.completions.create(
-            model=AZURE_OPENAI_DEPLOYMENT,
-            messages=messages,
-            max_completion_tokens=4000,
+
+    def _llm_check(repo_content, paper_title, repo_url):
+        def build_msg(content):
+            return USER_PROMPT.format(
+                title=paper_title,
+                repo_url=repo_url,
+                repo_content=content if content else "[No source code files found in the repository]",
+            )
+
+        token_budget = 4000 if len(repo_content) > 50_000 else 2000
+
+        return llm_call_parse_retry(
+            client=client,
+            deployment=deployment,
+            system_prompt=SYSTEM_PROMPT,
+            build_user_message=build_msg,
+            content=repo_content,
+            token_usage=token_usage,
+            empty_payload=EMPTY_PREPROCESSING_PAYLOAD,
+            required_list_fields=("key_quotes", "matched_categories", "preprocessing_files"),
+            max_completion_tokens=token_budget,
+            retry_truncate_chars=40_000,
+            retry_max_tokens=4000,
+            preview_chars=500,
         )
-        TOKEN_USAGE.add_from_response(resp)
-        raw = (resp.choices[0].message.content or "").strip()
-        if not raw:
-            print(f"  [GPT] ERROR: Empty response")
-        else:
-            print(f"  [GPT] OK — {len(raw)} chars: {raw[:200]!r}")
-        return raw
-    except Exception as e:
-        print(f"  [GPT] ERROR: {type(e).__name__}: {e}")
-        return ""
 
-# ---------------------------------------------------------------------------
-# Parse GPT response
-# ---------------------------------------------------------------------------
+    def check_paper(paper):
+        title = paper.get("title", "")
+        url   = paper.get("repo", "") or ""
 
-def parse(raw):
-    """Parse the LLM's JSON response and validate its classification field.
+        result = {
+            "title":               title,
+            "semanticscholarid":   paper.get("semanticscholarid", ""),
+            "repo":                url,
+            "status":              None,
+            "classification":      "NOT_APPLICABLE",
+            "evidence":            "",
+            "matched_categories":  [],
+            "preprocessing_files": [],
+            "files_checked":       [],
+            "note":                "",
+        }
 
-    Anything outside {EXISTS, NOT_APPLICABLE} is coerced to NOT_APPLICABLE so a
-    malformed reply degrades safely instead of being silently mis-counted.
-    """
-    result = {
-        "classification":       "NOT_APPLICABLE",
-        "confidence":           0,
-        "key_quotes":           [],
-        "matched_categories":   [],
-        "preprocessing_files":  [],
-        "diagnostic_notes":     "N/A",
-        "final_reason":         "N/A",
-        "evidence":             "N/A",
-    }
-    if not raw:
-        result["diagnostic_notes"] = "EMPTY GPT RESPONSE"
+        parsed = parse_repo_url(url)
+        if not parsed:
+            result["status"] = "skipped"
+            result["note"] = (
+                f"Not a GitHub repo — manual review needed. URL: {url}"
+                if url else "No repo URL provided"
+            )
+            return result
+
+        owner, repo_name = parsed
+
+        try:
+            repo_content, files_checked = _cached_collect_repo_content(owner, repo_name)
+            result["files_checked"] = files_checked
+
+            if not files_checked:
+                result["status"] = "no"
+                result["note"] = "No source files retrievable from the repo"
+                return result
+
+            llm_result = _llm_check(repo_content, title, url)
+            clf = llm_result.get("classification")
+
+            result["classification"]      = clf or "NOT_APPLICABLE"
+            result["evidence"]            = (
+                "; ".join(llm_result.get("key_quotes", [])) or
+                llm_result.get("diagnostic_notes", "")
+            )
+            result["matched_categories"]  = llm_result.get("matched_categories", [])
+            result["preprocessing_files"] = llm_result.get("preprocessing_files", [])
+            result["note"]                = llm_result.get("final_reason", "")
+
+            if clf is None:
+                result["status"] = "error"
+                result["note"]   = "Empty LLM response — content may be too large for this model"
+            elif clf == "EXISTS":
+                result["status"] = "yes"
+            else:
+                result["status"] = "no"
+
+        except RuntimeError as e:
+            result["status"] = "error"
+            result["note"]   = str(e)
+        except Exception as e:
+            result["status"] = "error"
+            result["note"]   = f"Unexpected error: {e}"
+
         return result
 
-    try:
-        data = json.loads(raw)
-        result.update(data)
-        result["evidence"] = (
-            "; ".join(data.get("key_quotes", [])) or
-            data.get("diagnostic_notes", "N/A")
-        )
-    except json.JSONDecodeError:
-        result["diagnostic_notes"] = f"INVALID JSON — raw started: {raw[:100]}"
+    return check_paper
 
-    if result.get("classification") not in ALLOWED:
-        result["classification"] = "NOT_APPLICABLE"
-
-    return result
 
 # ---------------------------------------------------------------------------
-# Per-paper pipeline
+# Console reporting
 # ---------------------------------------------------------------------------
 
-def process(entry):
-    """Run the classification pipeline on a single paper entry's GitHub repo.
+def print_results(results):
+    """Print a compact console table of per-paper results."""
+    W = 110
+    print("\n" + "=" * W)
+    print(f"{'#':<4} {'STATUS':<10} {'CATEGORIES':<36} TITLE")
+    print("=" * W)
 
-    Sources reported on the result dict:
-      GITHUB     — repo was fetched and the LLM produced a verdict
-      NO_GITHUB  — entry's repo URL is not a GitHub URL (HuggingFace, etc.)
-      EMPTY_REPO — repo was reachable but yielded no source files
-    """
-    title    = entry.get("title", "")
-    repo_url = entry.get("repo", "") or ""
+    for i, r in enumerate(results, 1):
+        icon = "EXISTS" if r["status"] == "yes" else "NOT_APPL"
 
-    parsed = parse_repo_url(repo_url)
-    if not parsed:
-        print(f"  [PIPELINE] Not a GitHub URL: {repo_url!r}")
-        return {
-            "title":             title,
-            "semanticscholarid": entry.get("semanticscholarid", ""),
-            "repo":              repo_url,
-            "classification":    "NOT_APPLICABLE",
-            "evidence":          "Repository URL is not a GitHub URL",
-            "reasoning":         "Skipped — non-GitHub repository",
-            "source":            "NO_GITHUB",
-            "files_checked":     [],
-        }
+        cats_str = ", ".join(r.get("matched_categories", []))[:34]
+        if not cats_str and r.get("note"):
+            cats_str = r["note"][:34]
 
-    owner, repo = parsed
-    print(f"  [PIPELINE] GitHub: {owner}/{repo}")
-    content, fetched_paths = collect_repo_content(owner, repo)
+        title_short = r["title"][:46] + ("..." if len(r["title"]) > 46 else "")
+        print(f"{i:<4} {icon:<10} {cats_str:<36} {title_short}")
 
-    if not content:
-        return {
-            "title":             title,
-            "semanticscholarid": entry.get("semanticscholarid", ""),
-            "repo":              repo_url,
-            "classification":    "NOT_APPLICABLE",
-            "evidence":          "No source files retrievable from the repo",
-            "reasoning":         "Empty or inaccessible repository",
-            "source":            "EMPTY_REPO",
-            "files_checked":     [],
-        }
+        if r.get("evidence"):
+            print(f"       evidence: {r['evidence'][:120]}")
+        if r.get("files_checked"):
+            extras = len(r["files_checked"]) - 5
+            print(f"       files: {', '.join(r['files_checked'][:5])}"
+                  + (f" (+{extras} more)" if extras > 0 else ""))
 
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user",   "content": USER_PROMPT.format(
-            title=title, repo_url=repo_url, repo_content=content)},
-    ]
-    raw    = call_gpt(messages)
-    result = parse(raw)
+    print("=" * W)
+    exists_count = sum(1 for r in results if r["status"] == "yes")
+    na_count     = len(results) - exists_count
+    print(
+        f"\nSUMMARY: {exists_count} EXISTS | "
+        f"{na_count} NOT_APPLICABLE | {len(results)} total\n"
+    )
 
-    result["title"]             = title
-    result["semanticscholarid"] = entry.get("semanticscholarid", "")
-    result["repo"]              = repo_url
-    result["source"]            = "GITHUB"
-    result["files_checked"]     = fetched_paths
-    result["reasoning"]         = result.get("final_reason") or result.get("diagnostic_notes", "")
-    return result
 
 # ---------------------------------------------------------------------------
 # Excel export
 # ---------------------------------------------------------------------------
 
-def save_excel(results, path):
-    """Write per-paper predictions and a Summary sheet to an Excel workbook.
+def save_results(all_model_results, path=None):
+    """Write per-model Results + Detail + Summary sheets, and a Model Comparison sheet."""
+    if path is None:
+        path = Path(__file__).resolve().parent / "results" / "preprocessing_code_results.xlsx"
 
-    The Results sheet colour-codes each row by predicted label and source.
-    The Summary sheet shows label counts and a breakdown by source.
-    """
-    from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill, Alignment
+    wb     = Workbook()
+    border = thin_border()
+    center = alignment_center()
+    wrap   = alignment_wrap_left()
 
-    COLOR = {
-        "EXISTS":         "FFEB9C",
-        "NOT_APPLICABLE": "FCE4D6",
-    }
-    LABEL = {
-        "EXISTS":         "Exists",
-        "NOT_APPLICABLE": "Not applicable",
-    }
-    SOURCE_COLOR = {
-        "GITHUB":     "BDD7EE",
-        "NO_GITHUB":  "F2F2F2",
-        "EMPTY_REPO": "FFE4B5",
-        "ERROR":      "FFC7CE",
-    }
+    deployments = list(all_model_results.keys())
+    first_sheet = True
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Results"
+    for deployment in deployments:
+        model_data  = all_model_results[deployment]
+        results     = model_data["results"]
+        token_usage = model_data["token_usage"]
 
-    headers = ["#", "Title", "Repo", "Prediction", "Source",
-               "Files Checked", "Evidence", "Reasoning"]
-    for col, h in enumerate(headers, 1):
-        c = ws.cell(row=1, column=col, value=h)
-        c.font      = Font(bold=True, color="FFFFFF", name="Arial", size=11)
-        c.fill      = PatternFill("solid", start_color="2F4F6F")
-        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    ws.row_dimensions[1].height = 25
+        # ── Results sheet (per model) ────────────────────────────────────
+        if first_sheet:
+            ws1 = wb.active
+            first_sheet = False
+        else:
+            ws1 = wb.create_sheet()
+        ws1.title = safe_sheet_name("Results", deployment)
 
-    for i, r in enumerate(results, 1):
-        row = i + 1
-        clf = r.get("classification", "NOT_APPLICABLE")
-        bg  = "F9F9F9" if i % 2 == 0 else "FFFFFF"
+        hdrs1   = ["#", "Classification", "Title", "Repo",
+                   "Categories", "Preprocessing Files", "Evidence",
+                   "Files Checked", "Note", "Tokens Used"]
+        widths1 = [5, 10, 45, 40, 30, 40, 55, 50, 35, 12]
+        write_header_row(ws1, hdrs1, widths1, fill_hex="2F4F6F", border=border)
 
-        def cell(col, val, bold=False, fg="000000", bg_ov=None):
-            c = ws.cell(row=row, column=col, value=val)
-            c.font      = Font(name="Arial", size=10, bold=bold, color=fg)
-            c.alignment = Alignment(
-                horizontal="center" if col in (1, 4, 5) else "left",
-                vertical="top", wrap_text=True)
-            c.fill = PatternFill("solid", start_color=bg_ov or bg)
+        def _to_classification(r):
+            return "EXISTS" if r.get("status") == "yes" else "NOT_APPLICABLE"
 
-        cell(1, i)
-        cell(2, r.get("title", ""))
-        cell(3, r.get("repo",  ""))
+        def results_row_data(r, num):
+            return [
+                num,
+                _to_classification(r),
+                r.get("title") or "",
+                r.get("repo") or "",
+                ", ".join(r.get("matched_categories") or []),
+                ", ".join(r.get("preprocessing_files") or []),
+                r.get("evidence") or "",
+                ", ".join(r.get("files_checked") or []),
+                r.get("note") or "",
+                r.get("tokens_used") or "",
+            ]
 
-        c4 = ws.cell(row=row, column=4, value=LABEL.get(clf, clf))
-        c4.font      = Font(bold=True, name="Arial", size=10)
-        c4.alignment = Alignment(horizontal="center", vertical="top", wrap_text=True)
-        c4.fill      = PatternFill("solid", start_color=COLOR.get(clf, "F2F2F2"))
+        write_results_data_rows(
+            ws1, results, results_row_data,
+            border=border,
+            row_height_fn=lambda vals: auto_row_height(vals),
+        )
 
-        src = r.get("source", "")
-        c5 = ws.cell(row=row, column=5, value=src)
-        c5.font      = Font(name="Arial", size=10, bold=True)
-        c5.alignment = Alignment(horizontal="center", vertical="top")
-        c5.fill      = PatternFill("solid", start_color=SOURCE_COLOR.get(src, bg))
+        # ── Per-File Detail sheet (per model) ────────────────────────────
+        ws2 = wb.create_sheet(safe_sheet_name("Detail", deployment))
+        hdrs2   = ["Paper #", "Paper Title", "Repo",
+                   "Preprocessing File", "GitHub Link"]
+        widths2 = [8, 50, 45, 60, 75]
+        write_header_row(ws2, hdrs2, widths2, fill_hex="2F4F6F", border=border)
 
-        cell(6, "\n".join(r.get("files_checked", [])))
-        cell(7, r.get("evidence",  ""))
-        cell(8, r.get("reasoning", ""))
-        ws.row_dimensions[row].height = 60
+        detail_row   = 2
+        merge_center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        merge_left   = Alignment(horizontal="left",   vertical="center", wrap_text=True)
 
-    ws2 = wb.create_sheet("Summary")
-    ws2["A1"] = "Total papers"
-    ws2["B1"] = len(results)
-    ws2["A1"].font = ws2["B1"].font = Font(bold=True, name="Arial", size=12)
+        for paper_num, r in enumerate(results, 1):
+            owner, repo_name = parse_github_repo(r.get("repo", ""))
+            file_rows = [f for f in r.get("preprocessing_files", []) if f and f.strip()]
+            if not file_rows:
+                continue
 
-    for col, h in enumerate(["Label", "Count"], 1):
-        ws2.cell(row=3, column=col, value=h).font = Font(bold=True, name="Arial")
-    counts = Counter(r.get("classification", "NOT_APPLICABLE") for r in results)
-    r2 = 4
-    for lbl in ("EXISTS", "NOT_APPLICABLE"):
-        ws2.cell(row=r2, column=1, value=LABEL.get(lbl, lbl))
-        ws2.cell(row=r2, column=2, value=counts.get(lbl, 0))
-        r2 += 1
+            start_row = detail_row
+            for fpath in file_rows:
+                fpath = fpath.strip()
+                link  = (
+                    f"https://github.com/{owner}/{repo_name}/blob/HEAD/{fpath}"
+                    if owner else ""
+                )
+                for col_idx, value in enumerate([fpath, link], 4):
+                    cell = ws2.cell(row=detail_row, column=col_idx, value=value)
+                    cell.font   = Font(name="Arial", size=10)
+                    cell.border = border
+                    cell.alignment = wrap
+                    if col_idx == 5 and value:
+                        cell.hyperlink = value
+                        cell.font = Font(name="Arial", size=10,
+                                         color="0563C1", underline="single")
+                ws2.row_dimensions[detail_row].height = 18
+                detail_row += 1
 
-    r2 += 1
-    ws2.cell(row=r2, column=1, value="By source").font = Font(bold=True, name="Arial")
-    r2 += 1
-    sources = Counter(r.get("source", "") for r in results)
-    for src, cnt in sources.most_common():
-        ws2.cell(row=r2, column=1, value=src or "(none)")
-        ws2.cell(row=r2, column=2, value=cnt)
-        r2 += 1
+            end_row = detail_row - 1
+            ws2.cell(row=start_row, column=1, value=paper_num).font = Font(name="Arial", size=10)
+            ws2.cell(row=start_row, column=2, value=r.get("title") or "").font = Font(name="Arial", size=10)
+            ws2.cell(row=start_row, column=3, value=r.get("repo") or "").font = Font(name="Arial", size=10)
+            for col_idx in (1, 2, 3):
+                cell = ws2.cell(row=start_row, column=col_idx)
+                cell.border = border
+                cell.alignment = merge_center if col_idx == 1 else merge_left
+            if end_row > start_row:
+                ws2.merge_cells(start_row=start_row, start_column=1, end_row=end_row, end_column=1)
+                ws2.merge_cells(start_row=start_row, start_column=2, end_row=end_row, end_column=2)
+                ws2.merge_cells(start_row=start_row, start_column=3, end_row=end_row, end_column=3)
 
-    for col, w in [("A", 22), ("B", 14)]:
-        ws2.column_dimensions[col].width = w
-    for col, w in [("A", 5), ("B", 42), ("C", 38), ("D", 14),
-                   ("E", 12), ("F", 35), ("G", 50), ("H", 50)]:
-        ws.column_dimensions[col].width = w
-    ws.freeze_panes = "A2"
+        # ── Summary sheet (per model) ────────────────────────────────────
+        ws3 = wb.create_sheet(safe_sheet_name("Summary", deployment))
+        write_summary_sheet(
+            ws3, results,
+            positive_label="EXISTS",
+            negative_label="NOT_APPLICABLE",
+            token_usage=token_usage,
+            deployment=deployment,
+            fill_hex="2F4F6F",
+            border=border,
+        )
+
+    # ── Model Comparison sheet ───────────────────────────────────────────
+    if len(deployments) > 1:
+        ws_cmp = wb.create_sheet("Model Comparison")
+        write_comparison_sheet(
+            ws_cmp, all_model_results, fill_hex="2F4F6F", border=border,
+        )
+
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
     wb.save(path)
-    print(f"\n  Saved: {path}")
+    print(f"Full results saved to {path}")
+
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
-if __name__ == "__main__":
-    results = []
-    for entry in PAPERS:
-        title = entry.get("title", "")
-        print(f"\n{'='*60}")
-        print(f"  {title[:70]}")
-        print(f"{'='*60}")
-        try:
-            result = process(entry)
-        except Exception as e:
-            print(f"  [FATAL] {type(e).__name__}: {e}")
-            result = {
-                "title":             title,
-                "semanticscholarid": entry.get("semanticscholarid", ""),
-                "repo":              entry.get("repo", ""),
-                "classification":    "NOT_APPLICABLE",
-                "evidence":          f"ERROR: {e}",
-                "reasoning":         "Exception during processing",
-                "source":            "ERROR",
-                "files_checked":     [],
-            }
-        results.append(result)
-        print(f"  -> FINAL: [{result['source']}] {result['classification']}")
-        time.sleep(PAUSE)
+def main():
+    """Entry point: run the preprocessing-code analysis pipeline."""
+    _content_cache.clear()
+    run_pipeline(
+        papers=PAPERS,
+        deployments=AZURE_OPENAI_DEPLOYMENTS,
+        make_check_paper_fn=make_check_paper_fn,
+        print_results_fn=print_results,
+        save_results_fn=save_results,
+        description="preprocessing / pipeline code",
+        github_token=GITHUB_TOKEN,
+    )
 
-    print(f"\n{'='*60}\nSUMMARY\n{'='*60}")
-    print(f"  Labels:  {dict(Counter(r['classification'] for r in results))}")
-    print(f"  Sources: {dict(Counter(r['source']         for r in results))}")
-    print_token_usage_report(TOKEN_USAGE, AZURE_OPENAI_DEPLOYMENT)
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.xlsx")
-    save_excel(results, out)
+
+if __name__ == "__main__":
+    main()

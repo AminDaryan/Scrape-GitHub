@@ -7,6 +7,7 @@ load_dotenv()
 
 # Suppress litellm's verbose startup/request logging
 litellm.suppress_debug_info = True
+litellm.drop_params = True
 os.environ.setdefault("LITELLM_LOG", "ERROR")
 
 # ── Provider selection ─────────────────────────────────────────────────────────
