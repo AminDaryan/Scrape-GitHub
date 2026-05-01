@@ -14,8 +14,8 @@ Entry point:
 
 import time
 
-from common.fetch_and_parse_github_repo import parse_github_repo
-from common.token_usage import TokenUsageTracker, print_token_usage_report
+from common.github_helpers import parse_github_repo
+from common.llm_helpers import TokenUsageTracker, print_token_usage_report
 
 
 def _run_single_pass(

@@ -6,7 +6,7 @@ pattern so each checker only supplies its checker-specific config/callbacks.
 
 import inspect
 
-from common.fetch_and_parse_github_repo import parse_github_repo, is_github
+from common.github_helpers import parse_github_repo, is_github
 
 
 def check_paper_generic(

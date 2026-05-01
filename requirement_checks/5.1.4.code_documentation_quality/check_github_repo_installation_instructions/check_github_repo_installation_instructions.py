@@ -28,10 +28,8 @@ sys.path.insert(0, str(_this.parent.parent))          # 5.1.4.code_documentation
 sys.path.insert(0, str(_this.parent.parent.parent))   # requirement_checks/
 
 from openpyxl import Workbook
-from common.fetch_and_parse_github_repo import (
+from common.github_helpers import (
     load_dotenv, list_all_repo_files, fetch_file_content,
-)
-from common.repo_content_helpers import (
     fetch_paths_with_char_budget,
     first_readme_path,
     path_priority_with_readme_first,
