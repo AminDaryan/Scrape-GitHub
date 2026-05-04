@@ -1,19 +1,29 @@
 """
-GitHub repository maintenance indicator scraper.
+GitHub repository scraper — metadata + maintenance indicators.
 
-Answers the reproducibility question:
-  "What indicators of ongoing maintenance exist?"
+Collects two layers of information for each paper's GitHub repository:
 
-For each paper's GitHub repository, checks the following indicators via
-the GitHub REST API (no LLM needed):
+A. Basic repository metadata (single API call):
+     - Name / URL
+     - Stars / Forks / Open Issues counts
+     - Primary language
+     - License
+     - Last push / last update dates
+     - README presence (root-level readme.* file)
+     - Setup files presence (setup.py, requirements.txt, Dockerfile, …)
 
-  1. RECENT_COMMITS        — Commits within 6 months of the evaluation date.
-  2. ACTIVE_ISSUE_RESPONSES — Issues/PRs that received maintainer responses.
-  3. MULTIPLE_CONTRIBUTORS — More than the original author(s) contributed.
-  4. VERSIONED_RELEASES    — Tagged releases using semantic versioning.
-  5. STALE                 — No activity (commits, issues, releases) for > 1 year.
-  6. ARCHIVED              — Repository explicitly archived or marked deprecated.
-  7. NOT_ASSESSABLE        — Repository is inaccessible or API calls failed.
+B. Maintenance indicators (answers "What indicators of ongoing maintenance exist?"):
+     1. RECENT_COMMITS         — Commits within 6 months of the evaluation date.
+     2. ACTIVE_ISSUE_RESPONSES — Issues/PRs that received maintainer responses.
+     3. MULTIPLE_CONTRIBUTORS  — More than the original author(s) contributed.
+     4. VERSIONED_RELEASES     — Tagged releases using semantic versioning.
+     5. STALE                  — No activity (commits, issues, releases) for > 1 year.
+     6. ARCHIVED               — Repository explicitly archived or marked deprecated.
+     7. NOT_ASSESSABLE         — Repository is inaccessible or API calls failed.
+
+Both layers are written to one Excel workbook with two sheets:
+  - "Results"  — one row per paper with metadata and indicator columns.
+  - "Summary"  — counts of each overall maintenance status.
 
 Usage:
   python scrape_github_data.py
@@ -34,10 +44,30 @@ from dotenv import load_dotenv
 load_dotenv()
 
 _this = Path(__file__).resolve()
+# Folder layout for path resolution:
+#   _this.parent             = 5.2.2.maintenance_activity_indicators/
+#   _this.parent.parent      = 5.2/
+#   _this.parent.parent.parent = requirement_checks/   ← needed for common/, data/, openai_client
 sys.path.insert(0, str(_this.parent.parent.parent))
-sys.path.insert(0, str(_this.parent.parent))
 
-from papers_from_database import PAPERS
+from data.papers_from_database import PAPERS
+
+# Setup-related filenames that indicate the repo has installation instructions.
+# This is a lightweight replacement for the original NLP-based detector — if
+# any of these are present at the repo root, we say "Yes, the repo has setup
+# information" without paying the cost of an LLM call.
+SETUP_FILE_BASENAMES = {
+    "setup.py", "setup.cfg", "pyproject.toml",
+    "requirements.txt", "requirements-dev.txt",
+    "environment.yml", "environment.yaml", "conda.yml",
+    "dockerfile", "docker-compose.yml", "docker-compose.yaml",
+    "makefile", "install.sh", "install.md",
+    "package.json", "yarn.lock", "package-lock.json",
+    "pipfile", "pipfile.lock", "poetry.lock",
+    "cargo.toml", "go.mod", "gemfile",
+}
+
+README_PREFIXES = ("readme",)
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 HEADERS = {"Authorization": f"Bearer {GITHUB_TOKEN}"} if GITHUB_TOKEN else None
@@ -260,12 +290,30 @@ def check_archived(repo_data):
 # PER-REPO ASSESSMENT
 # =============================================================================
 
-def assess_repo(owner, repo, headers=None):
-    """Run all maintenance indicator checks for a single repository.
+def _empty_metadata():
+    """Return blank metadata fields used when a repo is unreachable."""
+    return {
+        "stars": "N/A", "forks": "N/A", "open_issues": "N/A",
+        "language": "N/A", "license": "N/A",
+        "pushed_at": "N/A", "updated_at": "N/A",
+        "has_readme": "N/A", "has_setup": "N/A",
+    }
 
-    Returns a dict with each indicator as a key, containing both a boolean
-    result and a human-readable detail string. If the repo API call fails,
-    all indicators are set to NOT_ASSESSABLE.
+
+def assess_repo(owner, repo, headers=None):
+    """Fetch basic metadata + run all maintenance indicator checks.
+
+    Two layers of information are gathered:
+      A) Basic metadata, available straight from the repo API response:
+         stars, forks, open_issues, language, license, last push/update dates.
+         README and setup-instructions checks via the project's NLP utility.
+      B) Maintenance indicators, requiring extra API calls:
+         recent commits, issue responses, contributors, versioned releases,
+         staleness, archived/deprecated flag.
+
+    Each indicator is stored as ``(bool, detail_str)``.  If the repo API
+    call fails, every indicator is set to ``(None, "API unavailable")``
+    and ``not_assessable`` is True.
     """
     log(f"  Fetching repo metadata: {owner}/{repo}")
     repo_data = _gh_get(f"/repos/{owner}/{repo}", headers=headers)
@@ -275,6 +323,7 @@ def assess_repo(owner, repo, headers=None):
         return {
             "name": f"{owner}/{repo}",
             "html_url": f"https://github.com/{owner}/{repo}",
+            **_empty_metadata(),
             "recent_commits": (None, "API unavailable"),
             "active_issue_responses": (None, "API unavailable"),
             "multiple_contributors": (None, "API unavailable"),
@@ -284,6 +333,35 @@ def assess_repo(owner, repo, headers=None):
             "not_assessable": True,
         }
 
+    # ── Layer A: Basic metadata (free — already in repo_data) ──────────
+    metadata = {
+        "stars":       repo_data.get("stargazers_count", 0),
+        "forks":       repo_data.get("forks_count", 0),
+        "open_issues": repo_data.get("open_issues_count", 0),
+        "language":    repo_data.get("language") or "N/A",
+        "license":     (repo_data.get("license") or {}).get("name", "N/A") if repo_data.get("license") else "N/A",
+        "pushed_at":   (repo_data.get("pushed_at") or "")[:10] or "N/A",
+        "updated_at":  (repo_data.get("updated_at") or "")[:10] or "N/A",
+    }
+
+    # README + setup-instructions checks via the repo file tree.
+    # One API call returns the whole tree; we then scan the root entries
+    # for README files and common setup-related filenames.
+    log(f"  Checking for README and setup files...")
+    tree = _gh_get(f"/repos/{owner}/{repo}/git/trees/HEAD", headers=headers)
+    if tree and "tree" in tree:
+        root_basenames = {
+            entry["path"].lower()
+            for entry in tree["tree"]
+            if "/" not in entry.get("path", "") and entry.get("type") == "blob"
+        }
+        metadata["has_readme"] = any(b.startswith(README_PREFIXES) for b in root_basenames)
+        metadata["has_setup"] = any(b in SETUP_FILE_BASENAMES for b in root_basenames)
+    else:
+        metadata["has_readme"] = "N/A"
+        metadata["has_setup"] = "N/A"
+
+    # ── Layer B: Maintenance indicators ────────────────────────────────
     log(f"  Checking recent commits...")
     recent_commits = check_recent_commits(owner, repo, headers)
 
@@ -305,6 +383,7 @@ def assess_repo(owner, repo, headers=None):
     return {
         "name": repo_data.get("full_name", f"{owner}/{repo}"),
         "html_url": repo_data.get("html_url", ""),
+        **metadata,
         "recent_commits": recent_commits,
         "active_issue_responses": issue_responses,
         "multiple_contributors": contributors,
@@ -337,11 +416,25 @@ THIN_BORDER     = Border(
 
 EXCEL_HEADERS = [
     "#", "Paper Title", "Repository", "URL",
+    # Basic metadata (Layer A)
+    "Stars", "Forks", "Open\nIssues", "Language", "License",
+    "Last Push", "Last Update", "Has\nREADME", "Setup\nInstructions",
+    # Maintenance indicators (Layer B)
     "Recent Commits\n(6 months)", "Active Issue\nResponses",
     "Multiple\nContributors", "Versioned\nReleases",
     "Stale\n(>1 year)", "Archived /\nDeprecated", "Overall Status",
 ]
-EXCEL_COL_WIDTHS = [5, 45, 28, 50, 22, 26, 22, 28, 22, 22, 18]
+EXCEL_COL_WIDTHS = [
+    5, 45, 28, 50,
+    10, 10, 10, 14, 35, 14, 14, 12, 26,
+    22, 26, 22, 28, 22, 22, 18,
+]
+
+# 1-indexed column groups for styling
+NUMERIC_COLS         = {5, 6, 7}                    # Stars, Forks, Open Issues
+INDICATOR_POS_COLS   = {14, 15, 16, 17}             # positive maintenance indicators
+INDICATOR_NEG_COLS   = {18, 19}                     # stale, archived (inverted colour)
+OVERALL_COL          = 20
 
 
 def _indicator_fill(value):
@@ -445,6 +538,17 @@ def save_to_excel(all_results, filename="maintenance_indicators.xlsx"):
             entry.get("paper_title", ""),
             result["name"],
             result["html_url"],
+            # Basic metadata
+            result.get("stars", "N/A"),
+            result.get("forks", "N/A"),
+            result.get("open_issues", "N/A"),
+            result.get("language", "N/A"),
+            result.get("license", "N/A"),
+            result.get("pushed_at", "N/A"),
+            result.get("updated_at", "N/A"),
+            result.get("has_readme", "N/A"),
+            result.get("has_setup", "N/A"),
+            # Maintenance indicators
             _fmt(rc_val, rc_detail),
             _fmt(ir_val, ir_detail),
             _fmt(mc_val, mc_detail),
@@ -456,24 +560,29 @@ def save_to_excel(all_results, filename="maintenance_indicators.xlsx"):
 
         # Column index → fill colour for indicator columns
         indicator_fills = {
-            5: _indicator_fill(rc_val),
-            6: _indicator_fill(ir_val),
-            7: _indicator_fill(mc_val),
-            8: _indicator_fill(vr_val),
-            9: _stale_archived_fill(st_val),
-            10: _stale_archived_fill(ar_val),
-            11: OVERALL_FILL.get(overall, WHITE_FILL),
+            14: _indicator_fill(rc_val),
+            15: _indicator_fill(ir_val),
+            16: _indicator_fill(mc_val),
+            17: _indicator_fill(vr_val),
+            18: _stale_archived_fill(st_val),
+            19: _stale_archived_fill(ar_val),
+            OVERALL_COL: OVERALL_FILL.get(overall, WHITE_FILL),
         }
+
+        # Columns that should be centre-aligned (everything except text fields).
+        center_cols = {1} | NUMERIC_COLS | {8, 10, 11, 12, 13} | INDICATOR_POS_COLS | INDICATOR_NEG_COLS | {OVERALL_COL}
 
         for col_idx, value in enumerate(values, start=1):
             cell = ws.cell(row=row_idx, column=col_idx, value=value)
             cell.font      = DATA_FONT
             cell.border    = THIN_BORDER
             cell.alignment = Alignment(
-                horizontal="center" if col_idx in (1, 5, 6, 7, 8, 9, 10, 11) else "left",
+                horizontal="center" if col_idx in center_cols else "left",
                 vertical="center",
                 wrap_text=True,
             )
+            if col_idx in NUMERIC_COLS and isinstance(value, (int, float)):
+                cell.number_format = "#,##0"
             if col_idx in indicator_fills:
                 cell.fill = indicator_fills[col_idx]
         ws.row_dimensions[row_idx].height = 40
@@ -541,6 +650,7 @@ def main():
                 "result": {
                     "name": url or "N/A",
                     "html_url": url or "",
+                    **_empty_metadata(),
                     "recent_commits": (None, "Not a GitHub repo"),
                     "active_issue_responses": (None, "Not a GitHub repo"),
                     "multiple_contributors": (None, "Not a GitHub repo"),

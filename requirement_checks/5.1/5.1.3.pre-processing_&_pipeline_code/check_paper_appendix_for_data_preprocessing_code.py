@@ -32,8 +32,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 _this = Path(__file__).resolve()
+# Folder layout for path resolution:
+#   _this.parent             = 5.1.3.pre-processing_&_pipeline_code/
+#   _this.parent.parent      = 5.1/
+#   _this.parent.parent.parent = requirement_checks/   ← needed for common/, data/, openai_client
 sys.path.insert(0, str(_this.parent.parent.parent))
-sys.path.insert(0, str(_this.parent.parent))
 
 from common.github_helpers import (
     parse_github_repo, list_all_repo_files, fetch_file_content,
@@ -52,7 +55,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font
 
 from openai_client import client, AZURE_OPENAI_DEPLOYMENTS
-from papers_from_database import PAPERS
+from data.papers_from_database import PAPERS
 from prompts import SYSTEM_PROMPT, USER_PROMPT
 from config import (
     PREPROC_NAME_RE, PREPROC_FOLDER_PREFIXES, SOURCE_EXTS,

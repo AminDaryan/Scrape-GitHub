@@ -29,10 +29,15 @@ from pathlib import Path
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
-# Add parent directories to Python path for local imports
+# Add parent directories to Python path for local imports.
+# Folder layout for path resolution:
+#   _this.parent                       = check_github_repo_api_documentation/
+#   _this.parent.parent                = 5.1.4.code_documentation_quality/  (needed for `shared`)
+#   _this.parent.parent.parent         = 5.1/
+#   _this.parent.parent.parent.parent  = requirement_checks/                (needed for common/, data/, openai_client)
 _this = Path(__file__).resolve()
-sys.path.insert(0, str(_this.parent.parent))          # 5.1.4.code_documentation_quality/
-sys.path.insert(0, str(_this.parent.parent.parent))   # requirement_checks/
+sys.path.insert(0, str(_this.parent.parent))                 # 5.1.4.code_documentation_quality/
+sys.path.insert(0, str(_this.parent.parent.parent.parent))   # requirement_checks/
 
 from common.github_helpers import (
     load_dotenv, parse_github_repo, list_all_repo_files, fetch_file_content,
@@ -50,7 +55,7 @@ from shared import check_paper_generic
 
 load_dotenv()
 
-from papers_from_database import PAPERS
+from data.papers_from_database import PAPERS
 from openai_client import client, AZURE_OPENAI_DEPLOYMENTS as DEPLOYMENTS
 from prompts import SYSTEM_PROMPT
 from config import (
