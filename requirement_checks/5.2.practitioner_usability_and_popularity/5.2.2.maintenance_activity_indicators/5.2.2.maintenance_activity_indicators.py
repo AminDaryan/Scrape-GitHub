@@ -46,7 +46,7 @@ load_dotenv()
 _this = Path(__file__).resolve()
 # Folder layout for path resolution:
 #   _this.parent             = 5.2.2.maintenance_activity_indicators/
-#   _this.parent.parent      = 5.2/
+#   _this.parent.parent      = 5.2.practitioner_usability_and_popularity/
 #   _this.parent.parent.parent = requirement_checks/   ← needed for common/, data/, openai_client
 sys.path.insert(0, str(_this.parent.parent.parent))
 

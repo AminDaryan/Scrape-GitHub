@@ -79,7 +79,7 @@ from openpyxl import Workbook
 # Folder layout for path resolution:
 #   _this.parent                       = check_github_repo_api_documentation/
 #   _this.parent.parent                = 5.1.4.code_documentation_quality/
-#   _this.parent.parent.parent         = 5.1/
+#   _this.parent.parent.parent         = 5.1.code_availability/
 #   _this.parent.parent.parent.parent  = requirement_checks/
 _this = Path(__file__).resolve()
 sys.path.insert(0, str(_this.parent.parent.parent.parent))

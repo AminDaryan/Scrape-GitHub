@@ -26,7 +26,7 @@ from pathlib import Path
 # Folder layout for path resolution:
 #   _this.parent                       = check_github_repo_installation_instructions/
 #   _this.parent.parent                = 5.1.4.code_documentation_quality/  (needed for `shared`)
-#   _this.parent.parent.parent         = 5.1/
+#   _this.parent.parent.parent         = 5.1.code_availability/
 #   _this.parent.parent.parent.parent  = requirement_checks/                (needed for common/, data/, openai_client)
 _this = Path(__file__).resolve()
 sys.path.insert(0, str(_this.parent.parent))                 # 5.1.4.code_documentation_quality/
