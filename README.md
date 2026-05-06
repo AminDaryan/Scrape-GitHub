@@ -53,6 +53,7 @@ flowchart TD
   q514 --> inline["inline comments"]
   q514 --> install["installation instructions"]
   q514 --> usage["usage examples"]
+  q514 --> shared["shared/<br/>check_paper_common.py"]
   rc --> q52["5.2.practitioner_usability_and_popularity/"]
   q52 --> q522["5.2.2 maintenance indicators"]
   q52 --> q523["5.2.3 adoption metrics"]
