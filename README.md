@@ -11,6 +11,8 @@ It currently has three active pipelines under `requirement_checks/`:
   - Check if repos contain installation instructions
   - Check if repos contain usage/example commands
   - Check if repos contain API documentation (both LLM and rule-based variants)
+- **`5.1.code_availability/5.1.5.code_license/`**
+  - Detect the code license (GitHub licensee API → root LICENSE file scan → MISSING)
 - **`5.2.practitioner_usability_and_popularity/5.2.2.maintenance_activity_indicators/`**
   - Detect ongoing-maintenance indicators (recent commits, multiple contributors, versioned releases, staleness, archived status, …)
 - **`5.2.practitioner_usability_and_popularity/5.2.3.adoption_metrics/`**
@@ -28,6 +30,8 @@ At a glance:
   Q 5.1.3 — preprocessing / pipeline code classifier.
 - `requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/`
   Documentation-quality pipelines (inline comments, installation, usage examples, API docs).
+- `requirement_checks/5.1.code_availability/5.1.5.code_license/`
+  Q 5.1.5 — automatic license extraction (no LLM).
 - `requirement_checks/5.2.practitioner_usability_and_popularity/5.2.2.maintenance_activity_indicators/`
   Q 5.2.2 — maintenance indicators (replaces the older `scrape_github_data` script).
 - `requirement_checks/5.2.practitioner_usability_and_popularity/5.2.3.adoption_metrics/`
@@ -49,6 +53,7 @@ flowchart TD
   q514 --> inline["inline comments checker"]
   q514 --> install["installation checker"]
   q514 --> usage["usage examples checker"]
+  q51 --> q515["5.1.5 code license"]
   root --> q52["requirement_checks/5.2.practitioner_usability_and_popularity"]
   q52 --> q522["5.2.2 maintenance indicators"]
   q52 --> q523["5.2.3 adoption metrics"]
@@ -69,6 +74,7 @@ All scripts read papers from the central [`data/papers_from_database.py`](requir
 | Q 5.1.4: Usage / example commands? | [check_github_repo_example_commands.py](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_usage_examples/check_github_repo_example_commands.py) | LLM | [results/usage_examples_results.xlsx](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_usage_examples/results/usage_examples_results.xlsx) |
 | Q 5.1.4: API documentation? | [check_github_repo_api_documentation.py](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_api_documentation/check_github_repo_api_documentation.py) | LLM | [results/api_documentation_results.xlsx](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_api_documentation/results/api_documentation_results.xlsx) |
 | Q 5.1.4: API documentation (no LLM)? | [api_documentation_check_no_llm_used.py](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_api_documentation/api_documentation_check_no_llm_used.py) | Rule-based (regex + Python AST) | [results/api_documentation_no_llm.xlsx](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_api_documentation/results/api_documentation_no_llm.xlsx) |
+| Q 5.1.5: Is the code released under an explicit license? | [5.1.5.code_license.py](requirement_checks/5.1.code_availability/5.1.5.code_license/5.1.5.code_license.py) | GitHub licensee API + LICENSE-file scan (no LLM) | [code_license.xlsx](requirement_checks/5.1.code_availability/5.1.5.code_license/code_license.xlsx) |
 | Q 5.2.2: Ongoing-maintenance indicators? | [5.2.2.maintenance_activity_indicators.py](requirement_checks/5.2.practitioner_usability_and_popularity/5.2.2.maintenance_activity_indicators/5.2.2.maintenance_activity_indicators.py) | GitHub API only (no LLM) | [maintenance_indicators.xlsx](requirement_checks/5.2.practitioner_usability_and_popularity/5.2.2.maintenance_activity_indicators/maintenance_indicators.xlsx) |
 | Q 5.2.3: Adoption metrics (stars, forks, PyPI monthly downloads)? | [5.2.3.adoption_metrics.py](requirement_checks/5.2.practitioner_usability_and_popularity/5.2.3.adoption_metrics/5.2.3.adoption_metrics.py) | GitHub API + pypistats.org (no LLM) | [adoption_metrics.xlsx](requirement_checks/5.2.practitioner_usability_and_popularity/5.2.3.adoption_metrics/adoption_metrics.xlsx) |
 
@@ -164,6 +170,9 @@ python "requirement_checks/5.1.code_availability/5.1.4.code_documentation_qualit
 
 # API documentation — single repo, prints JSON
 python "requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_api_documentation/api_documentation_check_no_llm_used.py" pallets/flask
+
+# License (Q 5.1.5)
+python "requirement_checks/5.1.code_availability/5.1.5.code_license/5.1.5.code_license.py"
 
 # Maintenance indicators
 python "requirement_checks/5.2.practitioner_usability_and_popularity/5.2.2.maintenance_activity_indicators/5.2.2.maintenance_activity_indicators.py"
