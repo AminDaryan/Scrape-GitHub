@@ -54,7 +54,7 @@ sys.path.insert(0, str(_this.parent.parent.parent))
 from common.github_helpers import (
     github_get, parse_github_repo, fetch_file_content,
 )
-from common.excel_output import thin_border, write_header_row
+from common.excel_output import thin_border
 from data.papers_from_database import PAPERS
 
 NOT_STATED = "NOT STATED"
@@ -237,38 +237,85 @@ def assess_paper(paper):
 # EXCEL OUTPUT
 # =============================================================================
 
-ALT_ROW_FILL = PatternFill("solid", fgColor="EBF3FB")
-WHITE_FILL   = PatternFill("solid", fgColor="FFFFFF")
-DATA_FONT    = Font(name="Arial", size=10)
+ALT_ROW_FILL    = PatternFill("solid", fgColor="EBF3FB")
+WHITE_FILL      = PatternFill("solid", fgColor="FFFFFF")
+HEADER_FILL     = PatternFill("solid", fgColor="BDD7EE")
+HEADER_FONT     = Font(name="Arial", bold=True, size=11, color="1F4E79")
+DATA_FONT       = Font(name="Arial", size=10)
+HEADER_ALIGN    = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-EXCEL_HEADERS = [
-    "#", "Paper Title", "Repo URL",
-    "GitHub Stars", "Forks",
-    "PyPI Package", "PyPI Monthly Downloads",
-    "Notes",
+# Single-row headers sit by themselves on row 1 spanning two rows.
+# Sub-headers under "PyPI" sit on row 2.
+SINGLE_HEADERS = [
+    (1, "#"),
+    (2, "Paper Title"),
+    (3, "Repo URL"),
+    (4, "GitHub Stars"),
+    (5, "Forks"),
+    (8, "Notes"),
+]
+PYPI_SUB_HEADERS = [
+    (6, "Package"),
+    (7, "Monthly Downloads"),
 ]
 EXCEL_COL_WIDTHS = [5, 50, 55, 14, 12, 26, 22, 50]
 NUMERIC_COLS     = {4, 5, 7}   # Stars, Forks, Monthly downloads
+DATA_START_ROW   = 3           # Two rows of headers
+
+
+def _style_header_cell(cell, border):
+    """Apply the shared header look (light-blue fill, dark-blue text, centered)."""
+    cell.font      = HEADER_FONT
+    cell.fill      = HEADER_FILL
+    cell.alignment = HEADER_ALIGN
+    cell.border    = border
 
 
 def save_to_excel(results, filename):
-    """Write adoption metrics to a formatted Excel workbook (one sheet)."""
+    """Write adoption metrics to a formatted Excel workbook (one sheet).
+
+    Layout uses a two-row header so the PyPI columns share a parent label:
+
+        | # | Paper Title | Repo URL | GitHub Stars | Forks |     PyPI      | Notes |
+        |   |             |          |              |       | Pkg | Monthly |       |
+
+    Single-cell headers (cols A–E, H) are merged vertically across rows 1–2
+    so they line up visually with the PyPI sub-headers on row 2.
+    """
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Adoption Metrics"
-
-    # Reuse the shared border + header-row helpers from common.excel_output.
     border = thin_border("B8CCE4")
-    write_header_row(
-        ws, EXCEL_HEADERS, EXCEL_COL_WIDTHS,
-        fill_hex="BDD7EE", font_color="1F4E79", height=28, border=border,
-    )
+
+    # Column widths.
+    for idx, width in enumerate(EXCEL_COL_WIDTHS, start=1):
+        ws.column_dimensions[ws.cell(row=1, column=idx).column_letter].width = width
+
+    # ── Header row 1 ────────────────────────────────────────────────────
+    # Single-cell headers go in row 1 and get merged with row 2.
+    for col_idx, label in SINGLE_HEADERS:
+        _style_header_cell(ws.cell(row=1, column=col_idx, value=label), border)
+        ws.merge_cells(start_row=1, start_column=col_idx, end_row=2, end_column=col_idx)
+        # Style the merged "ghost" cell on row 2 too so its borders draw.
+        _style_header_cell(ws.cell(row=2, column=col_idx), border)
+
+    # PyPI parent header spans columns 6–7 on row 1.
+    _style_header_cell(ws.cell(row=1, column=6, value="PyPI"), border)
+    _style_header_cell(ws.cell(row=1, column=7), border)
+    ws.merge_cells(start_row=1, start_column=6, end_row=1, end_column=7)
+
+    # ── Header row 2 ────────────────────────────────────────────────────
+    for col_idx, label in PYPI_SUB_HEADERS:
+        _style_header_cell(ws.cell(row=2, column=col_idx, value=label), border)
+
+    ws.row_dimensions[1].height = 22
+    ws.row_dimensions[2].height = 22
 
     # ── Data rows ───────────────────────────────────────────────────────
-    for row_idx, r in enumerate(results, start=2):
+    for row_idx, r in enumerate(results, start=DATA_START_ROW):
         row_fill = ALT_ROW_FILL if row_idx % 2 == 0 else WHITE_FILL
         values = [
-            row_idx - 1,
+            row_idx - DATA_START_ROW + 1,
             r.get("title", ""),
             r.get("repo", ""),
             r.get("stars", NOT_STATED),
@@ -283,7 +330,7 @@ def save_to_excel(results, filename):
             cell.fill      = row_fill
             cell.border    = border
             cell.alignment = Alignment(
-                horizontal="center" if col_idx in (1,) | NUMERIC_COLS else "left",
+                horizontal="center" if col_idx in {1} | NUMERIC_COLS else "left",
                 vertical="center",
                 wrap_text=True,
             )
@@ -291,7 +338,7 @@ def save_to_excel(results, filename):
                 cell.number_format = "#,##0"
         ws.row_dimensions[row_idx].height = 22
 
-    ws.freeze_panes = "A2"
+    ws.freeze_panes = f"A{DATA_START_ROW}"
 
     Path(filename).parent.mkdir(parents=True, exist_ok=True)
     wb.save(filename)
