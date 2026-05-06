@@ -17,6 +17,8 @@ It currently has three active pipelines under `requirement_checks/`:
   - Detect ongoing-maintenance indicators (recent commits, multiple contributors, versioned releases, staleness, archived status, …)
 - **`5.2.practitioner_usability_and_popularity/5.2.3.adoption_metrics/`**
   - Quantify adoption: GitHub stars, forks, and PyPI monthly downloads (when the repo publishes a Python package)
+- **`5.2.practitioner_usability_and_popularity/5.2.4.post_publication_maintenance/`**
+  - Post-publication maintenance status: date of last commit + total number of commits
 
 ## Project Structure
 
@@ -36,6 +38,8 @@ At a glance:
   Q 5.2.2 — maintenance indicators (replaces the older `scrape_github_data` script).
 - `requirement_checks/5.2.practitioner_usability_and_popularity/5.2.3.adoption_metrics/`
   Q 5.2.3 — adoption metrics (stars, forks, PyPI monthly downloads).
+- `requirement_checks/5.2.practitioner_usability_and_popularity/5.2.4.post_publication_maintenance/`
+  Q 5.2.4 — post-publication maintenance (last commit date + total commit count).
 - `requirement_checks/openai_client.py`
   LiteLLM-backed client supporting multiple providers (Azure OpenAI, OpenAI, Anthropic, Mistral, Ollama, Gemini).
 
@@ -57,6 +61,7 @@ flowchart TD
   root --> q52["requirement_checks/5.2.practitioner_usability_and_popularity"]
   q52 --> q522["5.2.2 maintenance indicators"]
   q52 --> q523["5.2.3 adoption metrics"]
+  q52 --> q524["5.2.4 post-publication maintenance"]
   root --> client["openai_client.py"]
 ```
 
@@ -77,6 +82,7 @@ All scripts read papers from the central [`data/papers_from_database.py`](requir
 | Q 5.1.5: Is the code released under an explicit license? | [5.1.5.code_license.py](requirement_checks/5.1.code_availability/5.1.5.code_license/5.1.5.code_license.py) | GitHub licensee API + LICENSE-file scan (no LLM) | [code_license.xlsx](requirement_checks/5.1.code_availability/5.1.5.code_license/code_license.xlsx) |
 | Q 5.2.2: Ongoing-maintenance indicators? | [5.2.2.maintenance_activity_indicators.py](requirement_checks/5.2.practitioner_usability_and_popularity/5.2.2.maintenance_activity_indicators/5.2.2.maintenance_activity_indicators.py) | GitHub API only (no LLM) | [maintenance_indicators.xlsx](requirement_checks/5.2.practitioner_usability_and_popularity/5.2.2.maintenance_activity_indicators/maintenance_indicators.xlsx) |
 | Q 5.2.3: Adoption metrics (stars, forks, PyPI monthly downloads)? | [5.2.3.adoption_metrics.py](requirement_checks/5.2.practitioner_usability_and_popularity/5.2.3.adoption_metrics/5.2.3.adoption_metrics.py) | GitHub API + pypistats.org (no LLM) | [adoption_metrics.xlsx](requirement_checks/5.2.practitioner_usability_and_popularity/5.2.3.adoption_metrics/adoption_metrics.xlsx) |
+| Q 5.2.4: Post-publication maintenance (last commit date + total commits)? | [5.2.4.post_publication_maintenance.py](requirement_checks/5.2.practitioner_usability_and_popularity/5.2.4.post_publication_maintenance/5.2.4.post_publication_maintenance.py) | GitHub API only (no LLM) | [post_publication_maintenance.xlsx](requirement_checks/5.2.practitioner_usability_and_popularity/5.2.4.post_publication_maintenance/post_publication_maintenance.xlsx) |
 
 ### Multi-model runs
 
@@ -179,4 +185,7 @@ python "requirement_checks/5.2.practitioner_usability_and_popularity/5.2.2.maint
 
 # Adoption metrics (GitHub stars/forks + PyPI monthly downloads)
 python "requirement_checks/5.2.practitioner_usability_and_popularity/5.2.3.adoption_metrics/5.2.3.adoption_metrics.py"
+
+# Post-publication maintenance (last commit date + total commits)
+python "requirement_checks/5.2.practitioner_usability_and_popularity/5.2.4.post_publication_maintenance/5.2.4.post_publication_maintenance.py"
 ```

@@ -8,9 +8,10 @@ organised in three layers, from low-level to high-level:
        is_github(url)          ->  bool
 
   2. Raw GitHub REST API access
-       github_get(path)              ->  parsed JSON or None
-       list_all_repo_files(o, r)     ->  list of file blobs
-       fetch_file_content(o, r, p)   ->  decoded UTF-8 text or None
+       github_get(path)                    ->  parsed JSON or None
+       github_get_with_link_header(path)   ->  (json, link_header) for pagination
+       list_all_repo_files(o, r)           ->  list of file blobs
+       fetch_file_content(o, r, p)         ->  decoded UTF-8 text or None
 
   3. Higher-level helpers used by checker scripts
        fetch_paths_with_char_budget(...)  ->  fetches many files into a
@@ -113,6 +114,39 @@ def github_get(path):
         return None
     except URLError:
         return None
+
+
+def github_get_with_link_header(path):
+    """Like ``github_get`` but also returns the response's ``Link`` header.
+
+    GitHub paginates list endpoints (commits, issues, releases, …) and
+    exposes the cursor only via the ``Link`` HTTP header.  The standard
+    way to count total items without walking every page is to ask for
+    ``per_page=1`` and then parse the ``rel="last"`` URL — its ``page=N``
+    parameter equals the total count.
+
+    Returns ``(parsed_json, link_str)``:
+      * ``parsed_json`` — same as ``github_get`` (dict | list | None).
+      * ``link_str``    — the raw ``Link`` header, or ``""`` when the
+        response was a single page.
+    """
+    url     = f"https://api.github.com/{path.lstrip('/')}"
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    if GITHUB_TOKEN:
+        headers["Authorization"] = f"token {GITHUB_TOKEN}"
+    req = Request(url, headers=headers)
+    try:
+        with urlopen(req, timeout=10) as r:
+            data = json.loads(r.read().decode())
+            return data, r.headers.get("Link", "") or ""
+    except HTTPError as e:
+        if e.code == 403:
+            raise RuntimeError(
+                "GitHub API rate limit hit. Set GITHUB_TOKEN in .env or wait an hour."
+            )
+        return None, ""
+    except URLError:
+        return None, ""
 
 
 def list_all_repo_files(owner, repo):
