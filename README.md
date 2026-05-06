@@ -41,9 +41,11 @@ Project map (Mermaid):
 ```mermaid
 flowchart TD
   root["Repo Root"]
-  root --> common["requirement_checks/common<br/>github_helpers, llm_helpers,<br/>checker_pipeline, excel_output"]
-  root --> data["requirement_checks/data<br/>papers_from_database.py"]
-  root --> q51["requirement_checks/5.1.code_availability"]
+  root --> rc["requirement_checks/"]
+  rc --> common["common/<br/>github_helpers, llm_helpers,<br/>checker_pipeline, excel_output"]
+  rc --> data["data/<br/>papers_from_database.py"]
+  rc --> client["openai_client.py"]
+  rc --> q51["5.1.code_availability/"]
   q51 --> q513["5.1.3 preprocessing pipeline"]
   q51 --> q514["5.1.4 documentation quality"]
   q51 --> q515["5.1.5 code license"]
@@ -51,11 +53,10 @@ flowchart TD
   q514 --> inline["inline comments"]
   q514 --> install["installation instructions"]
   q514 --> usage["usage examples"]
-  root --> q52["requirement_checks/5.2.practitioner_usability_and_popularity"]
+  rc --> q52["5.2.practitioner_usability_and_popularity/"]
   q52 --> q522["5.2.2 maintenance indicators"]
   q52 --> q523["5.2.3 adoption metrics"]
   q52 --> q524["5.2.4 post-publication maintenance"]
-  root --> client["openai_client.py"]
 ```
 
 If your editor shows Mermaid as code, open Markdown Preview (`Ctrl+Shift+V`) or view the file on GitHub.
