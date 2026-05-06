@@ -2,44 +2,37 @@
 
 This repository analyzes paper repositories and documentation quality using GitHub API + LLM-based checks. Some checks have rule-based (no-LLM) companions for fast, deterministic evaluation.
 
-It currently has three active pipelines under `requirement_checks/`:
+Two requirement areas under `requirement_checks/`, each with several questions:
 
-- **`5.1.code_availability/5.1.3.pre-processing_&_pipeline_code/`**
-  - Check if a paper's repository contains real preprocessing/pipeline code
-- **`5.1.code_availability/5.1.4.code_documentation_quality/`**
-  - Check if repos contain inline comments
-  - Check if repos contain installation instructions
-  - Check if repos contain usage/example commands
-  - Check if repos contain API documentation (both LLM and rule-based variants)
-- **`5.1.code_availability/5.1.5.code_license/`**
-  - Detect the code license (GitHub licensee API → root LICENSE file scan → MISSING)
-- **`5.2.practitioner_usability_and_popularity/5.2.2.maintenance_activity_indicators/`**
-  - Detect ongoing-maintenance indicators (recent commits, multiple contributors, versioned releases, staleness, archived status, …)
-- **`5.2.practitioner_usability_and_popularity/5.2.3.adoption_metrics/`**
-  - Quantify adoption: GitHub stars, forks, and PyPI monthly downloads (when the repo publishes a Python package)
-- **`5.2.practitioner_usability_and_popularity/5.2.4.post_publication_maintenance/`**
-  - Post-publication maintenance status: date of last commit + total number of commits
+- **`5.1.code_availability/`** — Is the code available and well-documented?
+  - **5.1.3** — does the repo contain real preprocessing / pipeline code?
+  - **5.1.4** — documentation quality: inline comments, installation instructions, usage / example commands, API documentation (LLM + rule-based variants)
+  - **5.1.5** — is the code released under an explicit license?
+- **`5.2.practitioner_usability_and_popularity/`** — Is the code maintained and adopted?
+  - **5.2.2** — ongoing-maintenance indicators (recent commits, contributors, versioned releases, staleness, archived status, …)
+  - **5.2.3** — adoption metrics: GitHub stars, forks, PyPI monthly downloads
+  - **5.2.4** — post-publication maintenance: date of last commit + total commit count
 
 ## Project Structure
 
 At a glance:
 
 - `requirement_checks/common/`
-  Shared helpers used by every script (GitHub API, LLM calls + token tracking, Excel output, pipeline runner). Now 4 files (was 6) — `github_helpers.py` and `llm_helpers.py` each merge two prior modules.
+  Shared helpers used by every script: GitHub API, LLM calls + token tracking, Excel output, pipeline runner.
 - `requirement_checks/data/`
   Centralized paper list (`papers_from_database.py`) consumed by every checker.
 - `requirement_checks/5.1.code_availability/5.1.3.pre-processing_&_pipeline_code/`
-  Q 5.1.3 — preprocessing / pipeline code classifier.
+  Q 5.1.3 — preprocessing / pipeline code classifier (LLM).
 - `requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/`
-  Documentation-quality pipelines (inline comments, installation, usage examples, API docs).
+  Q 5.1.4 — documentation quality (inline comments, installation, usage examples, API docs).
 - `requirement_checks/5.1.code_availability/5.1.5.code_license/`
   Q 5.1.5 — automatic license extraction (no LLM).
 - `requirement_checks/5.2.practitioner_usability_and_popularity/5.2.2.maintenance_activity_indicators/`
-  Q 5.2.2 — maintenance indicators (replaces the older `scrape_github_data` script).
+  Q 5.2.2 — maintenance indicators (no LLM).
 - `requirement_checks/5.2.practitioner_usability_and_popularity/5.2.3.adoption_metrics/`
-  Q 5.2.3 — adoption metrics (stars, forks, PyPI monthly downloads).
+  Q 5.2.3 — adoption metrics: stars, forks, PyPI monthly downloads (no LLM).
 - `requirement_checks/5.2.practitioner_usability_and_popularity/5.2.4.post_publication_maintenance/`
-  Q 5.2.4 — post-publication maintenance (last commit date + total commit count).
+  Q 5.2.4 — last commit date + total commit count (no LLM).
 - `requirement_checks/openai_client.py`
   LiteLLM-backed client supporting multiple providers (Azure OpenAI, OpenAI, Anthropic, Mistral, Ollama, Gemini).
 
@@ -53,11 +46,11 @@ flowchart TD
   root --> q51["requirement_checks/5.1.code_availability"]
   q51 --> q513["5.1.3 preprocessing pipeline"]
   q51 --> q514["5.1.4 documentation quality"]
-  q514 --> apidoc["api documentation checker<br/>(LLM + rule-based)"]
-  q514 --> inline["inline comments checker"]
-  q514 --> install["installation checker"]
-  q514 --> usage["usage examples checker"]
   q51 --> q515["5.1.5 code license"]
+  q514 --> apidoc["api documentation<br/>(LLM + rule-based)"]
+  q514 --> inline["inline comments"]
+  q514 --> install["installation instructions"]
+  q514 --> usage["usage examples"]
   root --> q52["requirement_checks/5.2.practitioner_usability_and_popularity"]
   q52 --> q522["5.2.2 maintenance indicators"]
   q52 --> q523["5.2.3 adoption metrics"]
@@ -102,10 +95,10 @@ Without arguments it runs batch mode over the whole paper list.
 
 Files under `requirement_checks/common/`:
 
-- [`github_helpers.py`](requirement_checks/common/github_helpers.py) — GitHub URL parsing, listing repo files, fetching file contents, plus higher-level helpers for assembling LLM-friendly content with character budgets and README prioritisation. (Merger of the former `fetch_and_parse_github_repo.py` + `repo_content_helpers.py`.)
-- [`llm_helpers.py`](requirement_checks/common/llm_helpers.py) — `llm_call_parse_retry`, JSON response parsing, and `TokenUsageTracker` for per-model token accounting. (Merger of the former `llm_helpers.py` + `token_usage.py`.)
+- [`github_helpers.py`](requirement_checks/common/github_helpers.py) — GitHub URL parsing, repo file listing, file-content fetching, pagination-aware GET, plus higher-level helpers for assembling LLM-friendly content with character budgets and README prioritisation.
+- [`llm_helpers.py`](requirement_checks/common/llm_helpers.py) — `llm_call_parse_retry`, JSON response parsing, and `TokenUsageTracker` for per-model token accounting.
 - [`checker_pipeline.py`](requirement_checks/common/checker_pipeline.py) — the `run_pipeline` orchestrator that loops papers across one or more LLM deployments and writes per-model + comparison sheets.
-- [`excel_output.py`](requirement_checks/common/excel_output.py) — Excel writing helpers, status colours, summary rows, model comparison sheets.
+- [`excel_output.py`](requirement_checks/common/excel_output.py) — Excel writing helpers: borders, header rows, status-coloured data rows, summary sheets, model-comparison sheets.
 
 ## Environment Variables
 
