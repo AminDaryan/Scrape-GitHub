@@ -13,6 +13,8 @@ It currently has three active pipelines under `requirement_checks/`:
   - Check if repos contain API documentation (both LLM and rule-based variants)
 - **`5.2.practitioner_usability_and_popularity/5.2.2.maintenance_activity_indicators/`**
   - Detect ongoing-maintenance indicators (recent commits, multiple contributors, versioned releases, staleness, archived status, …)
+- **`5.2.practitioner_usability_and_popularity/5.2.3.adoption_metrics/`**
+  - Quantify adoption: GitHub stars, forks, and PyPI monthly downloads (when the repo publishes a Python package)
 
 ## Project Structure
 
@@ -28,6 +30,8 @@ At a glance:
   Documentation-quality pipelines (inline comments, installation, usage examples, API docs).
 - `requirement_checks/5.2.practitioner_usability_and_popularity/5.2.2.maintenance_activity_indicators/`
   Q 5.2.2 — maintenance indicators (replaces the older `scrape_github_data` script).
+- `requirement_checks/5.2.practitioner_usability_and_popularity/5.2.3.adoption_metrics/`
+  Q 5.2.3 — adoption metrics (stars, forks, PyPI monthly downloads).
 - `requirement_checks/openai_client.py`
   LiteLLM-backed client supporting multiple providers (Azure OpenAI, OpenAI, Anthropic, Mistral, Ollama, Gemini).
 
@@ -47,6 +51,7 @@ flowchart TD
   q514 --> usage["usage examples checker"]
   root --> q52["requirement_checks/5.2.practitioner_usability_and_popularity"]
   q52 --> q522["5.2.2 maintenance indicators"]
+  q52 --> q523["5.2.3 adoption metrics"]
   root --> client["openai_client.py"]
 ```
 
@@ -65,6 +70,7 @@ All scripts read papers from the central [`data/papers_from_database.py`](requir
 | Q 5.1.4: API documentation? | [check_github_repo_api_documentation.py](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_api_documentation/check_github_repo_api_documentation.py) | LLM | [results/api_documentation_results.xlsx](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_api_documentation/results/api_documentation_results.xlsx) |
 | Q 5.1.4: API documentation (no LLM)? | [api_documentation_check_no_llm_used.py](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_api_documentation/api_documentation_check_no_llm_used.py) | Rule-based (regex + Python AST) | [results/api_documentation_no_llm.xlsx](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_api_documentation/results/api_documentation_no_llm.xlsx) |
 | Q 5.2.2: Ongoing-maintenance indicators? | [5.2.2.maintenance_activity_indicators.py](requirement_checks/5.2.practitioner_usability_and_popularity/5.2.2.maintenance_activity_indicators/5.2.2.maintenance_activity_indicators.py) | GitHub API only (no LLM) | [maintenance_indicators.xlsx](requirement_checks/5.2.practitioner_usability_and_popularity/5.2.2.maintenance_activity_indicators/maintenance_indicators.xlsx) |
+| Q 5.2.3: Adoption metrics (stars, forks, PyPI monthly downloads)? | [5.2.3.adoption_metrics.py](requirement_checks/5.2.practitioner_usability_and_popularity/5.2.3.adoption_metrics/5.2.3.adoption_metrics.py) | GitHub API + pypistats.org (no LLM) | [adoption_metrics.xlsx](requirement_checks/5.2.practitioner_usability_and_popularity/5.2.3.adoption_metrics/adoption_metrics.xlsx) |
 
 ### Multi-model runs
 
@@ -161,4 +167,7 @@ python "requirement_checks/5.1.code_availability/5.1.4.code_documentation_qualit
 
 # Maintenance indicators
 python "requirement_checks/5.2.practitioner_usability_and_popularity/5.2.2.maintenance_activity_indicators/5.2.2.maintenance_activity_indicators.py"
+
+# Adoption metrics (GitHub stars/forks + PyPI monthly downloads)
+python "requirement_checks/5.2.practitioner_usability_and_popularity/5.2.3.adoption_metrics/5.2.3.adoption_metrics.py"
 ```
