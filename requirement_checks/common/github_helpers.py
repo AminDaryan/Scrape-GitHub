@@ -56,11 +56,15 @@ def parse_github_repo(url):
       - https://github.com/owner/repo/
       - https://github.com/owner/repo.git
       - https://github.com/owner/repo/blob/main/path/to/file
+      - https://owner.github.io/repo            (GitHub Pages → source repo)
 
     Returns ``(None, None)`` if the URL is not a recognisable GitHub repo URL
     (e.g. HuggingFace links, plain project websites).  Callers should treat
     a None result as "not a GitHub repo, skip it".
     """
+    if not url:
+        return None, None
+
     match = re.search(r"github\.com/([^/]+)/([^/?.#]+)", url)
     if match:
         owner = match.group(1)
@@ -68,6 +72,12 @@ def parse_github_repo(url):
         if repo.endswith(".git"):
             repo = repo[:-4]
         return owner, repo
+
+    # GitHub Pages: https://<owner>.github.io/<repo>  → owner/repo
+    pages = re.match(r"https?://([^./]+)\.github\.io/([^/?#]+)", url.strip())
+    if pages:
+        return pages.group(1), pages.group(2)
+
     return None, None
 
 

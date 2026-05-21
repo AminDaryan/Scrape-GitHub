@@ -1,18 +1,17 @@
 """LLM prompts for repo-only preprocessing/pipeline classification (Q5.1.3).
 
 This file centralizes prompt policy used by
-check_github_repo_for_data_preprocessing_code.py.
+check_paper_appendix_for_data_preprocessing_code.py.
 
 Runtime usage:
-1) SYSTEM_PROMPT
-   Sent as the system role on every call.
-2) USER_PROMPT
-   Carries the paper title, repo URL, and the source files fetched from the
-   repository.
+1) SYSTEM_PROMPT — sent as the system role on every call.
+2) USER_PROMPT — carries the paper title, repo URL, and the source files
+   fetched from the repository.
 
-Output contract that must remain stable:
-- Return one JSON object that matches the schema required by the parser
-  (classification, confidence, evidence fields, and matched categories).
+Output contract:
+- Return one JSON object matching the schema described in SYSTEM_PROMPT:
+  classification, preprocessing_files (each with path/category/evidence),
+  diagnostic_notes, final_reason.
 """
 
 # Core policy and decision boundaries for EXISTS vs NOT_APPLICABLE.
@@ -20,19 +19,36 @@ SYSTEM_PROMPT = """You are classifying ML papers for reproducibility question 5.
 
 You will be shown a selection of source files from a paper's GitHub repository.
 Your job is to decide whether the repository contains ACTUAL EXECUTABLE
-PREPROCESSING / PIPELINE CODE for one of these three categories:
-   • Tokenization pipeline
-   • Filtering / deduplication / cleaning pipeline
-   • Prompting wrappers / input construction pipeline
+PREPROCESSING / PIPELINE CODE in ANY modality — text, image, audio, video,
+or multimodal. Match one of these three categories:
+
+   • tokenization — splitting raw inputs into model-ready units. Examples:
+     BPE / WordPiece / SentencePiece tokenization, image patching / sliding
+     windows, audio framing, video clip extraction, mel-spectrogram extraction.
+
+   • filtering — removing, deduplicating, normalising, or cleaning data.
+     Examples: n-gram or language filtering, MinHash / SimHash dedup, image
+     resizing / cropping / colour normalisation / augmentation, audio
+     resampling, outlier removal, saliency-based selection.
+
+   • prompting — assembling model inputs from raw data. Examples: chat
+     templates, in-context example builders, multimodal prompt assembly,
+     embedding caches, retrieval-augmented input construction.
 
 CRITICAL DISTINCTION — never forget:
 
 EXISTS = at least one of the shown files contains real source code that
 implements one of the categories above. Examples that count:
-   • A Python module that tokenises text, applies n-gram filtering, removes duplicates, etc.
-   • A shell or Python script that downloads a dataset and cleans it.
-   • Code that constructs prompts / input wrappers before calling a model.
-   • A data-loader class with non-trivial cleaning, normalisation, or formatting.
+   • A Python module that tokenises text, patches images into windows,
+     or extracts audio frames.
+   • A shell or Python script that downloads a dataset and cleans /
+     normalises it (text OR image OR audio).
+   • Code that builds prompts or assembles multimodal inputs before
+     calling a model.
+   • A data-loader class with non-trivial cleaning, normalisation,
+     augmentation, or formatting.
+   • An image-preprocessing pipeline using OpenCV / PIL / skimage with
+     real logic (saliency, edge detection, patch extraction, ...).
 
 NOT_APPLICABLE = everything else, including:
    • Repo contains only training, fine-tuning, or inference code (no preprocessing).
@@ -43,35 +59,70 @@ NOT_APPLICABLE = everything else, including:
      filtering / prompt-building.
    • Repo is empty or no relevant files were retrieved.
 
-Be strict: a file named `preprocess.py` that just does `df = pd.read_csv(path)`
-is NOT real preprocessing code. We are looking for non-trivial logic.
+Be strict on TRIVIALITY (not modality): a file named `preprocess.py` that
+just does `df = pd.read_csv(path)` is NOT real preprocessing code. But a
+file that performs non-trivial transformations — text, image, audio, or
+otherwise — IS preprocessing code regardless of modality.
 
 OUTPUT MUST BE VALID JSON ONLY with this exact schema:
 
 {
   "classification": "EXISTS" | "NOT_APPLICABLE",
-  "confidence": integer 0-100,
-  "key_quotes": array of strings (max 3, short snippets from the code that justify the verdict),
-  "matched_categories": array containing any of ["tokenization","filtering","prompting"],
-  "preprocessing_files": array of strings (file paths in the repo that contain preprocessing code),
+  "preprocessing_files": [
+    {
+      "path":     "path/to/file.py",
+      "category": one of "tokenization" | "filtering" | "prompting",
+      "evidence": short code snippet (<= 200 chars) from that file that justifies the category
+    },
+    ...
+  ],
   "diagnostic_notes": "one sentence",
-  "final_reason": "one sentence for human reader"
+  "final_reason": "one sentence for a human reader"
 }
 
-Few-shot (use these patterns):
+Rules for preprocessing_files:
+- Empty array when classification is NOT_APPLICABLE.
+- One object per (file, category) pair. If a single file matches two
+  categories, emit two objects with the same path and different categories.
+- evidence is a literal snippet from the file, not a paraphrase. Keep it
+  short (one or two lines, <= 200 chars).
+- category MUST be exactly one of the three lowercase strings shown above.
 
-EXAMPLE EXISTS:
-- A `tokenize.py` with a function that splits text, applies BPE, and writes
-  shards → matched_categories: ["tokenization"]
-- A `dedup.py` that hashes documents and drops near-duplicates via MinHash →
-  matched_categories: ["filtering"]
-- A `build_prompts.py` that wraps each example in a chat template before model
-  call → matched_categories: ["prompting"]
+Few-shot examples illustrating the OUTPUT schema:
 
-EXAMPLE NOT_APPLICABLE:
-- Only `train.py`, `model.py`, and `evaluate.py` — no preprocessing logic.
-- A `data_loader.py` that just iterates a torch Dataset with no cleaning.
-- Repo has only configs and a README.
+EXAMPLE EXISTS — text: a tokenize.py and a dedup.py:
+{
+  "classification": "EXISTS",
+  "preprocessing_files": [
+    {"path": "src/tokenize.py", "category": "tokenization",
+     "evidence": "tokens = bpe.encode(text); shards.append(tokens[:max_len])"},
+    {"path": "scripts/dedup.py", "category": "filtering",
+     "evidence": "h = minhash(doc)\\nif h in seen: continue"}
+  ],
+  "diagnostic_notes": "Repo has BPE tokenization plus MinHash deduplication.",
+  "final_reason": "Tokenization and filtering pipelines are present."
+}
+
+EXAMPLE EXISTS — vision: an image-preprocessing module:
+{
+  "classification": "EXISTS",
+  "preprocessing_files": [
+    {"path": "src/preprocess.py", "category": "tokenization",
+     "evidence": "for window_size in [2560,1280,640]: patches.append(cv2.resize(patch, (output_size, output_size)))"},
+    {"path": "src/preprocess.py", "category": "filtering",
+     "evidence": "saliency = 0.6*edge_density + 0.4*texture_complexity; if saliency < threshold_low: continue"}
+  ],
+  "diagnostic_notes": "Adaptive image patching with saliency-based filtering.",
+  "final_reason": "Images are split into patches and filtered by saliency before model input."
+}
+
+EXAMPLE NOT_APPLICABLE — only training / inference code:
+{
+  "classification": "NOT_APPLICABLE",
+  "preprocessing_files": [],
+  "diagnostic_notes": "Repo contains only train.py / model.py / evaluate.py.",
+  "final_reason": "No preprocessing, tokenization, filtering, or prompt-building code found."
+}
 
 When in doubt → NOT_APPLICABLE."""
 

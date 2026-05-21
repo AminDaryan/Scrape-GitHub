@@ -36,13 +36,23 @@ SKIP_FOLDER_PREFIXES = (
     "build/", "dist/", ".cache/",
 )
 
-# Maximum characters sent to LLM per repo.
+# Maximum characters sent to LLM per repo (sum of per-bucket budgets below).
 MAX_TOTAL_CHARS = 80_000
 
-# Per-file character cap so that one huge file doesn't eat the whole budget.
-PER_FILE_CHAR_CAP = 8_000
+# Per-bucket character budgets. NAMED gets the largest slice so that high-signal
+# files like preprocess.py are not crowded out by unrelated scripts/*.js files
+# that happen to live in a preprocessing-folder prefix (cf. VULCA-EMNLP2025
+# where scripts/ contained 70 codebase-maintenance scripts).
+BUCKET_BUDGET_NAMED   = 50_000
+BUCKET_BUDGET_FOLDER  = 20_000
+BUCKET_BUDGET_GENERIC = 10_000
+
+# Per-file character cap. NAMED files get a larger cap so long preprocessing
+# modules can be sent in (near-)full.
+PER_FILE_CHAR_CAP_NAMED = 16_000
+PER_FILE_CHAR_CAP       = 8_000
 
 # Maximum number of files to fetch per bucket.
-MAX_NAMED_FILES = 12
-MAX_FOLDER_FILES = 12
+MAX_NAMED_FILES   = 12
+MAX_FOLDER_FILES  = 12
 MAX_GENERIC_FILES = 8

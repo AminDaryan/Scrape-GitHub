@@ -1,42 +1,51 @@
 """
 Question 5.1.3 — Pre-processing & Pipeline Code classifier (repo-only)
 
-Checks ONLY the GitHub repository for actual preprocessing / pipeline source
-code (tokenization, filtering / deduplication / cleaning, or prompting-wrapper
-construction). The paper text is no longer consulted.
+For each paper in data/papers_from_database.py, inspect the linked GitHub
+repository and decide whether it contains real preprocessing / pipeline
+source code in ANY modality (text, image, audio, video, multimodal):
+tokenization / chunking / patching, filtering / cleaning / dedup, or
+prompt / input construction. Paper text is not consulted — only the
+repo content.
 
-Logic:
-  1. Parse the GitHub URL from each paper entry. Non-GitHub repos are
-     classified as NOT_APPLICABLE.                                     → check_paper()
-  2. List every file in the repo via the GitHub API.                   → collect_repo_content()
-  3. Sort files into three prioritised buckets:
-       preprocessing-named source files (preprocess.py, tokenize.py …)
-       files inside preprocessing-relevant folders (data/, pipeline/ …)
-       other source files as a fallback.                               → collect_repo_content()
-  4. Fetch the buckets within a shared character budget.               → collect_repo_content()
-  5. Pass the combined text to the LLM and parse the verdict.          → make_check_paper_fn()
-  6. Run across all configured models and export to Excel.             → main(), save_results()
+Output: results/preprocessing_code_results.xlsx — one Results, Detail,
+and Summary sheet per LLM model in AZURE_OPENAI_DEPLOYMENT, plus a Model
+Comparison sheet when more than one model is configured.
+
+Pipeline:
+  1. Parse the GitHub URL from each paper (github.com or github.io).
+     Non-GitHub repos → NOT_APPLICABLE.                                 → check_paper()
+  2. List every file in the repo via the GitHub API.                    → collect_repo_content()
+  3. Bucket source files by priority:
+       - NAMED    files matching preprocessing patterns (preprocess.py, …)
+       - FOLDER   files under preprocessing folders (data/, pipeline/, …)
+       - GENERIC  other source files (fallback context)
+  4. Fetch each bucket under its OWN character budget so NAMED files
+     (highest signal) cannot be crowded out by 70 unrelated scripts.    → collect_repo_content()
+  5. Send the combined text to the LLM and parse the verdict — including
+     per-file (category, short evidence) pairs.                         → make_check_paper_fn()
+  6. Auto-remediate: if the verdict was NOT_APPLICABLE but the NAMED
+     bucket had files, re-run the LLM on NAMED-only content and prefer
+     that verdict when it's EXISTS.                                     → make_check_paper_fn()
+  7. Repeat across every configured model; write the Excel output.      → main(), save_results()
 
 Labels:
   EXISTS         — repo contains real preprocessing / pipeline code
-  NOT_APPLICABLE — everything else (no code, non-GitHub URL, empty repo, or error)
+  NOT_APPLICABLE — no code found, non-GitHub URL, empty repo, or LLM error
 """
 
 import os
 import sys
+from functools import lru_cache
 from pathlib import Path
-import re
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
 _this = Path(__file__).resolve()
-# Folder layout for path resolution:
-#   _this.parent             = 5.1.3.pre-processing_&_pipeline_code/
-#   _this.parent.parent      = 5.1.code_availability/
-#   _this.parent.parent.parent = requirement_checks/   ← needed for common/, data/, openai_client
-sys.path.insert(0, str(_this.parent.parent.parent))
+# requirement_checks/ is three levels up — needed for common/, data/, openai_client
+sys.path.insert(0, str(_this.parents[2]))
 
 from common.github_helpers import (
     parse_github_repo, list_all_repo_files, fetch_file_content,
@@ -45,10 +54,9 @@ from common.github_helpers import (
 from common.llm_helpers import llm_call_parse_retry
 from common.checker_pipeline import run_pipeline
 from common.excel_output import (
-    count_statuses,
     write_header_row, write_results_data_rows, write_summary_sheet,
     write_comparison_sheet, safe_sheet_name,
-    thin_border, auto_row_height, alignment_center, alignment_wrap_left,
+    thin_border, auto_row_height, alignment_wrap_left,
 )
 
 from openpyxl import Workbook
@@ -59,45 +67,38 @@ from data.papers_from_database import PAPERS
 from prompts import SYSTEM_PROMPT, USER_PROMPT
 from config import (
     PREPROC_NAME_RE, PREPROC_FOLDER_PREFIXES, SOURCE_EXTS,
-    SKIP_FOLDER_PREFIXES, MAX_TOTAL_CHARS, PER_FILE_CHAR_CAP,
+    SKIP_FOLDER_PREFIXES,
+    BUCKET_BUDGET_NAMED, BUCKET_BUDGET_FOLDER, BUCKET_BUDGET_GENERIC,
+    PER_FILE_CHAR_CAP_NAMED, PER_FILE_CHAR_CAP,
     MAX_NAMED_FILES, MAX_FOLDER_FILES, MAX_GENERIC_FILES,
 )
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 
+# Display labels for the three categories — keys must match the lowercase
+# values the LLM emits in its preprocessing_files[*].category field.
+CATEGORY_DISPLAY = {
+    "tokenization": "Tokenization",
+    "filtering":    "Filtering",
+    "prompting":    "Prompting wrappers",
+}
+
+# Per-bucket fetch parameters: (budget_chars, per_file_cap, header_label).
+BUCKET_PARAMS = {
+    "named":   (BUCKET_BUDGET_NAMED,   PER_FILE_CHAR_CAP_NAMED, "PREPROCESS-NAMED"),
+    "folder":  (BUCKET_BUDGET_FOLDER,  PER_FILE_CHAR_CAP,       "PREPROCESS-FOLDER"),
+    "generic": (BUCKET_BUDGET_GENERIC, PER_FILE_CHAR_CAP,       "GENERIC SOURCE"),
+}
+
+
 # ---------------------------------------------------------------------------
-# Repo URL parsing
+# Status -> classification label
 # ---------------------------------------------------------------------------
 
-def parse_repo_url(url):
-    """Extract (owner, repo) from a GitHub URL, including GitHub Pages links.
+def _status_to_label(status):
+    """Map the per-paper status ('yes' vs anything else) to a human label."""
+    return "EXISTS" if status == "yes" else "NOT_APPLICABLE"
 
-    Returns None for non-GitHub URLs (HuggingFace, anonymous repos, etc.).
-    """
-    if not url:
-        return None
-    url = url.strip()
-
-    try:
-        result = parse_github_repo(url)
-    except Exception:
-        result = None
-
-    if result:
-        if isinstance(result, tuple) and len(result) >= 2:
-            return (result[0], result[1])
-        if isinstance(result, dict):
-            owner = result.get("owner")
-            repo  = result.get("repo")
-            if owner and repo:
-                return (owner, repo)
-
-    # GitHub Pages URL: https://<owner>.github.io/<repo>
-    m = re.match(r"https?://([^./]+)\.github\.io/([^/?#]+)", url)
-    if m:
-        return (m.group(1), m.group(2))
-
-    return None
 
 # ---------------------------------------------------------------------------
 # Repo content collection
@@ -108,113 +109,187 @@ def _is_skippable(path_lower):
 
 
 def _is_source(path_lower):
-    if "." not in path_lower:
-        return False
-    ext = "." + path_lower.rsplit(".", 1)[-1]
-    return ext in SOURCE_EXTS
+    return os.path.splitext(path_lower)[1] in SOURCE_EXTS
+
+
+def _bucket_paths(all_files):
+    """Sort repo paths into (named, folder, generic) lists, dropping skip/non-source."""
+    named, folder, generic = [], [], []
+    for f in all_files:
+        fpath     = f["path"] if isinstance(f, dict) else f
+        fpath_low = fpath.lower()
+        basename  = fpath_low.split("/")[-1]
+
+        if _is_skippable(fpath_low) or not _is_source(fpath_low):
+            continue
+
+        if PREPROC_NAME_RE.search(basename):
+            named.append(fpath)
+        elif any(fpath_low.startswith(p) for p in PREPROC_FOLDER_PREFIXES):
+            folder.append(fpath)
+        else:
+            generic.append(fpath)
+    return named, folder, generic
+
+
+def _fetch_bucket(owner, repo, paths, budget, per_file_cap, header_label):
+    """Fetch one bucket's files under its OWN char budget. Returns (text, fetched_paths)."""
+    if not paths:
+        return "", []
+    blocks, got, _ = fetch_paths_with_char_budget(
+        owner, repo, paths, budget,
+        fetch_content=fetch_file_content,
+        start_total_chars=0,            # each bucket is independent
+        pause_seconds=0.15,
+        header_label=header_label,
+        per_file_char_cap=per_file_cap,
+    )
+    return "\n\n".join(blocks), got
 
 
 def collect_repo_content(owner, repo):
     """Fetch preprocessing-relevant files from a GitHub repo.
 
-    Files are sorted into three priority buckets and fetched within a shared
-    character budget so that named preprocessing files are guaranteed to make
-    it into the LLM's context before generic source code can crowd them out.
-    Returns a (combined_text, fetched_paths) tuple.
+    Each bucket has its own char budget so high-signal NAMED files
+    (preprocess.py, tokenize.py, …) are never crowded out by unrelated
+    files that happen to live under a preprocessing folder prefix.
+
+    Returns a dict:
+      {
+        "combined_text":      str,    # all buckets joined
+        "fetched_paths":      list,   # paths actually retrieved
+        "total_source_files": int,    # source files BEFORE bucket truncation
+        "buckets": {
+          "named":   {"text": str, "files": [...], "candidates": int},
+          "folder":  {"text": str, "files": [...], "candidates": int},
+          "generic": {"text": str, "files": [...], "candidates": int},
+        },
+      }
     """
     print(f"  [GitHub] Listing {owner}/{repo}")
     try:
         all_files = list_all_repo_files(owner, repo)
     except Exception as e:
         print(f"  [GitHub] ERROR during listing: {type(e).__name__}: {e}")
-        return "", []
+        return _empty_repo_content()
 
     if not all_files:
         print(f"  [GitHub] Repo empty or unreachable")
-        return "", []
+        return _empty_repo_content()
 
     print(f"  [GitHub] {len(all_files)} files in repo")
 
-    named_paths   = []   # source files whose basename matches PREPROC_NAME_RE
-    folder_paths  = []   # source files inside a preprocessing-relevant folder
-    generic_paths = []   # other source files — fallback context
+    named, folder, generic = _bucket_paths(all_files)
+    total_source_files = len(named) + len(folder) + len(generic)
 
-    for f in all_files:
-        fpath     = f["path"] if isinstance(f, dict) else f
-        fpath_low = fpath.lower()
-        basename  = fpath_low.split("/")[-1]
-
-        if _is_skippable(fpath_low):
-            continue
-        if not _is_source(fpath_low):
-            continue
-
-        if PREPROC_NAME_RE.search(basename):
-            named_paths.append(fpath)
-        elif any(fpath_low.startswith(p) for p in PREPROC_FOLDER_PREFIXES):
-            folder_paths.append(fpath)
-        else:
-            generic_paths.append(fpath)
-
-    # Sort by depth then name for determinism. Shallower paths come first
-    # because top-level scripts are usually the canonical entry points.
-    for lst in (named_paths, folder_paths, generic_paths):
+    # Sort by depth then name. Shallower paths first — top-level scripts
+    # are usually the canonical entry points.
+    for lst in (named, folder, generic):
         lst.sort(key=lambda p: (p.count("/"), p.lower()))
 
-    named_paths   = named_paths[:MAX_NAMED_FILES]
-    folder_paths  = folder_paths[:MAX_FOLDER_FILES]
-    generic_paths = generic_paths[:MAX_GENERIC_FILES]
+    # Cap each bucket's candidate count BEFORE fetching, then let the
+    # per-bucket char budget further trim if needed.
+    candidates = {
+        "named":   named[:MAX_NAMED_FILES],
+        "folder":  folder[:MAX_FOLDER_FILES],
+        "generic": generic[:MAX_GENERIC_FILES],
+    }
+    print(f"  [GitHub] Selected: {len(candidates['named'])} named, "
+          f"{len(candidates['folder'])} in folders, {len(candidates['generic'])} generic "
+          f"(of {total_source_files} source files)")
 
-    print(f"  [GitHub] Selected: {len(named_paths)} named, "
-          f"{len(folder_paths)} in folders, {len(generic_paths)} generic")
+    buckets = {}
+    for name, paths in candidates.items():
+        budget, per_file_cap, header_label = BUCKET_PARAMS[name]
+        text, files = _fetch_bucket(owner, repo, paths, budget, per_file_cap, header_label)
+        buckets[name] = {
+            "text":       text,
+            "files":      files,
+            "candidates": len(paths),
+        }
 
-    combined    = []
-    fetched     = []
-    total_chars = 0
+    combined_text = "\n\n".join(b["text"] for b in buckets.values() if b["text"])
+    fetched_paths = [p for b in buckets.values() for p in b["files"]]
 
-    for label, paths in (("PREPROCESS-NAMED",  named_paths),
-                         ("PREPROCESS-FOLDER", folder_paths),
-                         ("GENERIC SOURCE",    generic_paths)):
-        if not paths:
-            continue
-        blocks, got, total_chars = fetch_paths_with_char_budget(
-            owner, repo, paths, MAX_TOTAL_CHARS,
-            fetch_content=fetch_file_content,
-            start_total_chars=total_chars,
-            pause_seconds=0.15,
-            header_label=label,
-            per_file_char_cap=PER_FILE_CHAR_CAP,
-        )
-        combined.extend(blocks)
-        fetched.extend(got)
+    return {
+        "combined_text":      combined_text,
+        "fetched_paths":      fetched_paths,
+        "total_source_files": total_source_files,
+        "buckets":            buckets,
+    }
 
-    return "\n\n".join(combined), fetched
+
+def _empty_repo_content():
+    return {
+        "combined_text":      "",
+        "fetched_paths":      [],
+        "total_source_files": 0,
+        "buckets": {
+            "named":   {"text": "", "files": [], "candidates": 0},
+            "folder":  {"text": "", "files": [], "candidates": 0},
+            "generic": {"text": "", "files": [], "candidates": 0},
+        },
+    }
+
+
+@lru_cache(maxsize=None)
+def _cached_collect_repo_content(owner, repo):
+    """Cached collect_repo_content — avoids re-fetching when running multiple models."""
+    return collect_repo_content(owner, repo)
 
 
 # ---------------------------------------------------------------------------
-# LLM call wrapper
+# LLM result handling
 # ---------------------------------------------------------------------------
 
 EMPTY_PREPROCESSING_PAYLOAD = {
     "classification":      None,
-    "evidence":            "Empty LLM response after retry — content may exceed context window",
-    "key_quotes":          [],
-    "matched_categories":  [],
     "preprocessing_files": [],
-    "diagnostic_notes":    "Empty response",
+    "diagnostic_notes":    "Empty LLM response after retry — content may exceed context window",
     "final_reason":        "",
 }
 
-# Content cache — avoids re-fetching GitHub repos when running multiple models.
-_content_cache = {}
+
+def _normalise_preprocessing_files(raw):
+    """Coerce the LLM's preprocessing_files into a list of clean dicts.
+
+    Tolerates legacy string entries (path only) and trims/lowercases the
+    fields we display. Drops entries without a path.
+    """
+    normalised = []
+    for entry in raw or []:
+        if isinstance(entry, dict):
+            path     = (entry.get("path")     or "").strip()
+            category = (entry.get("category") or "").strip().lower()
+            evidence = (entry.get("evidence") or "").strip()
+        elif isinstance(entry, str):
+            path, category, evidence = entry.strip(), "", ""
+        else:
+            continue
+        if path:
+            normalised.append({"path": path, "category": category, "evidence": evidence})
+    return normalised
 
 
-def _cached_collect_repo_content(owner, repo):
-    """Return cached collect_repo_content result, fetching only on first call."""
-    key = f"{owner}/{repo}"
-    if key not in _content_cache:
-        _content_cache[key] = collect_repo_content(owner, repo)
-    return _content_cache[key]
+def _derive_categories(pf_list):
+    """Distinct sorted lowercase categories from per-file entries."""
+    cats = {pf.get("category", "") for pf in pf_list}
+    cats.discard("")
+    return sorted(cats)
+
+
+def _derive_top_evidence(pf_list, n=3):
+    """Concatenate up to n evidence snippets from per-file entries."""
+    snippets = [pf["evidence"] for pf in pf_list if pf.get("evidence")]
+    return "; ".join(snippets[:n])
+
+
+def _coverage_pct(files_checked, total_source_files):
+    """Return a coverage string like '23%', or '' when total is 0/unknown."""
+    if not total_source_files:
+        return ""
+    pct = 100.0 * len(files_checked) / total_source_files
+    return f"{pct:.0f}%"
 
 
 # ---------------------------------------------------------------------------
@@ -224,12 +299,12 @@ def _cached_collect_repo_content(owner, repo):
 def make_check_paper_fn(deployment, token_usage):
     """Factory: return a check_paper function bound to a specific LLM deployment.
 
-    Using a factory lets run_pipeline swap in different models without
-    re-fetching GitHub content — the content cache is shared across all model
-    instances for the same repo.
+    The factory shares one repo-content cache across all model instances for
+    the same repo, so multi-model runs do not re-fetch GitHub content.
     """
 
     def _llm_check(repo_content, paper_title, repo_url):
+        """One LLM call. Returns the parsed JSON payload (dict)."""
         def build_msg(content):
             return USER_PROMPT.format(
                 title=paper_title,
@@ -237,7 +312,7 @@ def make_check_paper_fn(deployment, token_usage):
                 repo_content=content if content else "[No source code files found in the repository]",
             )
 
-        token_budget = 4000 if len(repo_content) > 50_000 else 2000
+        token_budget = 4000 if len(repo_content) > 50_000 else 2500
 
         return llm_call_parse_retry(
             client=client,
@@ -247,12 +322,42 @@ def make_check_paper_fn(deployment, token_usage):
             content=repo_content,
             token_usage=token_usage,
             empty_payload=EMPTY_PREPROCESSING_PAYLOAD,
-            required_list_fields=("key_quotes", "matched_categories", "preprocessing_files"),
+            required_list_fields=("preprocessing_files",),
             max_completion_tokens=token_budget,
             retry_truncate_chars=40_000,
             retry_max_tokens=4000,
             preview_chars=500,
         )
+
+    def _classify_with_remediation(rc, paper_title, repo_url):
+        """Run the LLM on combined content; retry with NAMED-only if suspicious.
+
+        A NOT_APPLICABLE verdict with NAMED files present is treated as
+        suspicious because the high-signal files may have been diluted by
+        FOLDER / GENERIC noise. The second pass re-asks the LLM with just
+        the NAMED bucket's content; if it now says EXISTS, that verdict is
+        preferred.
+        """
+        first = _llm_check(rc["combined_text"], paper_title, repo_url)
+        clf   = first.get("classification")
+
+        named = rc["buckets"]["named"]
+        suspicious = (
+            clf == "NOT_APPLICABLE"
+            and named["candidates"] > 0
+            and named["text"]
+        )
+        if not suspicious:
+            return first
+
+        print(f"  [Retry] First pass = NOT_APPLICABLE but {named['candidates']} "
+              f"NAMED files present. Re-checking with NAMED-only content...")
+        retry = _llm_check(named["text"], paper_title, repo_url)
+        if retry.get("classification") == "EXISTS":
+            print(f"  [Retry] Second pass = EXISTS — using corrected verdict.")
+            return retry
+        print(f"  [Retry] Second pass = {retry.get('classification')!r} — keeping first verdict.")
+        return first
 
     def check_paper(paper):
         title = paper.get("title", "")
@@ -266,13 +371,15 @@ def make_check_paper_fn(deployment, token_usage):
             "classification":      "NOT_APPLICABLE",
             "evidence":            "",
             "matched_categories":  [],
-            "preprocessing_files": [],
+            "preprocessing_files": [],   # list of {path, category, evidence} dicts
             "files_checked":       [],
+            "total_source_files":  0,
+            "coverage":            "",
             "note":                "",
         }
 
-        parsed = parse_repo_url(url)
-        if not parsed:
+        owner, repo_name = parse_github_repo(url)
+        if not owner:
             result["status"] = "skipped"
             result["note"] = (
                 f"Not a GitHub repo — manual review needed. URL: {url}"
@@ -280,27 +387,30 @@ def make_check_paper_fn(deployment, token_usage):
             )
             return result
 
-        owner, repo_name = parsed
-
         try:
-            repo_content, files_checked = _cached_collect_repo_content(owner, repo_name)
-            result["files_checked"] = files_checked
+            rc = _cached_collect_repo_content(owner, repo_name)
+            result["files_checked"]      = rc["fetched_paths"]
+            result["total_source_files"] = rc["total_source_files"]
+            result["coverage"]           = _coverage_pct(
+                rc["fetched_paths"], rc["total_source_files"]
+            )
 
-            if not files_checked:
+            if not rc["fetched_paths"]:
                 result["status"] = "no"
                 result["note"] = "No source files retrievable from the repo"
                 return result
 
-            llm_result = _llm_check(repo_content, title, url)
+            llm_result = _classify_with_remediation(rc, title, url)
             clf = llm_result.get("classification")
+            pf  = _normalise_preprocessing_files(llm_result.get("preprocessing_files"))
 
             result["classification"]      = clf or "NOT_APPLICABLE"
+            result["preprocessing_files"] = pf
+            result["matched_categories"]  = _derive_categories(pf)
             result["evidence"]            = (
-                "; ".join(llm_result.get("key_quotes", [])) or
-                llm_result.get("diagnostic_notes", "")
+                _derive_top_evidence(pf)
+                or llm_result.get("diagnostic_notes", "")
             )
-            result["matched_categories"]  = llm_result.get("matched_categories", [])
-            result["preprocessing_files"] = llm_result.get("preprocessing_files", [])
             result["note"]                = llm_result.get("final_reason", "")
 
             if clf is None:
@@ -335,6 +445,7 @@ def print_results(results):
     print("=" * W)
 
     for i, r in enumerate(results, 1):
+        # NOT_APPL (truncated) keeps the status column narrow on the console.
         icon = "EXISTS" if r["status"] == "yes" else "NOT_APPL"
 
         cats_str = ", ".join(r.get("matched_categories", []))[:34]
@@ -361,6 +472,78 @@ def print_results(results):
 
 
 # ---------------------------------------------------------------------------
+# Excel: Detail sheet builder (extracted)
+# ---------------------------------------------------------------------------
+
+def _write_detail_sheet(ws, results, border, wrap):
+    """Write the per-file detail sheet for a single model's results.
+
+    Columns: Paper #, Title, Repo, Preprocessing File, Category, Evidence,
+    GitHub Link. Paper#/Title/Repo cells are vertically merged when a paper
+    has multiple preprocessing files.
+    """
+    arial10   = Font(name="Arial", size=10)
+    link_font = Font(name="Arial", size=10, color="0563C1", underline="single")
+
+    hdrs   = ["Paper #", "Paper Title", "Repo",
+              "Preprocessing File", "Category", "Evidence", "GitHub Link"]
+    widths = [8, 45, 35, 45, 18, 60, 60]
+    write_header_row(ws, hdrs, widths, fill_hex="2F4F6F", border=border)
+
+    merge_center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    merge_left   = Alignment(horizontal="left",   vertical="center", wrap_text=True)
+
+    row = 2
+    for paper_num, r in enumerate(results, 1):
+        owner, repo_name = parse_github_repo(r.get("repo", ""))
+        files = [
+            pf for pf in r.get("preprocessing_files", [])
+            if isinstance(pf, dict) and pf.get("path")
+        ]
+        if not files:
+            continue
+
+        start_row = row
+        for pf in files:
+            path     = pf["path"]
+            category = CATEGORY_DISPLAY.get(
+                pf.get("category", ""),
+                pf.get("category", "").capitalize(),
+            )
+            evidence = pf.get("evidence", "")
+            link     = (
+                f"https://github.com/{owner}/{repo_name}/blob/HEAD/{path}"
+                if owner else ""
+            )
+
+            for col_idx, value in enumerate([path, category, evidence, link], 4):
+                cell = ws.cell(row=row, column=col_idx, value=value)
+                cell.font      = arial10
+                cell.border    = border
+                cell.alignment = wrap
+                if col_idx == 7 and value:
+                    cell.hyperlink = value
+                    cell.font = link_font
+            ws.row_dimensions[row].height = auto_row_height(
+                [path, category, evidence, link]
+            )
+            row += 1
+
+        end_row = row - 1
+        ws.cell(row=start_row, column=1, value=paper_num).font            = arial10
+        ws.cell(row=start_row, column=2, value=r.get("title") or "").font = arial10
+        ws.cell(row=start_row, column=3, value=r.get("repo") or "").font  = arial10
+        for col_idx in (1, 2, 3):
+            cell = ws.cell(row=start_row, column=col_idx)
+            cell.border    = border
+            cell.alignment = merge_center if col_idx == 1 else merge_left
+        if end_row > start_row:
+            for col_idx in (1, 2, 3):
+                ws.merge_cells(start_row=start_row, start_column=col_idx,
+                               end_row=end_row,   end_column=col_idx)
+
+
+# ---------------------------------------------------------------------------
 # Excel export
 # ---------------------------------------------------------------------------
 
@@ -371,7 +554,6 @@ def save_results(all_model_results, path=None):
 
     wb     = Workbook()
     border = thin_border()
-    center = alignment_center()
     wrap   = alignment_wrap_left()
 
     deployments = list(all_model_results.keys())
@@ -392,24 +574,27 @@ def save_results(all_model_results, path=None):
 
         hdrs1   = ["#", "Classification", "Title", "Repo",
                    "Categories", "Preprocessing Files", "Evidence",
-                   "Files Checked", "Note", "Tokens Used"]
-        widths1 = [5, 10, 45, 40, 30, 40, 55, 50, 35, 12]
+                   "Files Checked", "Note", "Coverage %", "Tokens Used"]
+        widths1 = [5, 14, 45, 40, 30, 40, 55, 50, 35, 12, 12]
         write_header_row(ws1, hdrs1, widths1, fill_hex="2F4F6F", border=border)
 
-        def _to_classification(r):
-            return "EXISTS" if r.get("status") == "yes" else "NOT_APPLICABLE"
-
         def results_row_data(r, num):
+            preproc_paths = ", ".join(
+                pf.get("path", "")
+                for pf in (r.get("preprocessing_files") or [])
+                if isinstance(pf, dict) and pf.get("path")
+            )
             return [
                 num,
-                _to_classification(r),
+                _status_to_label(r.get("status")),
                 r.get("title") or "",
                 r.get("repo") or "",
                 ", ".join(r.get("matched_categories") or []),
-                ", ".join(r.get("preprocessing_files") or []),
+                preproc_paths,
                 r.get("evidence") or "",
                 ", ".join(r.get("files_checked") or []),
                 r.get("note") or "",
+                r.get("coverage") or "",
                 r.get("tokens_used") or "",
             ]
 
@@ -421,52 +606,7 @@ def save_results(all_model_results, path=None):
 
         # ── Per-File Detail sheet (per model) ────────────────────────────
         ws2 = wb.create_sheet(safe_sheet_name("Detail", deployment))
-        hdrs2   = ["Paper #", "Paper Title", "Repo",
-                   "Preprocessing File", "GitHub Link"]
-        widths2 = [8, 50, 45, 60, 75]
-        write_header_row(ws2, hdrs2, widths2, fill_hex="2F4F6F", border=border)
-
-        detail_row   = 2
-        merge_center = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        merge_left   = Alignment(horizontal="left",   vertical="center", wrap_text=True)
-
-        for paper_num, r in enumerate(results, 1):
-            owner, repo_name = parse_github_repo(r.get("repo", ""))
-            file_rows = [f for f in r.get("preprocessing_files", []) if f and f.strip()]
-            if not file_rows:
-                continue
-
-            start_row = detail_row
-            for fpath in file_rows:
-                fpath = fpath.strip()
-                link  = (
-                    f"https://github.com/{owner}/{repo_name}/blob/HEAD/{fpath}"
-                    if owner else ""
-                )
-                for col_idx, value in enumerate([fpath, link], 4):
-                    cell = ws2.cell(row=detail_row, column=col_idx, value=value)
-                    cell.font   = Font(name="Arial", size=10)
-                    cell.border = border
-                    cell.alignment = wrap
-                    if col_idx == 5 and value:
-                        cell.hyperlink = value
-                        cell.font = Font(name="Arial", size=10,
-                                         color="0563C1", underline="single")
-                ws2.row_dimensions[detail_row].height = 18
-                detail_row += 1
-
-            end_row = detail_row - 1
-            ws2.cell(row=start_row, column=1, value=paper_num).font = Font(name="Arial", size=10)
-            ws2.cell(row=start_row, column=2, value=r.get("title") or "").font = Font(name="Arial", size=10)
-            ws2.cell(row=start_row, column=3, value=r.get("repo") or "").font = Font(name="Arial", size=10)
-            for col_idx in (1, 2, 3):
-                cell = ws2.cell(row=start_row, column=col_idx)
-                cell.border = border
-                cell.alignment = merge_center if col_idx == 1 else merge_left
-            if end_row > start_row:
-                ws2.merge_cells(start_row=start_row, start_column=1, end_row=end_row, end_column=1)
-                ws2.merge_cells(start_row=start_row, start_column=2, end_row=end_row, end_column=2)
-                ws2.merge_cells(start_row=start_row, start_column=3, end_row=end_row, end_column=3)
+        _write_detail_sheet(ws2, results, border, wrap)
 
         # ── Summary sheet (per model) ────────────────────────────────────
         ws3 = wb.create_sheet(safe_sheet_name("Summary", deployment))
@@ -498,7 +638,7 @@ def save_results(all_model_results, path=None):
 
 def main():
     """Entry point: run the preprocessing-code analysis pipeline."""
-    _content_cache.clear()
+    _cached_collect_repo_content.cache_clear()
     run_pipeline(
         papers=PAPERS,
         deployments=AZURE_OPENAI_DEPLOYMENTS,
