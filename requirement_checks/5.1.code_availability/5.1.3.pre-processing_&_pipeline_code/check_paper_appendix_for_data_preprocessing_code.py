@@ -23,15 +23,11 @@ Pipeline:
   4. Fetch each bucket under its OWN character budget so NAMED files
      (highest signal) cannot be crowded out by 70 unrelated scripts.    → collect_repo_content()
   5. Send the combined text to the LLM and parse the verdict — including
-     per-file (category, short evidence) pairs and an internal confidence
-     score.                                                             → make_check_paper_fn()
-  6. Progressive remediation (only when needed):
-       - Layer 2 (cheap): if NOT_APPLICABLE but NAMED files exist, re-run
-         the LLM on NAMED-only content. Prefer EXISTS if it flips.
-       - Layer 3 (more tokens): if STILL NOT_APPLICABLE with low confidence
-         AND low coverage, refetch with ~2x budgets and re-prompt with
-         double the output token budget. Prefer the deep verdict if it
-         flips to EXISTS or confirms NOT_APPLICABLE more confidently.   → make_check_paper_fn()
+     per-file (category, short evidence) pairs.                         → make_check_paper_fn()
+  6. Cheap remediation (only when triggered): if the verdict is
+     NOT_APPLICABLE but the NAMED bucket had files, re-run the LLM on
+     NAMED-only content. If that flips to EXISTS, prefer it. Same token
+     budget as the first pass.                                          → make_check_paper_fn()
   7. Repeat across every configured model; write the Excel output.      → main(), save_results()
 
 Labels:
@@ -76,10 +72,6 @@ from config import (
     BUCKET_BUDGET_NAMED, BUCKET_BUDGET_FOLDER, BUCKET_BUDGET_GENERIC,
     PER_FILE_CHAR_CAP_NAMED, PER_FILE_CHAR_CAP,
     MAX_NAMED_FILES, MAX_FOLDER_FILES, MAX_GENERIC_FILES,
-    LOW_CONFIDENCE_THRESHOLD, LOW_COVERAGE_THRESHOLD,
-    DEEP_BUCKET_BUDGET_NAMED, DEEP_BUCKET_BUDGET_FOLDER, DEEP_BUCKET_BUDGET_GENERIC,
-    DEEP_PER_FILE_CHAR_CAP_NAMED, DEEP_PER_FILE_CHAR_CAP,
-    DEEP_MAX_COMPLETION_TOKENS,
 )
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
@@ -92,20 +84,14 @@ CATEGORY_DISPLAY = {
     "prompting":    "Prompting wrappers",
 }
 
-# Per-bucket fetch parameters per profile: (budget_chars, per_file_cap, header_label).
-# "default" is used on the first pass; "deep" is used by the third remediation
-# layer when the LLM's verdict is NOT_APPLICABLE + low confidence + low coverage.
+# Per-bucket fetch parameters: (budget_chars, per_file_cap, header_label).
+# The budget values are STARTING ceilings — collect_repo_content() pools
+# the total across buckets in priority order (NAMED -> FOLDER -> GENERIC),
+# so unused budget from earlier buckets cascades to later ones.
 BUCKET_PARAMS = {
-    "default": {
-        "named":   (BUCKET_BUDGET_NAMED,   PER_FILE_CHAR_CAP_NAMED, "PREPROCESS-NAMED"),
-        "folder":  (BUCKET_BUDGET_FOLDER,  PER_FILE_CHAR_CAP,       "PREPROCESS-FOLDER"),
-        "generic": (BUCKET_BUDGET_GENERIC, PER_FILE_CHAR_CAP,       "GENERIC SOURCE"),
-    },
-    "deep": {
-        "named":   (DEEP_BUCKET_BUDGET_NAMED,   DEEP_PER_FILE_CHAR_CAP_NAMED, "PREPROCESS-NAMED"),
-        "folder":  (DEEP_BUCKET_BUDGET_FOLDER,  DEEP_PER_FILE_CHAR_CAP,       "PREPROCESS-FOLDER"),
-        "generic": (DEEP_BUCKET_BUDGET_GENERIC, DEEP_PER_FILE_CHAR_CAP,       "GENERIC SOURCE"),
-    },
+    "named":   (BUCKET_BUDGET_NAMED,   PER_FILE_CHAR_CAP_NAMED, "PREPROCESS-NAMED"),
+    "folder":  (BUCKET_BUDGET_FOLDER,  PER_FILE_CHAR_CAP,       "PREPROCESS-FOLDER"),
+    "generic": (BUCKET_BUDGET_GENERIC, PER_FILE_CHAR_CAP,       "GENERIC SOURCE"),
 }
 
 
@@ -165,24 +151,21 @@ def _fetch_bucket(owner, repo, paths, budget, per_file_cap, header_label):
     return "\n\n".join(blocks), got, chars_used
 
 
-def collect_repo_content(owner, repo, profile="default"):
+def collect_repo_content(owner, repo):
     """Fetch preprocessing-relevant files from a GitHub repo.
 
-    Each bucket has its own char budget so high-signal NAMED files
-    (preprocess.py, tokenize.py, …) are never crowded out by unrelated
-    files that happen to live under a preprocessing folder prefix.
-
-    The `profile` selects the budget set:
-      "default" — first-pass budgets from BUCKET_BUDGET_*
-      "deep"    — ~2x budgets used by the deep-remediation layer when the
-                  LLM signalled NOT_APPLICABLE + low confidence + low coverage.
+    Files are sorted into NAMED / FOLDER / GENERIC priority buckets, then
+    fetched against a SHARED char budget that cascades in priority order:
+    whatever NAMED does not consume flows to FOLDER, whatever FOLDER does
+    not consume flows to GENERIC. This stops the GENERIC bucket from
+    starving when real preprocessing code lives under a "neutrally-named"
+    file like `msformer/utils.py` (the MacFrag fragmentation algorithm).
 
     Returns a dict:
       {
         "combined_text":      str,    # all buckets joined
         "fetched_paths":      list,   # paths actually retrieved
         "total_source_files": int,    # source files BEFORE bucket truncation
-        "profile":            str,    # "default" or "deep"
         "buckets": {
           "named":   {"text": str, "files": [...], "candidates": int},
           "folder":  {"text": str, "files": [...], "candidates": int},
@@ -190,17 +173,16 @@ def collect_repo_content(owner, repo, profile="default"):
         },
       }
     """
-    params = BUCKET_PARAMS[profile]
-    print(f"  [GitHub] Listing {owner}/{repo} (profile={profile})")
+    print(f"  [GitHub] Listing {owner}/{repo}")
     try:
         all_files = list_all_repo_files(owner, repo)
     except Exception as e:
         print(f"  [GitHub] ERROR during listing: {type(e).__name__}: {e}")
-        return _empty_repo_content(profile)
+        return _empty_repo_content()
 
     if not all_files:
         print(f"  [GitHub] Repo empty or unreachable")
-        return _empty_repo_content(profile)
+        return _empty_repo_content()
 
     print(f"  [GitHub] {len(all_files)} files in repo")
 
@@ -213,7 +195,7 @@ def collect_repo_content(owner, repo, profile="default"):
         lst.sort(key=lambda p: (p.count("/"), p.lower()))
 
     # Cap each bucket's candidate count BEFORE fetching, then let the
-    # per-bucket char budget further trim if needed.
+    # shared char budget further trim if needed.
     candidates = {
         "named":   named[:MAX_NAMED_FILES],
         "folder":  folder[:MAX_FOLDER_FILES],
@@ -223,19 +205,13 @@ def collect_repo_content(owner, repo, profile="default"):
           f"{len(candidates['folder'])} in folders, {len(candidates['generic'])} generic "
           f"(of {total_source_files} source files)")
 
-    # Pool the char budget across buckets. The per-bucket budgets in
-    # BUCKET_PARAMS act as STARTING ceilings for NAMED — but whatever NAMED
-    # doesn't use cascades to FOLDER, and whatever FOLDER doesn't use
-    # cascades to GENERIC. This prevents the GENERIC bucket from starving
-    # when real preprocessing code lives under a "neutrally-named" file
-    # (e.g. `msformer/utils.py` is MacFrag fragmentation — the most
-    # important preprocessing file in the whole repo).
-    total_budget = sum(b[0] for b in params.values())
+    # Pool the char budget across buckets in priority order.
+    total_budget = sum(b[0] for b in BUCKET_PARAMS.values())
     buckets = {}
     remaining = total_budget
     for name in ("named", "folder", "generic"):
         paths = candidates[name]
-        _, per_file_cap, header_label = params[name]
+        _, per_file_cap, header_label = BUCKET_PARAMS[name]
         text, files, used = _fetch_bucket(
             owner, repo, paths, remaining, per_file_cap, header_label,
         )
@@ -253,17 +229,15 @@ def collect_repo_content(owner, repo, profile="default"):
         "combined_text":      combined_text,
         "fetched_paths":      fetched_paths,
         "total_source_files": total_source_files,
-        "profile":            profile,
         "buckets":            buckets,
     }
 
 
-def _empty_repo_content(profile="default"):
+def _empty_repo_content():
     return {
         "combined_text":      "",
         "fetched_paths":      [],
         "total_source_files": 0,
-        "profile":            profile,
         "buckets": {
             "named":   {"text": "", "files": [], "candidates": 0},
             "folder":  {"text": "", "files": [], "candidates": 0},
@@ -273,9 +247,9 @@ def _empty_repo_content(profile="default"):
 
 
 @lru_cache(maxsize=None)
-def _cached_collect_repo_content(owner, repo, profile="default"):
+def _cached_collect_repo_content(owner, repo):
     """Cached collect_repo_content — avoids re-fetching when running multiple models."""
-    return collect_repo_content(owner, repo, profile)
+    return collect_repo_content(owner, repo)
 
 
 # ---------------------------------------------------------------------------
@@ -324,26 +298,11 @@ def _derive_top_evidence(pf_list, n=3):
     return "; ".join(snippets[:n])
 
 
-def _coverage_ratio(files_count, total_source_files):
-    """Return files_count / total_source_files in [0, 1], or 0.0 if total is 0."""
-    if not total_source_files:
-        return 0.0
-    return files_count / total_source_files
-
-
 def _coverage_pct(files_checked, total_source_files):
     """Return a coverage string like '23%', or '' when total is 0/unknown."""
     if not total_source_files:
         return ""
-    return f"{100.0 * _coverage_ratio(len(files_checked), total_source_files):.0f}%"
-
-
-def _to_int(value, default=0):
-    """Coerce LLM-returned numerics (which may arrive as int/float/str/None)."""
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return default
+    return f"{100.0 * len(files_checked) / total_source_files:.0f}%"
 
 
 # ---------------------------------------------------------------------------
@@ -357,12 +316,11 @@ def make_check_paper_fn(deployment, token_usage):
     the same repo, so multi-model runs do not re-fetch GitHub content.
     """
 
-    def _llm_check(repo_content, paper_title, repo_url, max_tokens=None):
+    def _llm_check(repo_content, paper_title, repo_url):
         """One LLM call. Returns the parsed JSON payload (dict).
 
-        `max_tokens` overrides the output-token budget. When None, it
-        scales with input size (2500 for small, 4000 for large) — the
-        previous default behaviour.
+        Output-token budget scales with input size (2500 for small inputs,
+        4000 for >50k chars of input).
         """
         def build_msg(content):
             return USER_PROMPT.format(
@@ -371,8 +329,7 @@ def make_check_paper_fn(deployment, token_usage):
                 repo_content=content if content else "[No source code files found in the repository]",
             )
 
-        if max_tokens is None:
-            max_tokens = 4000 if len(repo_content) > 50_000 else 2500
+        max_tokens = 4000 if len(repo_content) > 50_000 else 2500
 
         return llm_call_parse_retry(
             client=client,
@@ -389,8 +346,8 @@ def make_check_paper_fn(deployment, token_usage):
             preview_chars=500,
         )
 
-    def _classify_with_remediation(owner, repo_name, rc, paper_title, repo_url):
-        """Three-layer classification with progressive remediation.
+    def _classify_with_remediation(rc, paper_title, repo_url):
+        """Two-pass classification.
 
         Layer 1 — first pass: normal LLM call on combined-bucket content.
 
@@ -399,14 +356,6 @@ def make_check_paper_fn(deployment, token_usage):
           high-signal files may have been diluted by FOLDER/GENERIC noise.
           Re-prompt the LLM with NAMED-bucket text only. If that flips to
           EXISTS, prefer it.
-
-        Layer 3 — deep pass (more tokens, more content):
-          When the (still-)current verdict is NOT_APPLICABLE AND the LLM
-          reported low confidence AND repo coverage was low, refetch the
-          repo with the "deep" budget profile (~2x) and re-prompt with
-          DEEP_MAX_COMPLETION_TOKENS of output budget. Prefer the deep
-          verdict if it flips to EXISTS, or if it confirms NOT_APPLICABLE
-          with materially higher confidence.
         """
         # ─── Layer 1 ────────────────────────────────────────────────────────
         current = _llm_check(rc["combined_text"], paper_title, repo_url)
@@ -422,34 +371,6 @@ def make_check_paper_fn(deployment, token_usage):
                 print(f"  [Retry] Second pass = EXISTS — using corrected verdict.")
                 return retry
             print(f"  [Retry] Second pass = {retry.get('classification')!r} — keeping first verdict.")
-
-        # ─── Layer 3 ────────────────────────────────────────────────────────
-        conf      = _to_int(current.get("confidence"), default=100)  # high default = don't escalate when missing
-        cov_ratio = _coverage_ratio(len(rc["fetched_paths"]), rc["total_source_files"])
-        deep_eligible = (
-            clf == "NOT_APPLICABLE"
-            and conf < LOW_CONFIDENCE_THRESHOLD
-            and cov_ratio < LOW_COVERAGE_THRESHOLD
-            and rc["total_source_files"] > 0   # skip when we have no data at all
-        )
-        if deep_eligible:
-            print(f"  [Deep] NOT_APPLICABLE + confidence={conf} + coverage={cov_ratio:.0%} "
-                  f"— escalating with expanded budget and more output tokens...")
-            rc_deep = _cached_collect_repo_content(owner, repo_name, profile="deep")
-            deep    = _llm_check(
-                rc_deep["combined_text"], paper_title, repo_url,
-                max_tokens=DEEP_MAX_COMPLETION_TOKENS,
-            )
-            deep_clf  = deep.get("classification")
-            deep_conf = _to_int(deep.get("confidence"), default=0)
-            # Prefer the deep result when it flips to EXISTS, or when it
-            # confirms NOT_APPLICABLE with materially higher confidence.
-            if deep_clf == "EXISTS" or (
-                deep_clf == "NOT_APPLICABLE" and deep_conf > conf
-            ):
-                print(f"  [Deep] Pass = {deep_clf} (conf {deep_conf}) — using deep verdict.")
-                return deep
-            print(f"  [Deep] Pass = {deep_clf} (conf {deep_conf}) — keeping prior verdict.")
 
         return current
 
@@ -494,7 +415,7 @@ def make_check_paper_fn(deployment, token_usage):
                 result["note"] = "No source files retrievable from the repo"
                 return result
 
-            llm_result = _classify_with_remediation(owner, repo_name, rc, title, url)
+            llm_result = _classify_with_remediation(rc, title, url)
             clf = llm_result.get("classification")
             pf  = _normalise_preprocessing_files(llm_result.get("preprocessing_files"))
 
