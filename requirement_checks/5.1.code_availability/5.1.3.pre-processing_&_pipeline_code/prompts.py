@@ -68,6 +68,7 @@ OUTPUT MUST BE VALID JSON ONLY with this exact schema:
 
 {
   "classification": "EXISTS" | "NOT_APPLICABLE",
+  "confidence": integer 0-100,
   "preprocessing_files": [
     {
       "path":     "path/to/file.py",
@@ -79,6 +80,15 @@ OUTPUT MUST BE VALID JSON ONLY with this exact schema:
   "diagnostic_notes": "one sentence",
   "final_reason": "one sentence for a human reader"
 }
+
+Confidence guidance (be honest — this signal drives whether the system
+will run a more thorough re-check):
+  0-50    — uncertain. You would want to see more files or longer file
+            content before committing to this verdict.
+  51-79   — moderately sure. Some ambiguity, but the evidence you saw
+            points in one direction.
+  80-100  — confident. The evidence is clear and you would not change
+            your verdict given more files.
 
 Rules for preprocessing_files:
 - Empty array when classification is NOT_APPLICABLE.
@@ -93,6 +103,7 @@ Few-shot examples illustrating the OUTPUT schema:
 EXAMPLE EXISTS — text: a tokenize.py and a dedup.py:
 {
   "classification": "EXISTS",
+  "confidence": 95,
   "preprocessing_files": [
     {"path": "src/tokenize.py", "category": "tokenization",
      "evidence": "tokens = bpe.encode(text); shards.append(tokens[:max_len])"},
@@ -106,6 +117,7 @@ EXAMPLE EXISTS — text: a tokenize.py and a dedup.py:
 EXAMPLE EXISTS — vision: an image-preprocessing module:
 {
   "classification": "EXISTS",
+  "confidence": 90,
   "preprocessing_files": [
     {"path": "src/preprocess.py", "category": "tokenization",
      "evidence": "for window_size in [2560,1280,640]: patches.append(cv2.resize(patch, (output_size, output_size)))"},
@@ -119,9 +131,19 @@ EXAMPLE EXISTS — vision: an image-preprocessing module:
 EXAMPLE NOT_APPLICABLE — only training / inference code:
 {
   "classification": "NOT_APPLICABLE",
+  "confidence": 85,
   "preprocessing_files": [],
   "diagnostic_notes": "Repo contains only train.py / model.py / evaluate.py.",
   "final_reason": "No preprocessing, tokenization, filtering, or prompt-building code found."
+}
+
+EXAMPLE NOT_APPLICABLE — uncertain (saw only a handful of files):
+{
+  "classification": "NOT_APPLICABLE",
+  "confidence": 40,
+  "preprocessing_files": [],
+  "diagnostic_notes": "Only 5 of 200 files visible; nothing preprocessing-like in the sample.",
+  "final_reason": "No preprocessing code in what I saw, but the sample is small — would benefit from more files."
 }
 
 When in doubt → NOT_APPLICABLE."""
