@@ -58,6 +58,18 @@ NOT_APPLICABLE = everything else, including:
    • Files that read raw datasets but do no real cleaning / tokenizing /
      filtering / prompt-building.
    • Repo is empty or no relevant files were retrieved.
+   • **Algorithmic / statistical data partitioning that is PART OF a method
+     implementation** rather than dataset preprocessing. Examples that do
+     NOT count as filtering:
+        - quantile binning for PD / ALE / Accumulated Local Effects curves
+        - train/test split helpers, k-fold cross-validation splitting
+        - bootstrap resampling, percentile / histogram bucketing inside a
+          statistical estimator
+        - sklearn's `StandardScaler` (or similar) used as a single step
+          inside a fit-time `Pipeline([...])` — that is model fitting,
+          not a preprocessing pipeline
+     Filtering means REMOVING, DEDUPLICATING, CLEANING, NORMALISING, or
+     AUGMENTING the data BEFORE the model sees it as its training corpus.
 
 Be strict on TRIVIALITY (not modality): a file named `preprocess.py` that
 just does `df = pd.read_csv(path)` is NOT real preprocessing code. But a
@@ -144,6 +156,15 @@ EXAMPLE NOT_APPLICABLE — uncertain (saw only a handful of files):
   "preprocessing_files": [],
   "diagnostic_notes": "Only 5 of 200 files visible; nothing preprocessing-like in the sample.",
   "final_reason": "No preprocessing code in what I saw, but the sample is small — would benefit from more files."
+}
+
+EXAMPLE NOT_APPLICABLE — algorithmic data partitioning (not preprocessing):
+{
+  "classification": "NOT_APPLICABLE",
+  "confidence": 90,
+  "preprocessing_files": [],
+  "diagnostic_notes": "algorithms.py implements ALE/PD curve estimation; binning is part of the method, not dataset filtering.",
+  "final_reason": "Quantile binning, train/test splits, and sklearn StandardScaler used inside a fit-time Pipeline are algorithm components, not real data preprocessing."
 }
 
 When in doubt → NOT_APPLICABLE."""

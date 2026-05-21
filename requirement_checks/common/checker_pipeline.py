@@ -18,6 +18,34 @@ from common.github_helpers import parse_github_repo
 from common.llm_helpers import TokenUsageTracker, print_token_usage_report
 
 
+def _dedupe_papers_by_repo(papers):
+    """Return papers with duplicate repo URLs collapsed (first wins).
+
+    The PAPERS list is hand-curated and occasionally accumulates duplicates
+    (same repo URL, sometimes with different metadata). Running the same
+    repo twice wastes API calls and pollutes the Results sheet with two
+    rows that the user has to mentally merge. Drop duplicates here,
+    keeping the first occurrence (which usually has the more complete
+    metadata) and printing a one-line notice so the user knows.
+    """
+    seen = set()
+    out  = []
+    dropped = []
+    for p in papers:
+        repo = (p.get("repo") or "").strip().rstrip("/").lower()
+        if repo and repo in seen:
+            dropped.append(p.get("title", repo))
+            continue
+        if repo:
+            seen.add(repo)
+        out.append(p)
+    if dropped:
+        print(f"Dedup: skipped {len(dropped)} duplicate repo(s) in PAPERS:")
+        for t in dropped:
+            print(f"  - {t[:80]}")
+    return out
+
+
 def _run_single_pass(
     *,
     papers,
@@ -148,6 +176,8 @@ def run_pipeline(
     """
     if isinstance(deployments, str):
         deployments = [deployments]
+
+    papers = _dedupe_papers_by_repo(papers)
 
     all_model_results = {}
 

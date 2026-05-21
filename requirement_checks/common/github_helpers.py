@@ -181,6 +181,50 @@ def list_all_repo_files(owner, repo):
     return [item for item in data["tree"] if item.get("type") == "blob"]
 
 
+def _extract_ipynb_code(json_text):
+    """Flatten a Jupyter notebook JSON into plain text the LLM can read.
+
+    Notebooks are stored as JSON with a top-level ``cells`` array. When fed
+    raw to an LLM, the JSON envelope + per-cell metadata + ``outputs`` blobs
+    drown out the actual code, and LLMs frequently report the notebook as
+    "incomplete" or "partial" — even when the full content fits the context
+    window. Extracting code (and including markdown as comments for context)
+    typically shrinks the payload 3-5x and makes it directly readable.
+
+    Returns the original ``json_text`` unchanged when the input is not a
+    well-formed notebook, so callers do not need to special-case errors.
+    """
+    try:
+        nb = json.loads(json_text)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return json_text
+    cells = nb.get("cells") if isinstance(nb, dict) else None
+    if not isinstance(cells, list):
+        return json_text
+
+    blocks = []
+    for i, cell in enumerate(cells):
+        if not isinstance(cell, dict):
+            continue
+        ctype = cell.get("cell_type", "")
+        src   = cell.get("source", "")
+        if isinstance(src, list):
+            src = "".join(src)
+        if not isinstance(src, str) or not src.strip():
+            continue
+        if ctype == "code":
+            blocks.append(f"# --- Cell {i} (code) ---\n{src}")
+        elif ctype == "markdown":
+            # Prefix every markdown line with "# " so the LLM sees it as a
+            # comment block adjacent to the surrounding code.
+            md = "\n".join(
+                f"# {ln}" for ln in src.strip().splitlines() if ln.strip()
+            )
+            blocks.append(f"# --- Cell {i} (markdown) ---\n{md}")
+
+    return "\n\n".join(blocks) if blocks else json_text
+
+
 def fetch_file_content(owner, repo, file_path):
     """Download one file from GitHub and return its UTF-8 text.
 
@@ -188,21 +232,28 @@ def fetch_file_content(owner, repo, file_path):
     File paths are URL-encoded so that paths containing spaces, ``#``,
     or other special characters work correctly.
 
+    Jupyter notebooks (``.ipynb``) are post-processed: the JSON envelope
+    is unwrapped and code/markdown cells are flattened into plain text.
+    See _extract_ipynb_code() for the rationale.
+
     Returns:
-        str | None: The decoded file content, or None if the file is
-        missing, binary (decoding fails), or the API call fails.
-        Errors during UTF-8 decoding are silently ignored (``errors="ignore"``)
-        so binary blobs return as empty/garbled strings rather than
-        raising.
+        str | None: The decoded (and possibly flattened) file content,
+        or None if the file is missing, binary (decoding fails), or the
+        API call fails.  Errors during UTF-8 decoding are silently
+        ignored (``errors="ignore"``) so binary blobs return as empty
+        or garbled strings rather than raising.
     """
     encoded_path = urllib.parse.quote(file_path, safe="/")
     data = github_get(f"repos/{owner}/{repo}/contents/{encoded_path}")
     if not data or "content" not in data:
         return None
     try:
-        return base64.b64decode(data["content"]).decode("utf-8", errors="ignore")
+        text = base64.b64decode(data["content"]).decode("utf-8", errors="ignore")
     except Exception:
         return None
+    if file_path.lower().endswith(".ipynb"):
+        text = _extract_ipynb_code(text)
+    return text
 
 
 # =============================================================================

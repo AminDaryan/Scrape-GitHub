@@ -151,18 +151,18 @@ def _bucket_paths(all_files):
 
 
 def _fetch_bucket(owner, repo, paths, budget, per_file_cap, header_label):
-    """Fetch one bucket's files under its OWN char budget. Returns (text, fetched_paths)."""
-    if not paths:
-        return "", []
-    blocks, got, _ = fetch_paths_with_char_budget(
+    """Fetch one bucket's files under a char budget. Returns (text, fetched_paths, chars_used)."""
+    if not paths or budget <= 0:
+        return "", [], 0
+    blocks, got, chars_used = fetch_paths_with_char_budget(
         owner, repo, paths, budget,
         fetch_content=fetch_file_content,
-        start_total_chars=0,            # each bucket is independent
+        start_total_chars=0,
         pause_seconds=0.15,
         header_label=header_label,
         per_file_char_cap=per_file_cap,
     )
-    return "\n\n".join(blocks), got
+    return "\n\n".join(blocks), got, chars_used
 
 
 def collect_repo_content(owner, repo, profile="default"):
@@ -223,10 +223,23 @@ def collect_repo_content(owner, repo, profile="default"):
           f"{len(candidates['folder'])} in folders, {len(candidates['generic'])} generic "
           f"(of {total_source_files} source files)")
 
+    # Pool the char budget across buckets. The per-bucket budgets in
+    # BUCKET_PARAMS act as STARTING ceilings for NAMED — but whatever NAMED
+    # doesn't use cascades to FOLDER, and whatever FOLDER doesn't use
+    # cascades to GENERIC. This prevents the GENERIC bucket from starving
+    # when real preprocessing code lives under a "neutrally-named" file
+    # (e.g. `msformer/utils.py` is MacFrag fragmentation — the most
+    # important preprocessing file in the whole repo).
+    total_budget = sum(b[0] for b in params.values())
     buckets = {}
-    for name, paths in candidates.items():
-        budget, per_file_cap, header_label = params[name]
-        text, files = _fetch_bucket(owner, repo, paths, budget, per_file_cap, header_label)
+    remaining = total_budget
+    for name in ("named", "folder", "generic"):
+        paths = candidates[name]
+        _, per_file_cap, header_label = params[name]
+        text, files, used = _fetch_bucket(
+            owner, repo, paths, remaining, per_file_cap, header_label,
+        )
+        remaining -= used
         buckets[name] = {
             "text":       text,
             "files":      files,
