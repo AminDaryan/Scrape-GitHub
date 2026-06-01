@@ -17,3 +17,8 @@ __pycache__/
 
 # Claude Code per-machine state (tool-permission cache, not project work)
 .claude/settings.local.json
+
+# Beall's List check: large input corpus (Semantic Scholar dumps, ~70 MB)
+# and generated output workbook. The vendored bealls_snapshot.json IS tracked.
+docs/Updated Abstract Papers/
+requirement_checks/bealls_list_check/results/
