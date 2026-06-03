@@ -84,20 +84,20 @@ COLUMNS = [
     ("Source File",  20, "source_file"),
     ("Title",        50, "title"),
     ("Year",         8,  "year"),
-    ("Venue (S2)",   34, "venue"),
-    ("Resolved Venue", 34, "resolved_name"),
+    ("Venue",        36, "venue"),
     ("Type",         12, "venue_type"),
     ("Venue Domain", 22, "venue_domain"),
     ("ISSN",         12, "issn"),
     ("DOI",          24, "doi"),
+    ("Paper URL",    34, "paper_url"),
     ("Beall List",   18, "list_source"),
     ("Matched Entry", 30, "matched_name"),
     ("Matched On",   22, "matched_on"),
-    ("Confidence",   11, "confidence"),
-    ("Fuzzy Score",  11, "fuzzy_score"),
-    ("Notes",        46, "note"),
     ("Matched URL",  34, "matched_url"),
 ]
+
+# Columns rendered as clickable hyperlinks.
+LINK_KEYS = {"paper_url", "matched_url"}
 
 _HEADER_FILL = PatternFill("solid", fgColor="2F5496")
 _HEADER_FONT = Font(name="Arial", bold=True, size=10, color="FFFFFF")
@@ -123,7 +123,7 @@ def _write_results_sheet(ws, results):
     ws.row_dimensions[1].height = 26
     ws.freeze_panes = "A2"
 
-    center_cols = {1, 2, 5, 8, 10, 12, 14, 15, 16}
+    center_cols = {1, 2, 5, 7, 9, 12, 14}
     for row_idx, r in enumerate(results, 2):
         fill = PatternFill("solid", fgColor=STATUS_FILL_COLORS.get(r["status"], "FFFFFF"))
         for col, (_, _, key) in enumerate(COLUMNS, 1):
@@ -135,6 +135,10 @@ def _write_results_sheet(ws, results):
             if col == 2:               # color the Status cell by status
                 cell.fill = fill
                 cell.font = Font(name="Arial", size=9, bold=True)
+            elif key in LINK_KEYS and value:
+                cell.hyperlink = value
+                cell.font = Font(name="Arial", size=9, color="0563C1",
+                                 underline="single")
 
 
 def _write_summary_sheet(ws, results, snapshot_meta, corpus_files):
@@ -178,6 +182,9 @@ def _write_summary_sheet(ws, results, snapshot_meta, corpus_files):
         kv(row, f"  {src}", list_counts[src]); row += 1
     row += 1
 
+    header(row, "Compute cost", ""); row += 1
+    kv(row, "LLM tokens used", "0 (no LLM — deterministic metadata matching)"); row += 2
+
     header(row, "Run metadata", ""); row += 1
     kv(row, "Snapshot scraped (UTC)", snapshot_meta.get("scraped_utc", "")); row += 1
     kv(row, "Snapshot entries", snapshot_meta.get("total_entries", "")); row += 1
@@ -203,6 +210,155 @@ def _write_flagged_sheet(ws, results):
     return len(flagged)
 
 
+# Static documentation for the Legend sheet: (column_a, column_b, column_c).
+_LEGEND_STATUSES = [
+    ("on_list", "high", "Venue matched a CORE Beall list (predatory publishers, "
+     "standalone journals, or hijacked journals) by a high-confidence signal "
+     "(exact domain, subdomain of a listed domain, exact ISSN, or exact name). "
+     "Read as: \"this venue appears on Beall's List.\""),
+    ("review", "verify", "A softer or contested match: a fuzzy name match, the "
+     "open-access PDF host, or a match on a WEAK list (vanity-press / "
+     "misleading-metrics). Check by hand before trusting."),
+    ("clean", "—", "The venue was identified and did NOT match any Beall entry."),
+    ("no_venue", "—", "Preprint server (e.g. arXiv) or no venue metadata in the "
+     "record — there is no journal/publisher to classify."),
+    ("error", "—", "The record could not be processed; the Python error is shown "
+     "in the 'Matched On' column."),
+]
+
+_LEGEND_MATCHED_ON = [
+    ("domain", "strongest", "Venue host exactly equals a listed host "
+     "(e.g. mdpi.com == mdpi.com)."),
+    ("domain_subdomain", "strong", "Venue host is a subdomain of a listed host "
+     "(e.g. journal.mdpi.com -> listed mdpi.com)."),
+    ("issn", "strong", "Venue ISSN exactly equals a listed ISSN."),
+    ("name_exact", "strong", "Normalized venue name exactly equals a listed name "
+     "(case/accents/punctuation ignored)."),
+    ("domain_alternate_url", "weak (review)", "An ALTERNATE venue URL (not the "
+     "canonical one) points at a listed domain. Semantic Scholar sometimes "
+     "merges several same-named journals, so this may be a different journal "
+     "than the paper's — verify."),
+    ("name_fuzzy", "weak (review)", "Venue name is >= 93% similar to a listed name. "
+     "Never asserted as on_list — always review."),
+    ("domain_open_access_pdf", "weak (review)", "The open-access PDF is hosted on a "
+     "listed domain even though the venue itself was not identified."),
+]
+
+_LEGEND_LISTS = [
+    ("publishers", "CORE", "Predatory publisher (Beall's main list)."),
+    ("standalone_journal", "CORE", "Standalone predatory journal."),
+    ("hijacked", "CORE", "Hijacked / cloned journal that impersonates a "
+     "legitimate one (only the fake side is listed)."),
+    ("vanity_press", "WEAK -> review", "Book/monograph publisher (e.g. IGI Global). "
+     "Not a journal-quality signal, so downgraded to review."),
+    ("misleading_metric", "WEAK -> review", "Company selling fake impact-factor "
+     "metrics — not a venue a paper is published in. Downgraded to review."),
+]
+
+_LEGEND_COLUMNS = [
+    ("Status", "Classification of the paper (see Status section above)."),
+    ("Source File", "Which corpus JSON the paper came from."),
+    ("Title / Year", "Paper title and publication year (from Semantic Scholar)."),
+    ("Venue", "The publication venue name reported by Semantic Scholar."),
+    ("Type", "journal / conference (conferences are outside Beall's scope)."),
+    ("Venue Domain", "Host of the venue's website (the main matching key)."),
+    ("ISSN / DOI", "Venue ISSN and the paper's DOI."),
+    ("Paper URL", "Link to the article at its publisher (via DOI when available)."),
+    ("Beall List", "Which Beall list the match came from (see Beall List section)."),
+    ("Matched Entry", "The exact Beall entry that was matched."),
+    ("Matched On", "Which signal fired (see 'Matched On' section above)."),
+    ("Matched URL", "The listed Beall entry's own URL."),
+]
+
+_LEGEND_CAVEATS = [
+    "Beall's List is an unofficial, archived, frozen (~2021), and CONTESTED list. "
+    "A match is an allegation as of the snapshot date — not proof a venue is predatory.",
+    "Well-known publishers like MDPI and Frontiers are on the list but are widely "
+    "considered legitimate. Treat 'on_list' as \"appears on the list,\" not \"is predatory.\"",
+    "This check classifies the VENUE, not the paper's content or quality.",
+    "It uses NO LLM (0 tokens). Every result is deterministic, reproducible, and "
+    "auditable from the Matched On / Matched Entry columns.",
+    "no_venue is mostly arXiv/preprints, which by definition have no journal "
+    "publisher and so cannot be on Beall's List.",
+]
+
+
+def _write_legend_sheet(ws):
+    """Write a human-readable data dictionary for the Results/Summary sheets."""
+    border = _border()
+    ws.column_dimensions["A"].width = 24
+    ws.column_dimensions["B"].width = 16
+    ws.column_dimensions["C"].width = 95
+
+    bold = Font(name="Arial", size=10, bold=True)
+    data = Font(name="Arial", size=10)
+    section_font = Font(name="Arial", size=12, bold=True, color="2F5496")
+    row = 1
+
+    def section(title):
+        nonlocal row
+        c = ws.cell(row=row, column=1, value=title)
+        c.font = section_font
+        row += 1
+
+    def headcols(a, b, c):
+        nonlocal row
+        for col, val in ((1, a), (2, b), (3, c)):
+            cell = ws.cell(row=row, column=col, value=val)
+            cell.font, cell.fill, cell.alignment, cell.border = (
+                _HEADER_FONT, _HEADER_FILL, _CENTER, border
+            )
+        row += 1
+
+    def triple(a, b, c, fill_hex=None):
+        nonlocal row
+        for col, val in ((1, a), (2, b), (3, c)):
+            cell = ws.cell(row=row, column=col, value=val)
+            cell.font = bold if col == 1 else data
+            cell.border = border
+            cell.alignment = _LEFT
+            if col == 1 and fill_hex:
+                cell.fill = PatternFill("solid", fgColor=fill_hex)
+        row += 1
+
+    title = ws.cell(row=row, column=1,
+                    value="Beall's List Check — Legend / Data Dictionary")
+    title.font = Font(name="Arial", size=14, bold=True)
+    row += 2
+
+    section("STATUS values (and the row color used in Results)")
+    headcols("Status", "Confidence", "Meaning")
+    for name, conf, desc in _LEGEND_STATUSES:
+        triple(name, conf, desc, fill_hex=STATUS_FILL_COLORS.get(name))
+    row += 1
+
+    section("'Matched On' — which signal produced the match")
+    headcols("Matched On", "Strength", "Meaning")
+    for name, strength, desc in _LEGEND_MATCHED_ON:
+        triple(name, strength, desc)
+    row += 1
+
+    section("'Beall List' — which list the entry came from")
+    headcols("Beall List", "Weight", "Meaning")
+    for name, weight, desc in _LEGEND_LISTS:
+        triple(name, weight, desc)
+    row += 1
+
+    section("Columns in the Results / Flagged-only sheets")
+    headcols("Column", "", "Meaning")
+    for name, desc in _LEGEND_COLUMNS:
+        triple(name, "", desc)
+    row += 1
+
+    section("Caveats — read before interpreting results")
+    for caveat in _LEGEND_CAVEATS:
+        c = ws.cell(row=row, column=1, value="• " + caveat)
+        c.font = data
+        c.alignment = _LEFT
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+        row += 1
+
+
 def save_workbook(results, snapshot_meta, corpus_files):
     """Build and save the combined workbook; return its path."""
     wb = openpyxl.Workbook()
@@ -216,9 +372,20 @@ def save_workbook(results, snapshot_meta, corpus_files):
     ws_summary = wb.create_sheet("Summary")
     _write_summary_sheet(ws_summary, results, snapshot_meta, corpus_files)
 
+    ws_legend = wb.create_sheet("Legend")
+    _write_legend_sheet(ws_legend)
+
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     out_path = RESULTS_DIR / RESULTS_FILENAME
-    wb.save(out_path)
+    try:
+        wb.save(out_path)
+    except PermissionError:
+        # The target is almost certainly open in Excel (Windows locks it).
+        # Fall back to a timestamped name so a run is never lost.
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        out_path = RESULTS_DIR / f"{Path(RESULTS_FILENAME).stem}_{stamp}.xlsx"
+        wb.save(out_path)
+        print(f"  (default file was locked — saved to {out_path.name} instead)")
     return out_path, n_flagged
 
 
@@ -249,12 +416,13 @@ def main():
                 "source_file": source_file,
                 "paperId": paper.get("paperId", ""),
                 "title": paper.get("title", "") or "",
-                "status": "error", "note": f"{type(exc).__name__}: {exc}",
+                "status": "error",
+                # Surface the failure in Matched On (the Notes column is gone).
+                "matched_on": f"{type(exc).__name__}: {exc}",
                 **{k: "" for k in (
-                    "year", "doi", "venue", "resolved_name", "venue_type",
-                    "venue_domain", "issn", "url", "list_source",
-                    "matched_name", "matched_url", "matched_on",
-                    "confidence", "fuzzy_score")},
+                    "year", "doi", "paper_url", "venue", "resolved_name",
+                    "venue_type", "venue_domain", "issn", "url", "list_source",
+                    "matched_name", "matched_url")},
             })
 
     elapsed = time.time() - started

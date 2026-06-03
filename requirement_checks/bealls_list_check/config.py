@@ -48,6 +48,29 @@ MIN_NAME_LEN = 5
 # low-relevance metric/vanity lists produces noise, so those are exact-only.
 FUZZY_LIST_SOURCES = {"publishers", "standalone_journal", "hijacked"}
 
+# "Weak" lists that should never assert a high-confidence "on_list" verdict for
+# a journal article:
+#   * vanity_press     — book/monograph publishers (e.g. IGI Global). Their
+#                        journals are a different thing; flagging an article
+#                        because the publisher self-publishes books is a
+#                        category error.
+#   * misleading_metric— companies selling fake impact-factor metrics; not
+#                        venues at all, so a paper can't be published "in" one.
+# A match on these is downgraded from on_list -> review (surfaced, not asserted).
+WEAK_LIST_SOURCES = {"vanity_press", "misleading_metric"}
+
+# Generic hosting / platform domains that some Beall entries live on (e.g. a
+# predatory journal whose only web presence is a Google Site).  These are too
+# broad to use as a domain-match key: matching a paper purely because its venue
+# is "sites.google.com" would be meaningless.  Excluded from the domain index
+# (the entry can still match by name).  Specific *sub*domains of a platform
+# (e.g. "ijddmr.wordpress.com") are precise enough and are kept.
+GENERIC_HOSTS = {
+    "sites.google.com", "google.com", "docs.google.com", "drive.google.com",
+    "groups.google.com", "github.io", "wordpress.com", "blogspot.com",
+    "wixsite.com", "wix.com", "weebly.com", "webs.com",
+}
+
 # Preprint-server hosts: a paper whose venue is one of these has no journal
 # publisher and therefore cannot be "on Beall's List" — it is classified
 # "no_venue" rather than clean/predatory.
