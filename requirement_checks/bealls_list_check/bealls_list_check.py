@@ -93,6 +93,7 @@ COLUMNS = [
     ("Beall List",   18, "list_source"),
     ("Matched Entry", 30, "matched_name"),
     ("Matched On",   22, "matched_on"),
+    ("Why Review",   52, "review_reason"),
     ("Matched URL",  34, "matched_url"),
 ]
 
@@ -181,9 +182,6 @@ def _write_summary_sheet(ws, results, snapshot_meta, corpus_files):
     for src in sorted(list_counts):
         kv(row, f"  {src}", list_counts[src]); row += 1
     row += 1
-
-    header(row, "Compute cost", ""); row += 1
-    kv(row, "LLM tokens used", "0 (no LLM — deterministic metadata matching)"); row += 2
 
     header(row, "Run metadata", ""); row += 1
     kv(row, "Snapshot scraped (UTC)", snapshot_meta.get("scraped_utc", "")); row += 1
@@ -287,6 +285,8 @@ _LEGEND_SECTIONS = [
             ("Beall List", "", "Which Beall list the match came from."),
             ("Matched Entry", "", "The exact Beall entry that was matched."),
             ("Matched On", "", "Which signal fired (see 'Matched On' section)."),
+            ("Why Review", "", "Plain-English reason a row is 'review' rather "
+             "than a definite on_list (blank for on_list/clean/no_venue)."),
             ("Matched URL", "", "The listed Beall entry's own URL."),
         ],
     },

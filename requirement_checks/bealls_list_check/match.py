@@ -145,7 +145,33 @@ def _blank_result(paper, source_file):
         "matched_name": "",
         "matched_url": "",
         "matched_on": "",
+        "review_reason": "",
     }
+
+
+def _review_reason(r: dict) -> str:
+    """Plain-English reason a row is 'review' rather than a definite 'on_list'.
+
+    Empty for every other status (on_list is definite; clean/no_venue/error
+    have nothing to explain here).
+    """
+    if r["status"] != "review":
+        return ""
+    mo = r["matched_on"]
+    if mo == "domain_alternate_url":
+        return ("Matched only via an ALTERNATE venue URL, not the canonical one. "
+                "Semantic Scholar merges same-named journals, so the listed "
+                "publisher may belong to a different journal than this paper's.")
+    if mo == "domain_open_access_pdf":
+        return ("Only the open-access PDF is hosted on a listed domain; the "
+                "venue itself was not identified as listed.")
+    if mo == "name_fuzzy":
+        return ("Venue name is only similar (>= 93%), not an exact match, to a "
+                "listed name.")
+    if any(s in WEAK_LIST_SOURCES for s in r["list_source"].split("; ")):
+        return ("Matched a WEAK list (vanity-press book publisher or fake-metrics "
+                "company), which is not a predatory-journal signal.")
+    return "Soft match — verify by hand."
 
 
 def match_paper(index: BeallIndex, paper: dict, source_file: str) -> dict:
@@ -157,11 +183,13 @@ def match_paper(index: BeallIndex, paper: dict, source_file: str) -> dict:
     """
     r = _blank_result(paper, source_file)
     try:
-        return _classify(r, index, paper)
+        _classify(r, index, paper)
     except Exception as exc:  # one bad record must not kill a 22k-paper run
         r["status"] = "error"
         r["matched_on"] = f"{type(exc).__name__}: {exc}"
         return r
+    r["review_reason"] = _review_reason(r)
+    return r
 
 
 def _classify(r: dict, index: BeallIndex, paper: dict) -> dict:
@@ -226,13 +254,24 @@ def _classify(r: dict, index: BeallIndex, paper: dict) -> dict:
             return _hit(r, _best(index.by_name[nm]), "on_list", "name_exact")
 
     # ── softer signals (flagged for review only) ─────────────────────────
-    # An ALTERNATE venue URL points at a listed domain.  Because S2 merges
-    # same-named journals, this may be a different journal than the paper's —
-    # surface it but do not assert it.
+    # One or more ALTERNATE venue URLs point at listed domains.  Because S2
+    # merges same-named journals, an alternate may be a different journal than
+    # the paper's, so this is review-only.  We collect EVERY listed publisher
+    # among the alternates (not just the first) so a reviewer sees all the
+    # flagged candidates at once.
+    alt_hits, seen = [], set()
     for dom in alt_domains:
         entry, _ = index.domain_match(dom)
-        if entry:
-            return _hit(r, entry, "review", "domain_alternate_url")
+        if entry and entry["name"] not in seen:
+            seen.add(entry["name"])
+            alt_hits.append(entry)
+    if alt_hits:
+        r["status"] = "review"
+        r["matched_on"] = "domain_alternate_url"
+        r["list_source"] = "; ".join(dict.fromkeys(e["list_source"] for e in alt_hits))
+        r["matched_name"] = "; ".join(e["name"] for e in alt_hits)
+        r["matched_url"] = alt_hits[0]["url"]
+        return r
 
     # The open-access PDF is hosted on a listed publisher domain, but the
     # venue itself was not identified as such — worth a human glance.
