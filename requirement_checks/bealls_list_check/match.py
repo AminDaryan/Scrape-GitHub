@@ -136,11 +136,9 @@ def _blank_result(paper, source_file):
         "doi": ext.get("DOI", "") or "",
         "paper_url": _paper_url(paper, ext),
         "venue": paper.get("venue", "") or "",
-        "resolved_name": pv.get("name") or paper.get("venue", "") or "",
         "venue_type": pv.get("type", "") or "",
         "venue_domain": "",
         "issn": normalize_issn(pv.get("issn")) if pv.get("issn") else "",
-        "url": paper.get("url", "") or "",
         # filled in by matching:
         "status": "clean",
         "list_source": "",
@@ -151,8 +149,23 @@ def _blank_result(paper, source_file):
 
 
 def match_paper(index: BeallIndex, paper: dict, source_file: str) -> dict:
-    """Classify one paper. Returns a fully-populated result dict."""
+    """Classify one paper. Never raises: a bad record yields an 'error' result.
+
+    Wrapping the classification here means the batch driver in
+    bealls_list_check.py stays a plain loop with no error bookkeeping, and the
+    result schema lives in exactly one place (_blank_result).
+    """
     r = _blank_result(paper, source_file)
+    try:
+        return _classify(r, index, paper)
+    except Exception as exc:  # one bad record must not kill a 22k-paper run
+        r["status"] = "error"
+        r["matched_on"] = f"{type(exc).__name__}: {exc}"
+        return r
+
+
+def _classify(r: dict, index: BeallIndex, paper: dict) -> dict:
+    """Run the matching tiers against a prebuilt result skeleton ``r``."""
     pv = paper.get("publicationVenue") or {}
 
     # ── candidate signals ────────────────────────────────────────────────

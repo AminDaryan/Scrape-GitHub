@@ -210,152 +210,149 @@ def _write_flagged_sheet(ws, results):
     return len(flagged)
 
 
-# Static documentation for the Legend sheet: (column_a, column_b, column_c).
-_LEGEND_STATUSES = [
-    ("on_list", "high", "Venue matched a CORE Beall list (predatory publishers, "
-     "standalone journals, or hijacked journals) by a high-confidence signal "
-     "(exact domain, subdomain of a listed domain, exact ISSN, or exact name). "
-     "Read as: \"this venue appears on Beall's List.\""),
-    ("review", "verify", "A softer or contested match: a fuzzy name match, the "
-     "open-access PDF host, or a match on a WEAK list (vanity-press / "
-     "misleading-metrics). Check by hand before trusting."),
-    ("clean", "—", "The venue was identified and did NOT match any Beall entry."),
-    ("no_venue", "—", "Preprint server (e.g. arXiv) or no venue metadata in the "
-     "record — there is no journal/publisher to classify."),
-    ("error", "—", "The record could not be processed; the Python error is shown "
-     "in the 'Matched On' column."),
-]
-
-_LEGEND_MATCHED_ON = [
-    ("domain", "strongest", "Venue host exactly equals a listed host "
-     "(e.g. mdpi.com == mdpi.com)."),
-    ("domain_subdomain", "strong", "Venue host is a subdomain of a listed host "
-     "(e.g. journal.mdpi.com -> listed mdpi.com)."),
-    ("issn", "strong", "Venue ISSN exactly equals a listed ISSN."),
-    ("name_exact", "strong", "Normalized venue name exactly equals a listed name "
-     "(case/accents/punctuation ignored)."),
-    ("domain_alternate_url", "weak (review)", "An ALTERNATE venue URL (not the "
-     "canonical one) points at a listed domain. Semantic Scholar sometimes "
-     "merges several same-named journals, so this may be a different journal "
-     "than the paper's — verify."),
-    ("name_fuzzy", "weak (review)", "Venue name is >= 93% similar to a listed name. "
-     "Never asserted as on_list — always review."),
-    ("domain_open_access_pdf", "weak (review)", "The open-access PDF is hosted on a "
-     "listed domain even though the venue itself was not identified."),
-]
-
-_LEGEND_LISTS = [
-    ("publishers", "CORE", "Predatory publisher (Beall's main list)."),
-    ("standalone_journal", "CORE", "Standalone predatory journal."),
-    ("hijacked", "CORE", "Hijacked / cloned journal that impersonates a "
-     "legitimate one (only the fake side is listed)."),
-    ("vanity_press", "WEAK -> review", "Book/monograph publisher (e.g. IGI Global). "
-     "Not a journal-quality signal, so downgraded to review."),
-    ("misleading_metric", "WEAK -> review", "Company selling fake impact-factor "
-     "metrics — not a venue a paper is published in. Downgraded to review."),
-]
-
-_LEGEND_COLUMNS = [
-    ("Status", "Classification of the paper (see Status section above)."),
-    ("Source File", "Which corpus JSON the paper came from."),
-    ("Title / Year", "Paper title and publication year (from Semantic Scholar)."),
-    ("Venue", "The publication venue name reported by Semantic Scholar."),
-    ("Type", "journal / conference (conferences are outside Beall's scope)."),
-    ("Venue Domain", "Host of the venue's website (the main matching key)."),
-    ("ISSN / DOI", "Venue ISSN and the paper's DOI."),
-    ("Paper URL", "Link to the article at its publisher (via DOI when available)."),
-    ("Beall List", "Which Beall list the match came from (see Beall List section)."),
-    ("Matched Entry", "The exact Beall entry that was matched."),
-    ("Matched On", "Which signal fired (see 'Matched On' section above)."),
-    ("Matched URL", "The listed Beall entry's own URL."),
-]
-
-_LEGEND_CAVEATS = [
-    "Beall's List is an unofficial, archived, frozen (~2021), and CONTESTED list. "
-    "A match is an allegation as of the snapshot date — not proof a venue is predatory.",
-    "Well-known publishers like MDPI and Frontiers are on the list but are widely "
-    "considered legitimate. Treat 'on_list' as \"appears on the list,\" not \"is predatory.\"",
-    "This check classifies the VENUE, not the paper's content or quality.",
-    "It uses NO LLM (0 tokens). Every result is deterministic, reproducible, and "
-    "auditable from the Matched On / Matched Entry columns.",
-    "no_venue is mostly arXiv/preprints, which by definition have no journal "
-    "publisher and so cannot be on Beall's List.",
+# Legend-sheet content as one declarative structure.  Each section is a titled
+# mini-table of (col-A, col-B, col-C) rows.  headers=None renders the rows as
+# full-width bullet lines (the caveats); swatch=True tints column A by status
+# to match the Results sheet colors.  Add/edit documentation here only — the
+# renderer below is generic.
+_LEGEND_TITLE = "Beall's List Check — Legend / Data Dictionary"
+_LEGEND_SECTIONS = [
+    {
+        "title": "STATUS values (and the row color used in Results)",
+        "headers": ("Status", "Confidence", "Meaning"),
+        "swatch": True,
+        "rows": [
+            ("on_list", "high", "Venue matched a CORE Beall list (predatory "
+             "publishers, standalone journals, or hijacked journals) by a "
+             "high-confidence signal: exact domain, subdomain of a listed "
+             "domain, exact ISSN, or exact name. Read as \"appears on Beall's "
+             "List.\""),
+            ("review", "verify", "A softer or contested match: fuzzy name, "
+             "open-access PDF host, an alternate venue URL, or a WEAK list "
+             "(vanity-press / misleading-metrics). Check by hand."),
+            ("clean", "—", "The venue was identified and did NOT match any "
+             "Beall entry."),
+            ("no_venue", "—", "Preprint server (e.g. arXiv) or no venue "
+             "metadata — there is no journal/publisher to classify."),
+            ("error", "—", "The record could not be processed; the Python "
+             "error is shown in the 'Matched On' column."),
+        ],
+    },
+    {
+        "title": "'Matched On' — which signal produced the match",
+        "headers": ("Matched On", "Strength", "Meaning"),
+        "rows": [
+            ("domain", "strongest", "Venue host exactly equals a listed host "
+             "(e.g. mdpi.com == mdpi.com)."),
+            ("domain_subdomain", "strong", "Venue host is a subdomain of a "
+             "listed host (e.g. journal.mdpi.com -> mdpi.com)."),
+            ("issn", "strong", "Venue ISSN exactly equals a listed ISSN."),
+            ("name_exact", "strong", "Normalized venue name (>= 2 words) "
+             "exactly equals a listed name; case/accents/punctuation ignored."),
+            ("domain_alternate_url", "weak (review)", "An ALTERNATE venue URL "
+             "points at a listed domain. Semantic Scholar merges same-named "
+             "journals, so this may be a different journal — verify."),
+            ("name_fuzzy", "weak (review)", "Venue name is >= 93% similar to a "
+             "listed name. Never asserted as on_list."),
+            ("domain_open_access_pdf", "weak (review)", "The open-access PDF "
+             "is hosted on a listed domain though the venue was not identified."),
+        ],
+    },
+    {
+        "title": "'Beall List' — which list the entry came from",
+        "headers": ("Beall List", "Weight", "Meaning"),
+        "rows": [
+            ("publishers", "CORE", "Predatory publisher (Beall's main list)."),
+            ("standalone_journal", "CORE", "Standalone predatory journal."),
+            ("hijacked", "CORE", "Hijacked / cloned journal impersonating a "
+             "legitimate one (only the fake side is listed)."),
+            ("vanity_press", "WEAK -> review", "Book/monograph publisher (e.g. "
+             "IGI Global). Not a journal-quality signal; downgraded to review."),
+            ("misleading_metric", "WEAK -> review", "Company selling fake "
+             "metrics — not a venue. Downgraded to review."),
+        ],
+    },
+    {
+        "title": "Columns in the Results / Flagged-only sheets",
+        "headers": ("Column", "", "Meaning"),
+        "rows": [
+            ("Status", "", "Classification of the paper (see Status section)."),
+            ("Source File", "", "Which corpus JSON the paper came from."),
+            ("Title / Year", "", "Paper title and year (from Semantic Scholar)."),
+            ("Venue", "", "The publication venue name from Semantic Scholar."),
+            ("Type", "", "journal / conference (conferences are out of scope)."),
+            ("Venue Domain", "", "Host of the venue's website (main match key)."),
+            ("ISSN / DOI", "", "Venue ISSN and the paper's DOI."),
+            ("Paper URL", "", "Link to the article at its publisher (via DOI)."),
+            ("Beall List", "", "Which Beall list the match came from."),
+            ("Matched Entry", "", "The exact Beall entry that was matched."),
+            ("Matched On", "", "Which signal fired (see 'Matched On' section)."),
+            ("Matched URL", "", "The listed Beall entry's own URL."),
+        ],
+    },
+    {
+        "title": "Caveats — read before interpreting results",
+        "headers": None,
+        "rows": [
+            ("Beall's List is an unofficial, archived, frozen (~2021), CONTESTED "
+             "list. A match is an allegation as of the snapshot date, not proof "
+             "a venue is predatory.",),
+            ("Well-known publishers like MDPI and Frontiers are on the list but "
+             "widely considered legitimate. 'on_list' = \"appears on the list,\" "
+             "not \"is predatory.\"",),
+            ("This check classifies the VENUE, not the paper's content/quality.",),
+            ("It uses NO LLM (0 tokens). Every result is deterministic and "
+             "auditable from the Matched On / Matched Entry columns.",),
+            ("no_venue is mostly arXiv/preprints, which have no journal "
+             "publisher and so cannot be on Beall's List.",),
+        ],
+    },
 ]
 
 
 def _write_legend_sheet(ws):
-    """Write a human-readable data dictionary for the Results/Summary sheets."""
+    """Render the Legend tab from the declarative ``_LEGEND_SECTIONS``."""
     border = _border()
     ws.column_dimensions["A"].width = 24
     ws.column_dimensions["B"].width = 16
     ws.column_dimensions["C"].width = 95
-
     bold = Font(name="Arial", size=10, bold=True)
     data = Font(name="Arial", size=10)
     section_font = Font(name="Arial", size=12, bold=True, color="2F5496")
-    row = 1
 
-    def section(title):
-        nonlocal row
-        c = ws.cell(row=row, column=1, value=title)
-        c.font = section_font
+    ws.cell(row=1, column=1, value=_LEGEND_TITLE).font = Font(
+        name="Arial", size=14, bold=True)
+    row = 3
+
+    for sec in _LEGEND_SECTIONS:
+        ws.cell(row=row, column=1, value=sec["title"]).font = section_font
         row += 1
 
-    def headcols(a, b, c):
-        nonlocal row
-        for col, val in ((1, a), (2, b), (3, c)):
-            cell = ws.cell(row=row, column=col, value=val)
+        if sec["headers"] is None:                      # caveats: bullet lines
+            for (text,) in sec["rows"]:
+                cell = ws.cell(row=row, column=1, value="• " + text)
+                cell.font, cell.alignment = data, _LEFT
+                ws.merge_cells(start_row=row, start_column=1,
+                               end_row=row, end_column=3)
+                row += 1
+            row += 1
+            continue
+
+        for col, header in enumerate(sec["headers"], 1):   # header row
+            cell = ws.cell(row=row, column=col, value=header)
             cell.font, cell.fill, cell.alignment, cell.border = (
-                _HEADER_FONT, _HEADER_FILL, _CENTER, border
-            )
+                _HEADER_FONT, _HEADER_FILL, _CENTER, border)
         row += 1
 
-    def triple(a, b, c, fill_hex=None):
-        nonlocal row
-        for col, val in ((1, a), (2, b), (3, c)):
-            cell = ws.cell(row=row, column=col, value=val)
-            cell.font = bold if col == 1 else data
-            cell.border = border
-            cell.alignment = _LEFT
-            if col == 1 and fill_hex:
-                cell.fill = PatternFill("solid", fgColor=fill_hex)
-        row += 1
-
-    title = ws.cell(row=row, column=1,
-                    value="Beall's List Check — Legend / Data Dictionary")
-    title.font = Font(name="Arial", size=14, bold=True)
-    row += 2
-
-    section("STATUS values (and the row color used in Results)")
-    headcols("Status", "Confidence", "Meaning")
-    for name, conf, desc in _LEGEND_STATUSES:
-        triple(name, conf, desc, fill_hex=STATUS_FILL_COLORS.get(name))
-    row += 1
-
-    section("'Matched On' — which signal produced the match")
-    headcols("Matched On", "Strength", "Meaning")
-    for name, strength, desc in _LEGEND_MATCHED_ON:
-        triple(name, strength, desc)
-    row += 1
-
-    section("'Beall List' — which list the entry came from")
-    headcols("Beall List", "Weight", "Meaning")
-    for name, weight, desc in _LEGEND_LISTS:
-        triple(name, weight, desc)
-    row += 1
-
-    section("Columns in the Results / Flagged-only sheets")
-    headcols("Column", "", "Meaning")
-    for name, desc in _LEGEND_COLUMNS:
-        triple(name, "", desc)
-    row += 1
-
-    section("Caveats — read before interpreting results")
-    for caveat in _LEGEND_CAVEATS:
-        c = ws.cell(row=row, column=1, value="• " + caveat)
-        c.font = data
-        c.alignment = _LEFT
-        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+        for cells in sec["rows"]:                          # data rows
+            for col, val in enumerate(cells, 1):
+                cell = ws.cell(row=row, column=col, value=val)
+                cell.font = bold if col == 1 else data
+                cell.border, cell.alignment = border, _LEFT
+                if col == 1 and sec.get("swatch"):
+                    cell.fill = PatternFill(
+                        "solid", fgColor=STATUS_FILL_COLORS.get(val, "FFFFFF"))
+            row += 1
         row += 1
 
 
@@ -409,21 +406,8 @@ def main():
     corpus_files = set()
     for source_file, paper in load_corpus():
         corpus_files.add(source_file)
-        try:
-            results.append(match_paper(index, paper, source_file))
-        except Exception as exc:  # never let one bad record kill the run
-            results.append({
-                "source_file": source_file,
-                "paperId": paper.get("paperId", ""),
-                "title": paper.get("title", "") or "",
-                "status": "error",
-                # Surface the failure in Matched On (the Notes column is gone).
-                "matched_on": f"{type(exc).__name__}: {exc}",
-                **{k: "" for k in (
-                    "year", "doi", "paper_url", "venue", "resolved_name",
-                    "venue_type", "venue_domain", "issn", "url", "list_source",
-                    "matched_name", "matched_url")},
-            })
+        # match_paper never raises — a bad record returns an 'error' result.
+        results.append(match_paper(index, paper, source_file))
 
     elapsed = time.time() - started
     out_path, n_flagged = save_workbook(
