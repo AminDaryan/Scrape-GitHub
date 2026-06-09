@@ -253,7 +253,7 @@ hit is recorded, so every row says exactly *why* it was flagged:
 | Status | Meaning |
 |---|---|
 | `on_list` | Matched a core Beall list by a high-confidence signal: exact domain, subdomain of a listed domain, exact ISSN, or exact name. |
-| `review` | Only a softer signal matched (alternate-URL domain, open-access-PDF host, fuzzy name ≥ 93%, or a "weak" vanity-press / fake-metrics list). Verify by hand. |
+| `review` | Only a softer or ambiguous signal matched (alternate-URL domain, open-access-PDF host, fuzzy name ≥ 93%, a name match against a hijacked-journal clone, or a "weak" vanity-press / fake-metrics list). Verify by hand. |
 | `clean` | Venue identified and not on the list. |
 | `no_venue` | Preprint server (e.g. arXiv) or no venue metadata — nothing to classify. |
 | `error` | The record could not be processed. |

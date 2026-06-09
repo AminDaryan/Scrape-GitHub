@@ -165,6 +165,10 @@ def _review_reason(r: dict) -> str:
     if mo == "domain_open_access_pdf":
         return ("Only the open-access PDF is hosted on a listed domain; the "
                 "venue itself was not identified as listed.")
+    if r["list_source"] == "hijacked" and mo.startswith("name"):
+        return ("Name matches a HIJACKED-journal entry, but hijacked clones "
+                "reuse the authentic journal's name, so this may be the "
+                "legitimate journal rather than the predatory clone. Verify.")
     if mo == "name_fuzzy":
         return ("Venue name is only similar (>= 93%), not an exact match, to a "
                 "listed name.")
@@ -295,11 +299,19 @@ def _classify(r: dict, index: BeallIndex, paper: dict) -> dict:
 def _hit(r, entry, status, matched_on):
     """Populate the match fields of a result dict from a snapshot entry.
 
-    Matches against the "weak" lists (vanity-press book publishers, fake-metric
-    companies) are downgraded from on_list -> review: they are surfaced for a
-    human but never asserted as a high-confidence predatory verdict.
+    Two on_list -> review downgrades happen here so the matcher above can stay
+    simple:
+      * "weak" lists (vanity-press book publishers, fake-metric companies):
+        surfaced for a human but never a high-confidence predatory verdict.
+      * a NAME match against a "hijacked" entry: the predatory clone reuses the
+        authentic journal's name, so an exact-name hit may actually be the
+        legitimate journal.  Only a domain/ISSN hit (the clone's own identity)
+        is asserted as on_list.
     """
     if status == "on_list" and entry["list_source"] in WEAK_LIST_SOURCES:
+        status = "review"
+    if (status == "on_list" and entry["list_source"] == "hijacked"
+            and matched_on.startswith("name")):
         status = "review"
     r["status"] = status
     r["list_source"] = entry["list_source"]

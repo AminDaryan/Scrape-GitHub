@@ -353,7 +353,9 @@ _LEGEND_SECTIONS = [
             ("publishers", "CORE", "Predatory publisher (Beall's main list)."),
             ("standalone_journal", "CORE", "Standalone predatory journal."),
             ("hijacked", "CORE", "Hijacked / cloned journal impersonating a "
-             "legitimate one (only the fake side is listed)."),
+             "legitimate one (only the fake side is listed). A name-only match "
+             "is downgraded to review, since the clone reuses the real "
+             "journal's name; only a domain match is asserted as on_list."),
             ("vanity_press", "WEAK -> review", "Book/monograph publisher (e.g. "
              "IGI Global). Not a journal-quality signal; downgraded to review."),
             ("misleading_metric", "WEAK -> review", "Company selling fake "

@@ -69,6 +69,15 @@ GENERIC_HOSTS = {
     "sites.google.com", "google.com", "docs.google.com", "drive.google.com",
     "groups.google.com", "github.io", "wordpress.com", "blogspot.com",
     "wixsite.com", "wix.com", "weebly.com", "webs.com",
+    # National / regional academic aggregators that host thousands of
+    # *legitimate* journals.  A single listed predatory journal on one of these
+    # would otherwise poison the whole platform and flag every co-hosted journal
+    # as on_list (e.g. one predatory journal on DergiPark flagging all Turkish
+    # university journals).  Excluded from the domain index; a genuinely-listed
+    # journal on them can still match by name.
+    "dergipark.gov.tr", "dergipark.org.tr",   # DergiPark — Turkey's national platform
+    "jstage.jst.go.jp",                         # J-STAGE — Japan's national platform
+    "scielo.br",                                # SciELO Brazil open-access platform
 }
 
 # Preprint-server hosts: a paper whose venue is one of these has no journal
