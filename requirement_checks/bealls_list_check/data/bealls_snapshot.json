@@ -1,7 +1,7 @@
 {
  "meta": {
   "source": "https://beallslist.net",
-  "scraped_utc": "2026-06-01T12:02:28+00:00",
+  "scraped_utc": "2026-06-09T16:42:03+00:00",
   "pages": [
    "/",
    "/standalone-journals",
@@ -10,13 +10,13 @@
    "/vanity-press"
   ],
   "counts_raw": {
-   "publishers": 1337,
+   "publishers": 1336,
    "standalone_journal": 1505,
    "hijacked": 139,
    "misleading_metric": 55,
    "vanity_press": 15
   },
-  "total_entries": 3043,
+  "total_entries": 3042,
   "note": "Unofficial archived copy of Beall's List. Appearance on this list is an allegation as of the scrape date, not authoritative proof a venue is predatory. The list is frozen/contested."
  },
  "entries": [
@@ -10673,14 +10673,6 @@
    "url": "https://winsomepublishing.org/",
    "domain": "winsomepublishing.org",
    "normalized_name": "winsome publishing llc",
-   "issns": [],
-   "list_source": "publishers"
-  },
-  {
-   "name": "Multidisciplinary Digital Publishing Institute (MDPI)",
-   "url": "http://www.mdpi.com/",
-   "domain": "mdpi.com",
-   "normalized_name": "multidisciplinary digital publishing institute mdpi",
    "issns": [],
    "list_source": "publishers"
   },

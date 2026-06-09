@@ -75,8 +75,8 @@ class BeallIndex:
 
         Returns ``(entry, matched_on)`` where ``matched_on`` is ``"domain"``
         for an exact host match or ``"domain_subdomain"`` when the paper host
-        is a subdomain of a listed host (e.g. ``journal.mdpi.com`` -> listed
-        ``mdpi.com``).
+        is a subdomain of a listed host (e.g. ``ojs.bilpublishing.com`` ->
+        listed ``bilpublishing.com``).
 
         Crucially, only *actual listed hosts* are ever used as keys, so a paper
         host like ``jurnal.unimed.ac.id`` can never collapse onto a public
@@ -241,7 +241,7 @@ def _classify(r: dict, index: BeallIndex, paper: dict) -> dict:
 
     # ── high-confidence signals (asserted as on_list) ────────────────────
     # Canonical venue domain: exact host or subdomain of a listed host
-    # (e.g. journal.mdpi.com -> mdpi.com).
+    # (e.g. ojs.bilpublishing.com -> bilpublishing.com).
     if canonical_domain:
         entry, matched_on = index.domain_match(canonical_domain)
         if entry:

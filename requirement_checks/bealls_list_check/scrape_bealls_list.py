@@ -80,11 +80,34 @@ _LI_A_RE = re.compile(
 _TR_RE = re.compile(r"<tr[^>]*>(.*?)</tr>", re.IGNORECASE | re.DOTALL)
 _TD_RE = re.compile(r"<t[dh][^>]*>(.*?)</t[dh]>", re.IGNORECASE | re.DOTALL)
 _HREF_RE = re.compile(r"href=\"(https?://[^\"]+)\"", re.IGNORECASE)
+_HEADING_RE = re.compile(r"<(h[1-4])[^>]*>(.*?)</\1>", re.IGNORECASE | re.DOTALL)
 
 
 def _text(html_fragment: str) -> str:
     """Strip tags and collapse whitespace from an HTML fragment."""
     return re.sub(r"\s+", " ", _TAG_RE.sub("", html_fragment)).strip()
+
+
+def strip_excluded_sections(html: str) -> str:
+    """Remove any ``<hN>Excluded …</hN>`` section (heading + content up to the
+    next heading) from a page before its entries are parsed.
+
+    beallslist.net's Publishers page ends with a section titled
+    "Excluded – decide after reading" that lists publishers the author
+    deliberately did NOT put on the list (e.g. MDPI: "I decided not to include
+    MDPI on the list itself"). Those are explicitly *not* listed, so scraping
+    them as entries is wrong. Only this section is removed; the real
+    "Original list" and "Update" sections above it are untouched.
+    """
+    headings = list(_HEADING_RE.finditer(html))
+    cuts = []
+    for i, m in enumerate(headings):
+        if "exclud" in _text(m.group(2)).lower():
+            end = headings[i + 1].start() if i + 1 < len(headings) else len(html)
+            cuts.append((m.start(), end))
+    for start, end in reversed(cuts):      # back-to-front keeps earlier indices valid
+        html = html[:start] + html[end:]
+    return html
 
 
 def fetch(path: str) -> str:
@@ -159,7 +182,7 @@ def scrape() -> dict:
     counts = {}
     for path, list_source, mode in LIST_PAGES:
         print(f"Fetching {BASE + path} ...", end=" ", flush=True)
-        html = fetch(path)
+        html = strip_excluded_sections(fetch(path))
         if mode == "hijacked_table":
             entries = parse_hijacked_table(html, list_source)
         else:

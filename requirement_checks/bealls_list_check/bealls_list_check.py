@@ -186,8 +186,8 @@ SIGNAL_INFO = {
         "an alternate web link points to a listed site",
         "review",
         "The venue's main website looks fine, but one of the OTHER web links "
-        "Semantic Scholar lists for it points to a listed site (e.g. an "
-        "mdpi.com link). Semantic Scholar sometimes merges two journals that "
+        "Semantic Scholar lists for it points to a listed site (e.g. a "
+        "scirp.org link). Semantic Scholar sometimes merges two journals that "
         "share a name, so that link may belong to a different journal — a human "
         "should check.",
     ),
@@ -527,9 +527,10 @@ _LEGEND_SECTIONS = [
             ("Beall's List is an unofficial, archived, frozen (~2021), CONTESTED "
              "list. A match is an allegation as of the snapshot date, not proof "
              "a venue is predatory.",),
-            ("Well-known publishers like MDPI and Frontiers are on the list but "
-             "widely considered legitimate. 'on_list' = \"appears on the list,\" "
-             "not \"is predatory.\"",),
+            ("Being on the list is contested. Frontiers, for example, is on the "
+             "list but widely considered legitimate, so 'on_list' = \"appears "
+             "on the list,\" not \"is predatory.\" (MDPI is in the site's "
+             "'Excluded — decide after reading' section, so it is NOT flagged.)",),
             ("This check classifies the VENUE, not the paper's content/quality.",),
             ("It uses NO LLM (0 tokens). Every result is deterministic and "
              "auditable from the Matched On / Matched Entry columns.",),

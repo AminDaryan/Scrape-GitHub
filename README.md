@@ -265,9 +265,10 @@ hit is recorded, so every row says exactly *why* it was flagged:
 lists) live in [bealls_list_check/config.py](requirement_checks/bealls_list_check/config.py).
 
 > **Caveat:** appearance on Beall's List is an *allegation as of the snapshot date*,
-> not proof a venue is predatory. Well-known publishers (e.g. MDPI, Frontiers) appear
-> on it but are widely considered legitimate. The check classifies the *venue*, never
-> the paper's quality.
+> not proof a venue is predatory. Some listed publishers are contested — Frontiers,
+> for example, is on the list but widely considered legitimate. (MDPI sits in the
+> site's "Excluded — decide after reading" section, so it is **not** flagged.) The
+> check classifies the *venue*, never the paper's quality.
 
 ---
 
