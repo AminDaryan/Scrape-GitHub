@@ -135,6 +135,95 @@ def _venue_subrows(r):
     ]
 
 
+# Plain-language description of each match signal, used both in the Match column
+# and to build the Legend so the two never drift.  Tuple = (short label shown in
+# the cell, which verdict it leads to, thorough explanation with a FIXED real
+# example).  The examples are constant real Beall's List cases — they do NOT
+# depend on the corpus, so every generated workbook shows the same illustrations.
+SIGNAL_INFO = {
+    "domain": (
+        "the journal's own website is on the list",
+        "on_list",
+        "The journal's website address is itself on Beall's List. Example: a "
+        "paper in a journal hosted at www.scirp.org is matched because "
+        "scirp.org (Scientific Research Publishing) is a publisher on the list "
+        "— the journal's own home is a listed site. This is the most reliable "
+        "signal.",
+    ),
+    "domain_subdomain": (
+        "the journal's website is part of a listed site",
+        "on_list",
+        "The journal's website is a section of a bigger website that is on the "
+        "list. Example: a journal at ojs.bilpublishing.com is matched because "
+        "it sits under bilpublishing.com (Bilingual Publishing Co.), a listed "
+        "publisher.",
+    ),
+    "issn": (
+        "the journal's ISSN is on the list",
+        "on_list",
+        "An ISSN is the unique ID number every journal has. Here the journal's "
+        "ISSN equals the ISSN of a journal on the list. (Rarely used, because "
+        "Beall's List mostly records names and websites, not ISSNs.)",
+    ),
+    "name_exact": (
+        "the journal/publisher name exactly matches the list",
+        "on_list",
+        "The journal or publisher name is exactly the same as a name on the "
+        "list (capitalisation, accents and punctuation are ignored). Example: a "
+        "venue named 'OMICS Publishing Group' matches the listed 'OMICS "
+        "Publishing Group'.",
+    ),
+    "name_fuzzy": (
+        "the journal name is very similar to a listed name",
+        "review",
+        "The name is almost — but not exactly — the same as a listed name (at "
+        "least 93% similar): a spelling variant or typo, e.g. 'Internatonal "
+        "Journal of Science' vs the listed 'International Journal of Science'. "
+        "Because it is not exact it is only ever flagged for review, never as a "
+        "definite hit.",
+    ),
+    "domain_alternate_url": (
+        "an alternate web link points to a listed site",
+        "review",
+        "The venue's main website looks fine, but one of the OTHER web links "
+        "Semantic Scholar lists for it points to a listed site (e.g. an "
+        "mdpi.com link). Semantic Scholar sometimes merges two journals that "
+        "share a name, so that link may belong to a different journal — a human "
+        "should check.",
+    ),
+    "domain_open_access_pdf": (
+        "the PDF is hosted on a listed site",
+        "review",
+        "The journal itself could not be identified, but the free PDF of the "
+        "paper is hosted on a listed site (e.g. scirp.org). Suggestive but not "
+        "conclusive, so it is flagged for review.",
+    ),
+}
+
+# Plain-language name + weight for each Beall list.
+LIST_INFO = {
+    "publishers":         ("predatory publisher", "core list"),
+    "standalone_journal": ("standalone predatory journal", "core list"),
+    "hijacked":           ("hijacked / cloned journal", "core list"),
+    "vanity_press":       ("vanity press (book publisher)", "weak — review only"),
+    "misleading_metric":  ("fake-metrics company", "weak — review only"),
+}
+
+
+def _signal_plain(matched_on):
+    """Short plain-language phrase for a match signal (falls back to the code)."""
+    info = SIGNAL_INFO.get(matched_on)
+    return info[0] if info else (matched_on or "—")
+
+
+def _list_plain(list_source):
+    """Plain-language name(s) for a (possibly '; '-joined) list_source."""
+    parts = [p.strip() for p in (list_source or "").split(";") if p.strip()]
+    if not parts:
+        return "—"
+    return "; ".join(LIST_INFO.get(p, (p,))[0] for p in parts)
+
+
 # Short note shown on the first Match row for statuses that matched nothing.
 _NONMATCH_NOTES = {
     "clean":    "Venue identified — not on the list",
@@ -143,11 +232,16 @@ _NONMATCH_NOTES = {
 
 
 def _match_subrows(r):
-    """Four labelled rows for the Match column: Matched / On / List / Why.
+    """Four labelled rows for the Match column.
 
-    Returns ``(text, link_url_or_None)`` per row; the Matched row links to the
-    matched Beall entry.  For clean / no_venue / error rows there is nothing to
-    match, so the first row carries a short note and the rest are blank.
+    For a flagged paper:
+      Listed as   — the Beall's List entry that matched (links to it)
+      Beall list  — which Beall list it came from, in plain language
+      Matched by  — how it matched, in plain language (see the Legend)
+      Why flagged — a plain reason (a high-confidence note for on_list, or the
+                    verify-by-hand reason for review)
+    For clean / no_venue / error rows the first row carries a short note and the
+    rest are blank.
     """
     status = r.get("status")
     if status in _NONMATCH_NOTES:
@@ -155,11 +249,13 @@ def _match_subrows(r):
     elif status == "error":
         note = f"Error: {r.get('matched_on') or 'could not process record'}"
     else:
+        reason = (r.get("review_reason")
+                  or "Appears on Beall's List — a high-confidence match.")
         return [
-            (f"Matched: {r.get('matched_name') or '(matched)'}", r.get("matched_url") or None),
-            (f"On: {r.get('matched_on') or '—'}", None),
-            (f"List: {r.get('list_source') or '—'}", None),
-            (f"Why: {r.get('review_reason') or '—'}", None),
+            (f"Listed as: {r.get('matched_name') or '(matched)'}", r.get("matched_url") or None),
+            (f"Beall list: {_list_plain(r.get('list_source'))}", None),
+            (f"Matched by: {_signal_plain(r.get('matched_on'))}", None),
+            (f"Why flagged: {reason}", None),
         ]
     return [(note, None), ("", None), ("", None), ("", None)]
 
@@ -195,6 +291,11 @@ def _write_results_sheet(ws, results):
 
     link_font = Font(name="Arial", size=9, color="0563C1", underline="single")
     status_font = Font(name="Arial", size=9, bold=True)
+    # Heavier top edge on each paper's first row draws a clear divider between
+    # one paper's block and the next, so blocks read as distinct units.
+    _edge = Side(style="thin", color="D0D0D0")
+    block_top_border = Border(left=_edge, right=_edge, bottom=_edge,
+                              top=Side(style="medium", color="7F9BC4"))
 
     row = 2
     for i, r in enumerate(results):
@@ -213,21 +314,22 @@ def _write_results_sheet(ws, results):
 
         for sub in range(ROWS_PER_PAPER):
             rr = top + sub
+            cell_border = block_top_border if sub == 0 else border   # divider on row 1
             # # and Status: value only on the block's first row; merged later.
             num = ws.cell(row=rr, column=_NUM_COL, value=(i + 1) if sub == 0 else None)
-            num.font, num.border, num.alignment = _DATA_FONT, border, _CENTER
+            num.font, num.border, num.alignment = _DATA_FONT, cell_border, _CENTER
             if shade_fill:
                 num.fill = shade_fill
             st = ws.cell(row=rr, column=_STATUS_COL, value=status if sub == 0 else None)
             st.font, st.border, st.alignment, st.fill = (
-                status_font, border, _CENTER, status_fill
+                status_font, cell_border, _CENTER, status_fill
             )
 
             height = 16
             for col, subrows in col_subrows:
                 text, url = subrows[sub]
                 cell = ws.cell(row=rr, column=col, value=text)
-                cell.font, cell.border, cell.alignment = _DATA_FONT, border, _LEFT
+                cell.font, cell.border, cell.alignment = _DATA_FONT, cell_border, _LEFT
                 if shade_fill:
                     cell.fill = shade_fill
                 if url:
@@ -268,10 +370,14 @@ def _write_summary_sheet(ws, results, snapshot_meta, corpus_files):
     total = len(results)
     status_counts = {s: 0 for s in STATUS_FILL_COLORS}
     list_counts = {}
+    signal_counts = {}        # matched_on -> count, over flagged rows only
     for r in results:
         status_counts[r["status"]] = status_counts.get(r["status"], 0) + 1
-        if r["list_source"]:
-            list_counts[r["list_source"]] = list_counts.get(r["list_source"], 0) + 1
+        if r["status"] in ("on_list", "review"):
+            if r["list_source"]:
+                list_counts[r["list_source"]] = list_counts.get(r["list_source"], 0) + 1
+            mo = r.get("matched_on") or "—"
+            signal_counts[mo] = signal_counts.get(mo, 0) + 1
 
     row = 1
     header(row, "Metric", "Value"); row += 1
@@ -282,9 +388,21 @@ def _write_summary_sheet(ws, results, snapshot_meta, corpus_files):
     kv(row, "No venue (preprint / no info)", status_counts.get("no_venue", 0)); row += 1
     kv(row, "Errors", status_counts.get("error", 0)); row += 2
 
-    header(row, "Matches by Beall list", "Count"); row += 1
-    for src in sorted(list_counts):
-        kv(row, f"  {src}", list_counts[src]); row += 1
+    # Breakdown by HOW each flagged paper matched (the 'Matched by' signal),
+    # e.g. how many were 'an alternate web link points to a listed site'.
+    header(row, "Flagged papers by 'Matched by' signal", "Count"); row += 1
+    for mo in sorted(signal_counts, key=lambda k: (-signal_counts[k], k)):
+        kv(row, f"  {_signal_plain(mo)}  [{mo}]", signal_counts[mo]); row += 1
+    if not signal_counts:
+        kv(row, "  (none)", 0); row += 1
+    row += 1
+
+    # Breakdown by which Beall list each flagged paper matched.
+    header(row, "Flagged papers by Beall list", "Count"); row += 1
+    for src in sorted(list_counts, key=lambda k: (-list_counts[k], k)):
+        kv(row, f"  {_list_plain(src)}", list_counts[src]); row += 1
+    if not list_counts:
+        kv(row, "  (none)", 0); row += 1
     row += 1
 
     header(row, "Run metadata", ""); row += 1
@@ -341,51 +459,37 @@ _LEGEND_SECTIONS = [
         ],
     },
     {
-        "title": "'Matched On' — which signal produced the match",
-        "headers": ("Matched On", "Strength", "Meaning"),
+        "title": "'Matched by' — how the venue was matched to Beall's List",
+        "headers": ("How it matched (shown in the 'Match' column)",
+                    "Result", "What it means — with a fixed real example"),
+        # Rows are generated from SIGNAL_INFO so this table always matches the
+        # phrases shown in the Match column.  Examples are constant (corpus-
+        # independent) so every workbook documents the same illustrations.
         "rows": [
-            ("domain", "strongest", "Venue host exactly equals a listed host. "
-             "Example: a paper's venue URL is https://www.mdpi.com/... and "
-             "mdpi.com is on the list -> match on mdpi.com."),
-            ("domain_subdomain", "strong", "Venue host is a subdomain of a "
-             "listed host. Example: venue host www.journals.elsevier.com when "
-             "elsevier.com is listed -> match on the parent elsevier.com."),
-            ("issn", "strong", "Venue ISSN exactly equals a listed ISSN. "
-             "Example: the venue's ISSN 2090-4304 equals the ISSN recorded for "
-             "a listed journal -> match on 2090-4304."),
-            ("name_exact", "strong", "Normalized venue name (>= 2 words) "
-             "exactly equals a listed name; case, accents and punctuation are "
-             "ignored. Example: venue 'OMICS Publishing Group' normalizes to "
-             "'omics publishing group', which equals a listed entry."),
-            ("domain_alternate_url", "weak (review)", "Not the canonical venue "
-             "URL but one of its ALTERNATE URLs points at a listed domain. "
-             "Example: the venue lists an extra URL on scirp.org. Semantic "
-             "Scholar merges same-named journals, so this may be a different "
-             "journal than the paper's — verify."),
-            ("name_fuzzy", "weak (review)", "Venue name is >= 93% similar to a "
-             "listed name but NOT identical (a spelling variant or typo). "
-             "Example: venue 'Internatonal Journal of Science' ~ listed "
-             "'International Journal of Science'. Never asserted as on_list."),
-            ("domain_open_access_pdf", "weak (review)", "The venue itself was "
-             "not identified, but the open-access PDF is hosted on a listed "
-             "domain. Example: the venue field is blank yet the PDF is served "
-             "from scirp.org -> flagged for a human glance."),
+            (SIGNAL_INFO[k][0], SIGNAL_INFO[k][1], SIGNAL_INFO[k][2])
+            for k in ("domain", "domain_subdomain", "issn", "name_exact",
+                      "name_fuzzy", "domain_alternate_url", "domain_open_access_pdf")
         ],
     },
     {
-        "title": "'Beall List' — which list the entry came from",
-        "headers": ("Beall List", "Weight", "Meaning"),
+        "title": "'Beall list' — which Beall list the entry came from",
+        "headers": ("Beall list (shown in the 'Match' column)", "Weight", "Meaning"),
         "rows": [
-            ("publishers", "CORE", "Predatory publisher (Beall's main list)."),
-            ("standalone_journal", "CORE", "Standalone predatory journal."),
-            ("hijacked", "CORE", "Hijacked / cloned journal impersonating a "
-             "legitimate one (only the fake side is listed). A name-only match "
-             "is downgraded to review, since the clone reuses the real "
-             "journal's name; only a domain match is asserted as on_list."),
-            ("vanity_press", "WEAK -> review", "Book/monograph publisher (e.g. "
-             "IGI Global). Not a journal-quality signal; downgraded to review."),
-            ("misleading_metric", "WEAK -> review", "Company selling fake "
-             "metrics — not a venue. Downgraded to review."),
+            ("predatory publisher", "core list",
+             "A predatory publisher — Beall's main list."),
+            ("standalone predatory journal", "core list",
+             "A single predatory journal that is not part of a larger publisher."),
+            ("hijacked / cloned journal", "core list",
+             "A fake journal impersonating a legitimate one by reusing its name "
+             "and look (only the fake side is listed). A name-only match is "
+             "downgraded to review, since the clone reuses the real journal's "
+             "name; only a website match is asserted as on_list."),
+            ("vanity press (book publisher)", "weak — review only",
+             "A book/monograph publisher (e.g. IGI Global). Not a journal-quality "
+             "signal, so a match here is downgraded to review."),
+            ("fake-metrics company", "weak — review only",
+             "A company selling fake impact-factor metrics — not a venue at all, "
+             "so a match is downgraded to review."),
         ],
     },
     {
@@ -407,13 +511,13 @@ _LEGEND_SECTIONS = [
              "The publication venue from Semantic Scholar, one field per row. "
              "'Type' is journal/conference (conferences are out of scope); "
              "'Domain' is the venue website host — the main match key."),
-            ("Match", "Matched / On / List / Why",
-             "What was matched, one field per row. 'On' is the signal that "
-             "fired (see the 'Matched On' section); 'List' is which Beall list "
-             "it came from; 'Why' explains a 'review' verdict. The Matched row "
-             "is a link to the Beall entry's own URL. For clean / no_venue / "
-             "error rows the first row shows a short note and the rest are "
-             "blank."),
+            ("Match", "Listed as / Beall list / Matched by / Why flagged",
+             "Why the paper was flagged, one field per row. 'Listed as' is the "
+             "Beall's List entry that matched (a link to it); 'Beall list' is "
+             "which list it came from (see the 'Beall list' section); 'Matched "
+             "by' is how it matched (see the 'Matched by' section); 'Why "
+             "flagged' is a plain-English reason. For clean / no_venue / error "
+             "rows the first row shows a short note and the rest are blank."),
         ],
     },
     {
