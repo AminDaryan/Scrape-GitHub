@@ -270,6 +270,29 @@ lists) live in [bealls_list_check/config.py](requirement_checks/bealls_list_chec
 > site's "Excluded — decide after reading" section, so it is **not** flagged.) The
 > check classifies the *venue*, never the paper's quality.
 
+### Optional LLM second pass (recall booster)
+
+The deterministic matcher is precise but structurally misses some real cases —
+e.g. a journal whose Semantic Scholar URL is on an *alias* domain, or where the
+list records a *publisher* name while the paper carries the *journal* name (the
+[WSEAS](https://wseas.org) case). [`bealls_llm_check.py`](requirement_checks/bealls_list_check/bealls_llm_check.py)
+adds an **opt-in** LLM pass to catch those:
+
+```bash
+python requirement_checks/bealls_list_check/bealls_llm_check.py            # all venues (costs tokens)
+python requirement_checks/bealls_list_check/bealls_llm_check.py --limit 50 # cheap test on 50 venues
+```
+
+It runs the deterministic check first, then asks the LLM **once per distinct
+venue** (deduplicated, so far fewer calls than papers) — grounded with the
+nearest Beall's List entries, Beall's predatory-journal criteria, and the
+model's own knowledge — whether the venue or its publisher is predatory. A venue
+the LLM flags that was `clean`/`no_venue` is **promoted to `review`** (a human
+still confirms — the LLM never asserts `on_list` on its own). Output is
+`results/bealls_llm_results.xlsx`: the same layout plus an **"LLM assessment"**
+column (verdict + reason, tagged as LLM-decided) and an **"LLM second pass"**
+token counter in the Summary. Uses your configured `LLM_PROVIDER` / `AZURE_OPENAI_DEPLOYMENT`.
+
 ---
 
 ## Multi-Model Runs

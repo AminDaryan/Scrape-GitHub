@@ -271,16 +271,31 @@ def _estimate_row_height(text, width):
     return min(140, max(16, lines * 15))
 
 
-def _write_results_sheet(ws, results):
+def _padded_subrows(subrows):
+    """Force a sub-row list to exactly ROWS_PER_PAPER ``(text, url)`` tuples."""
+    subrows = list(subrows)[:ROWS_PER_PAPER]
+    subrows += [("", None)] * (ROWS_PER_PAPER - len(subrows))
+    return subrows
+
+
+def _write_results_sheet(ws, results, extra_columns=None):
     """Write the Results sheet: one multi-row block per paper.
 
     Each paper spans ROWS_PER_PAPER rows.  The # and Status cells are merged
-    down the block; the Paper / Venue / Match columns show one labelled field
-    per row, so each field is its own selectable row.  Cells are fully styled
-    *before* the merge so borders render across the merged ranges.
+    down the block; the Paper / Venue / Match columns (and any *extra_columns*)
+    show one labelled field per row.  Cells are styled *before* the merge so
+    borders render across the merged ranges.
+
+    extra_columns: optional list of ``(header, width, subrows_fn)`` appended
+    after Match.  ``subrows_fn(result)`` returns ``[(text, url_or_None), ...]``
+    (padded/truncated to ROWS_PER_PAPER).  The LLM pass uses this to add an
+    'LLM assessment' column without duplicating this writer.
     """
+    extra_columns = extra_columns or []
+    columns = list(COLUMNS) + [(h, w) for (h, w, _fn) in extra_columns]
+
     border = _border()
-    for col, (header, width) in enumerate(COLUMNS, 1):
+    for col, (header, width) in enumerate(columns, 1):
         cell = ws.cell(row=1, column=col, value=header)
         cell.font, cell.fill, cell.alignment, cell.border = (
             _HEADER_FONT, _HEADER_FILL, _CENTER, border
@@ -306,11 +321,13 @@ def _write_results_sheet(ws, results):
         status_fill = PatternFill(
             "solid", fgColor=STATUS_FILL_COLORS.get(status, "FFFFFF")
         )
-        col_subrows = (
-            (_PAPER_COL, _paper_subrows(r)),
-            (_VENUE_COL, _venue_subrows(r)),
-            (_MATCH_COL, _match_subrows(r)),
-        )
+        col_subrows = [
+            (_PAPER_COL, _padded_subrows(_paper_subrows(r))),
+            (_VENUE_COL, _padded_subrows(_venue_subrows(r))),
+            (_MATCH_COL, _padded_subrows(_match_subrows(r))),
+        ]
+        for k, (_h, _w, fn) in enumerate(extra_columns):
+            col_subrows.append((_MATCH_COL + 1 + k, _padded_subrows(fn(r))))
 
         for sub in range(ROWS_PER_PAPER):
             rr = top + sub
@@ -335,7 +352,7 @@ def _write_results_sheet(ws, results):
                 if url:
                     cell.hyperlink = url
                     cell.font = link_font
-                height = max(height, _estimate_row_height(text, COLUMNS[col - 1][1]))
+                height = max(height, _estimate_row_height(text, columns[col - 1][1]))
             ws.row_dimensions[rr].height = height
 
         # Merge # and Status down the block (after styling, so borders draw).
@@ -348,8 +365,14 @@ def _write_results_sheet(ws, results):
         row = bottom + 1
 
 
-def _write_summary_sheet(ws, results, snapshot_meta, corpus_files):
-    """Write counts + run metadata so results are interpretable."""
+def _write_summary_sheet(ws, results, snapshot_meta, corpus_files,
+                         token_usage=None, llm_stats=None):
+    """Write counts + run metadata so results are interpretable.
+
+    token_usage / llm_stats are populated only when the optional LLM second
+    pass (bealls_llm_check.py) produced the workbook; they add an 'LLM second
+    pass' section with the token counter and what the LLM changed.
+    """
     border = _border()
     ws.column_dimensions["A"].width = 40
     ws.column_dimensions["B"].width = 60
@@ -405,6 +428,25 @@ def _write_summary_sheet(ws, results, snapshot_meta, corpus_files):
         kv(row, "  (none)", 0); row += 1
     row += 1
 
+    # LLM second pass — only present when bealls_llm_check.py built the workbook.
+    if token_usage is not None or llm_stats:
+        llm_stats = llm_stats or {}
+        header(row, "LLM second pass", "Value"); row += 1
+        if llm_stats.get("model"):
+            kv(row, "Model / deployment", llm_stats["model"]); row += 1
+        if "venues_checked" in llm_stats:
+            kv(row, "Distinct venues checked", llm_stats["venues_checked"]); row += 1
+        if "llm_yes" in llm_stats:
+            kv(row, "Venues the LLM judged predatory", llm_stats["llm_yes"]); row += 1
+        if "promoted" in llm_stats:
+            kv(row, "Papers clean/no_venue -> review by LLM", llm_stats["promoted"]); row += 1
+        if token_usage is not None:
+            kv(row, "LLM requests", token_usage.request_count); row += 1
+            kv(row, "Input tokens", f"{token_usage.prompt_tokens:,}"); row += 1
+            kv(row, "Output tokens", f"{token_usage.completion_tokens:,}"); row += 1
+            kv(row, "Total tokens", f"{token_usage.total_tokens:,}"); row += 1
+        row += 1
+
     header(row, "Run metadata", ""); row += 1
     kv(row, "Snapshot scraped (UTC)", snapshot_meta.get("scraped_utc", "")); row += 1
     kv(row, "Snapshot entries", snapshot_meta.get("total_entries", "")); row += 1
@@ -420,13 +462,13 @@ def _write_summary_sheet(ws, results, snapshot_meta, corpus_files):
         name="Arial", size=9, italic=True)
 
 
-def _write_flagged_sheet(ws, results):
+def _write_flagged_sheet(ws, results, extra_columns=None):
     """Write only the on_list + review rows (the actionable subset)."""
     flagged = [r for r in results if r["status"] in ("on_list", "review")]
     # Sort: on_list first, then by list source, then title.
     order = {"on_list": 0, "review": 1}
     flagged.sort(key=lambda r: (order.get(r["status"], 9), r["list_source"], r["title"]))
-    _write_results_sheet(ws, flagged)
+    _write_results_sheet(ws, flagged, extra_columns=extra_columns)
     return len(flagged)
 
 
@@ -587,31 +629,41 @@ def _write_legend_sheet(ws):
         row += 1
 
 
-def save_workbook(results, snapshot_meta, corpus_files):
-    """Build and save the combined workbook; return its path."""
+def save_workbook(results, snapshot_meta, corpus_files, *,
+                  extra_columns=None, token_usage=None, llm_stats=None,
+                  results_filename=None):
+    """Build and save the combined workbook; return ``(path, n_flagged)``.
+
+    The keyword-only args let the optional LLM pass (bealls_llm_check.py) reuse
+    this exact writer: *extra_columns* adds the 'LLM assessment' column,
+    *token_usage* / *llm_stats* feed the Summary's 'LLM second pass' section,
+    and *results_filename* writes to a different file than the default.
+    """
     wb = openpyxl.Workbook()
     ws_results = wb.active
     ws_results.title = "Results"
-    _write_results_sheet(ws_results, results)
+    _write_results_sheet(ws_results, results, extra_columns=extra_columns)
 
     ws_flagged = wb.create_sheet("Flagged only")
-    n_flagged = _write_flagged_sheet(ws_flagged, results)
+    n_flagged = _write_flagged_sheet(ws_flagged, results, extra_columns=extra_columns)
 
     ws_summary = wb.create_sheet("Summary")
-    _write_summary_sheet(ws_summary, results, snapshot_meta, corpus_files)
+    _write_summary_sheet(ws_summary, results, snapshot_meta, corpus_files,
+                         token_usage=token_usage, llm_stats=llm_stats)
 
     ws_legend = wb.create_sheet("Legend")
     _write_legend_sheet(ws_legend)
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    out_path = RESULTS_DIR / RESULTS_FILENAME
+    filename = results_filename or RESULTS_FILENAME
+    out_path = RESULTS_DIR / filename
     try:
         wb.save(out_path)
     except PermissionError:
         # The target is almost certainly open in Excel (Windows locks it).
         # Fall back to a timestamped name so a run is never lost.
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        out_path = RESULTS_DIR / f"{Path(RESULTS_FILENAME).stem}_{stamp}.xlsx"
+        out_path = RESULTS_DIR / f"{Path(filename).stem}_{stamp}.xlsx"
         wb.save(out_path)
         print(f"  (default file was locked — saved to {out_path.name} instead)")
     return out_path, n_flagged
