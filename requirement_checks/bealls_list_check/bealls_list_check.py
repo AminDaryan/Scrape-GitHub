@@ -77,28 +77,24 @@ def load_corpus():
 # EXCEL OUTPUT
 # =============================================================================
 
-# Column header, width, and which result key feeds it.
+# Grouped result columns: (header, width).  Instead of spreading 16 narrow
+# columns across the screen, related per-paper fields are stacked on separate
+# lines inside the Paper / Venue / Match cells (built by the _*_cell helpers
+# below).  The Paper cell links to the article and the Match cell links to the
+# matched Beall entry, so no separate URL columns are needed.
 COLUMNS = [
-    ("#",            6,  None),
-    ("Status",       11, "status"),
-    ("Source File",  20, "source_file"),
-    ("Title",        50, "title"),
-    ("Year",         8,  "year"),
-    ("Venue",        36, "venue"),
-    ("Type",         12, "venue_type"),
-    ("Venue Domain", 22, "venue_domain"),
-    ("ISSN",         12, "issn"),
-    ("DOI",          24, "doi"),
-    ("Paper URL",    34, "paper_url"),
-    ("Beall List",   18, "list_source"),
-    ("Matched Entry", 30, "matched_name"),
-    ("Matched On",   22, "matched_on"),
-    ("Why Review",   52, "review_reason"),
-    ("Matched URL",  34, "matched_url"),
+    ("#",      6),
+    ("Status", 12),
+    ("Paper",  54),
+    ("Venue",  40),
+    ("Match",  54),
 ]
 
-# Columns rendered as clickable hyperlinks.
-LINK_KEYS = {"paper_url", "matched_url"}
+# 1-based column indices, named so the writer reads clearly.
+_NUM_COL, _STATUS_COL, _PAPER_COL, _VENUE_COL, _MATCH_COL = 1, 2, 3, 4, 5
+_CENTER_COLS = {_NUM_COL, _STATUS_COL}
+# Which result field hyperlinks each cell: Paper -> article, Match -> entry.
+_LINK_COLS = {_PAPER_COL: "paper_url", _MATCH_COL: "matched_url"}
 
 _HEADER_FILL = PatternFill("solid", fgColor="2F5496")
 _HEADER_FONT = Font(name="Arial", bold=True, size=10, color="FFFFFF")
@@ -112,10 +108,76 @@ def _border():
     return Border(left=edge, right=edge, top=edge, bottom=edge)
 
 
+def _join_lines(*lines):
+    """Stack the non-empty lines into a single multi-line cell value."""
+    return "\n".join(line for line in lines if line)
+
+
+def _paper_cell(r):
+    """Paper identity, stacked: title / 'year · source file' / DOI."""
+    meta = " · ".join(
+        p for p in (str(r.get("year") or ""), r.get("source_file") or "") if p
+    )
+    doi = f"DOI: {r['doi']}" if r.get("doi") else ""
+    return _join_lines(r.get("title") or "(untitled)", meta, doi)
+
+
+def _venue_cell(r):
+    """Venue identity, stacked: name / 'type · domain' / ISSN."""
+    type_domain = " · ".join(
+        p for p in (r.get("venue_type") or "", r.get("venue_domain") or "") if p
+    )
+    issn = f"ISSN: {r['issn']}" if r.get("issn") else ""
+    return _join_lines(r.get("venue") or "—", type_domain, issn)
+
+
+# Short notes shown in the Match cell for statuses that matched nothing.
+_NONMATCH_NOTES = {
+    "clean":    "— venue not on the list",
+    "no_venue": "— no venue to classify (preprint / no info)",
+}
+
+
+def _match_cell(r):
+    """What matched, stacked: entry / 'on: signal · list' / why-review.
+
+    For statuses with nothing to match (clean, no_venue) a short note is shown
+    instead, and errors surface the captured exception text.
+    """
+    status = r.get("status")
+    if status in _NONMATCH_NOTES:
+        return _NONMATCH_NOTES[status]
+    if status == "error":
+        return f"error: {r.get('matched_on') or 'could not process record'}"
+    signal = " · ".join(
+        p for p in (f"on: {r['matched_on']}" if r.get("matched_on") else "",
+                    r.get("list_source") or "") if p
+    )
+    why = f"why: {r['review_reason']}" if r.get("review_reason") else ""
+    return _join_lines(r.get("matched_name") or "(matched)", signal, why)
+
+
+def _estimate_row_height(cells_with_widths):
+    """Estimate a row height (px) tall enough for the most-wrapped cell.
+
+    openpyxl does not auto-fit rows, so multi-line/wrapped cells would clip at
+    the default height.  We approximate wrapping by dividing each line's length
+    by its column's character width and summing.
+    """
+    max_lines = 1
+    for text, width in cells_with_widths:
+        lines = sum(
+            max(1, -(-len(line) // max(1, width)))      # ceil(len / width)
+            for line in str(text).split("\n")
+        )
+        max_lines = max(max_lines, lines)
+    return min(160, max(22, max_lines * 15))
+
+
 def _write_results_sheet(ws, results):
-    """Write the full per-paper Results sheet."""
+    """Write the per-paper Results sheet with grouped, multi-line columns."""
     border = _border()
-    for col, (header, width, _) in enumerate(COLUMNS, 1):
+    for col, (header, width) in enumerate(COLUMNS, 1):
         cell = ws.cell(row=1, column=col, value=header)
         cell.font, cell.fill, cell.alignment, cell.border = (
             _HEADER_FONT, _HEADER_FILL, _CENTER, border
@@ -124,22 +186,38 @@ def _write_results_sheet(ws, results):
     ws.row_dimensions[1].height = 26
     ws.freeze_panes = "A2"
 
-    center_cols = {1, 2, 5, 7, 9, 12, 14}
+    link_font = Font(name="Arial", size=9, color="0563C1", underline="single")
+    status_font = Font(name="Arial", size=9, bold=True)
+
     for row_idx, r in enumerate(results, 2):
-        fill = PatternFill("solid", fgColor=STATUS_FILL_COLORS.get(r["status"], "FFFFFF"))
-        for col, (_, _, key) in enumerate(COLUMNS, 1):
-            value = (row_idx - 1) if key is None else r.get(key, "")
+        paper, venue, match = _paper_cell(r), _venue_cell(r), _match_cell(r)
+        values = {
+            _NUM_COL:    row_idx - 1,
+            _STATUS_COL: r.get("status", ""),
+            _PAPER_COL:  paper,
+            _VENUE_COL:  venue,
+            _MATCH_COL:  match,
+        }
+        for col, value in values.items():
             cell = ws.cell(row=row_idx, column=col, value=value)
             cell.font = _DATA_FONT
             cell.border = border
-            cell.alignment = _CENTER if col in center_cols else _LEFT
-            if col == 2:               # color the Status cell by status
-                cell.fill = fill
-                cell.font = Font(name="Arial", size=9, bold=True)
-            elif key in LINK_KEYS and value:
-                cell.hyperlink = value
-                cell.font = Font(name="Arial", size=9, color="0563C1",
-                                 underline="single")
+            cell.alignment = _CENTER if col in _CENTER_COLS else _LEFT
+            if col == _STATUS_COL:
+                cell.fill = PatternFill(
+                    "solid", fgColor=STATUS_FILL_COLORS.get(r.get("status"), "FFFFFF")
+                )
+                cell.font = status_font
+            url = r.get(_LINK_COLS.get(col, ""), "")
+            if url:
+                cell.hyperlink = url
+                cell.font = link_font
+
+        ws.row_dimensions[row_idx].height = _estimate_row_height([
+            (paper, COLUMNS[_PAPER_COL - 1][1]),
+            (venue, COLUMNS[_VENUE_COL - 1][1]),
+            (match, COLUMNS[_MATCH_COL - 1][1]),
+        ])
 
 
 def _write_summary_sheet(ws, results, snapshot_meta, corpus_files):
@@ -240,20 +318,32 @@ _LEGEND_SECTIONS = [
         "title": "'Matched On' — which signal produced the match",
         "headers": ("Matched On", "Strength", "Meaning"),
         "rows": [
-            ("domain", "strongest", "Venue host exactly equals a listed host "
-             "(e.g. mdpi.com == mdpi.com)."),
+            ("domain", "strongest", "Venue host exactly equals a listed host. "
+             "Example: a paper's venue URL is https://www.mdpi.com/... and "
+             "mdpi.com is on the list -> match on mdpi.com."),
             ("domain_subdomain", "strong", "Venue host is a subdomain of a "
-             "listed host (e.g. journal.mdpi.com -> mdpi.com)."),
-            ("issn", "strong", "Venue ISSN exactly equals a listed ISSN."),
+             "listed host. Example: venue host www.journals.elsevier.com when "
+             "elsevier.com is listed -> match on the parent elsevier.com."),
+            ("issn", "strong", "Venue ISSN exactly equals a listed ISSN. "
+             "Example: the venue's ISSN 2090-4304 equals the ISSN recorded for "
+             "a listed journal -> match on 2090-4304."),
             ("name_exact", "strong", "Normalized venue name (>= 2 words) "
-             "exactly equals a listed name; case/accents/punctuation ignored."),
-            ("domain_alternate_url", "weak (review)", "An ALTERNATE venue URL "
-             "points at a listed domain. Semantic Scholar merges same-named "
-             "journals, so this may be a different journal — verify."),
+             "exactly equals a listed name; case, accents and punctuation are "
+             "ignored. Example: venue 'OMICS Publishing Group' normalizes to "
+             "'omics publishing group', which equals a listed entry."),
+            ("domain_alternate_url", "weak (review)", "Not the canonical venue "
+             "URL but one of its ALTERNATE URLs points at a listed domain. "
+             "Example: the venue lists an extra URL on scirp.org. Semantic "
+             "Scholar merges same-named journals, so this may be a different "
+             "journal than the paper's — verify."),
             ("name_fuzzy", "weak (review)", "Venue name is >= 93% similar to a "
-             "listed name. Never asserted as on_list."),
-            ("domain_open_access_pdf", "weak (review)", "The open-access PDF "
-             "is hosted on a listed domain though the venue was not identified."),
+             "listed name but NOT identical (a spelling variant or typo). "
+             "Example: venue 'Internatonal Journal of Science' ~ listed "
+             "'International Journal of Science'. Never asserted as on_list."),
+            ("domain_open_access_pdf", "weak (review)", "The venue itself was "
+             "not identified, but the open-access PDF is hosted on a listed "
+             "domain. Example: the venue field is blank yet the PDF is served "
+             "from scirp.org -> flagged for a human glance."),
         ],
     },
     {
@@ -272,22 +362,25 @@ _LEGEND_SECTIONS = [
     },
     {
         "title": "Columns in the Results / Flagged-only sheets",
-        "headers": ("Column", "", "Meaning"),
+        "headers": ("Column", "Lines (top -> bottom)", "Meaning"),
         "rows": [
-            ("Status", "", "Classification of the paper (see Status section)."),
-            ("Source File", "", "Which corpus JSON the paper came from."),
-            ("Title / Year", "", "Paper title and year (from Semantic Scholar)."),
-            ("Venue", "", "The publication venue name from Semantic Scholar."),
-            ("Type", "", "journal / conference (conferences are out of scope)."),
-            ("Venue Domain", "", "Host of the venue's website (main match key)."),
-            ("ISSN / DOI", "", "Venue ISSN and the paper's DOI."),
-            ("Paper URL", "", "Link to the article at its publisher (via DOI)."),
-            ("Beall List", "", "Which Beall list the match came from."),
-            ("Matched Entry", "", "The exact Beall entry that was matched."),
-            ("Matched On", "", "Which signal fired (see 'Matched On' section)."),
-            ("Why Review", "", "Plain-English reason a row is 'review' rather "
-             "than a definite on_list (blank for on_list/clean/no_venue)."),
-            ("Matched URL", "", "The listed Beall entry's own URL."),
+            ("#", "row number", "Sequential index within the sheet."),
+            ("Status", "status", "Classification of the paper (see the Status "
+             "section); the cell is colored by status."),
+            ("Paper", "title / year · source file / DOI",
+             "Paper identity. The whole cell is a link to the article at its "
+             "publisher (via DOI). 'source file' is which corpus JSON the "
+             "paper came from."),
+            ("Venue", "name / type · domain / ISSN",
+             "The publication venue from Semantic Scholar. 'type' is "
+             "journal/conference (conferences are out of scope); 'domain' is "
+             "the venue website host — the main match key."),
+            ("Match", "matched entry / on: signal · list / why",
+             "What was matched and how. 'on:' is the signal that fired (see "
+             "the 'Matched On' section); 'list' is which Beall list it came "
+             "from; 'why' explains a 'review' verdict. The whole cell links to "
+             "the matched Beall entry's own URL. For clean / no_venue / error "
+             "rows it shows a short status note instead."),
         ],
     },
     {
