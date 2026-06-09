@@ -77,30 +77,33 @@ def load_corpus():
 # EXCEL OUTPUT
 # =============================================================================
 
-# Grouped result columns: (header, width).  Instead of spreading 16 narrow
-# columns across the screen, related per-paper fields are stacked on separate
-# lines inside the Paper / Venue / Match cells (built by the _*_cell helpers
-# below).  The Paper cell links to the article and the Match cell links to the
-# matched Beall entry, so no separate URL columns are needed.
+# Per-paper layout: each paper occupies a BLOCK of ROWS_PER_PAPER rows.  The #
+# and Status cells are merged down the block; the Paper / Venue / Match columns
+# each show one labelled field per row (built by the _*_subrows helpers below),
+# so every field is its own selectable row instead of text crammed into one
+# cell.  Only the DOI row (-> article) and the Matched row (-> Beall entry) are
+# hyperlinks.
 COLUMNS = [
     ("#",      6),
     ("Status", 12),
-    ("Paper",  54),
-    ("Venue",  40),
-    ("Match",  54),
+    ("Paper",  60),
+    ("Venue",  44),
+    ("Match",  60),
 ]
 
 # 1-based column indices, named so the writer reads clearly.
 _NUM_COL, _STATUS_COL, _PAPER_COL, _VENUE_COL, _MATCH_COL = 1, 2, 3, 4, 5
-_CENTER_COLS = {_NUM_COL, _STATUS_COL}
-# Which result field hyperlinks each cell: Paper -> article, Match -> entry.
-_LINK_COLS = {_PAPER_COL: "paper_url", _MATCH_COL: "matched_url"}
+
+# Each paper block is this many rows tall (one labelled field per row).
+ROWS_PER_PAPER = 4
 
 _HEADER_FILL = PatternFill("solid", fgColor="2F5496")
 _HEADER_FONT = Font(name="Arial", bold=True, size=10, color="FFFFFF")
 _DATA_FONT = Font(name="Arial", size=9)
 _CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
 _LEFT = Alignment(horizontal="left", vertical="top", wrap_text=True)
+# Subtle shade on alternating paper blocks so adjacent papers are easy to tell apart.
+_BLOCK_SHADE = "F2F4F8"
 
 
 def _border():
@@ -108,74 +111,78 @@ def _border():
     return Border(left=edge, right=edge, top=edge, bottom=edge)
 
 
-def _join_lines(*lines):
-    """Stack the non-empty lines into a single multi-line cell value."""
-    return "\n".join(line for line in lines if line)
+def _paper_subrows(r):
+    """Four labelled rows for the Paper column: Title / Year / Source / DOI.
+
+    Returns a list of ``(text, link_url_or_None)``; the DOI row links to the
+    article (DOI landing page or open-access PDF). 'Source' is the corpus file.
+    """
+    return [
+        (f"Title: {r.get('title') or '(untitled)'}", None),
+        (f"Year: {r.get('year') or '—'}", None),
+        (f"Source: {r.get('source_file') or '—'}", None),
+        (f"DOI: {r.get('doi') or '—'}", r.get("paper_url") or None),
+    ]
 
 
-def _paper_cell(r):
-    """Paper identity, stacked: title / 'year · source file' / DOI."""
-    meta = " · ".join(
-        p for p in (str(r.get("year") or ""), r.get("source_file") or "") if p
-    )
-    doi = f"DOI: {r['doi']}" if r.get("doi") else ""
-    return _join_lines(r.get("title") or "(untitled)", meta, doi)
+def _venue_subrows(r):
+    """Four labelled rows for the Venue column: Venue / Type / Domain / ISSN."""
+    return [
+        (f"Venue: {r.get('venue') or '—'}", None),
+        (f"Type: {r.get('venue_type') or '—'}", None),
+        (f"Domain: {r.get('venue_domain') or '—'}", None),
+        (f"ISSN: {r.get('issn') or '—'}", None),
+    ]
 
 
-def _venue_cell(r):
-    """Venue identity, stacked: name / 'type · domain' / ISSN."""
-    type_domain = " · ".join(
-        p for p in (r.get("venue_type") or "", r.get("venue_domain") or "") if p
-    )
-    issn = f"ISSN: {r['issn']}" if r.get("issn") else ""
-    return _join_lines(r.get("venue") or "—", type_domain, issn)
-
-
-# Short notes shown in the Match cell for statuses that matched nothing.
+# Short note shown on the first Match row for statuses that matched nothing.
 _NONMATCH_NOTES = {
-    "clean":    "— venue not on the list",
-    "no_venue": "— no venue to classify (preprint / no info)",
+    "clean":    "Venue identified — not on the list",
+    "no_venue": "No venue to classify (preprint / no info)",
 }
 
 
-def _match_cell(r):
-    """What matched, stacked: entry / 'on: signal · list' / why-review.
+def _match_subrows(r):
+    """Four labelled rows for the Match column: Matched / On / List / Why.
 
-    For statuses with nothing to match (clean, no_venue) a short note is shown
-    instead, and errors surface the captured exception text.
+    Returns ``(text, link_url_or_None)`` per row; the Matched row links to the
+    matched Beall entry.  For clean / no_venue / error rows there is nothing to
+    match, so the first row carries a short note and the rest are blank.
     """
     status = r.get("status")
     if status in _NONMATCH_NOTES:
-        return _NONMATCH_NOTES[status]
-    if status == "error":
-        return f"error: {r.get('matched_on') or 'could not process record'}"
-    signal = " · ".join(
-        p for p in (f"on: {r['matched_on']}" if r.get("matched_on") else "",
-                    r.get("list_source") or "") if p
-    )
-    why = f"why: {r['review_reason']}" if r.get("review_reason") else ""
-    return _join_lines(r.get("matched_name") or "(matched)", signal, why)
+        note = _NONMATCH_NOTES[status]
+    elif status == "error":
+        note = f"Error: {r.get('matched_on') or 'could not process record'}"
+    else:
+        return [
+            (f"Matched: {r.get('matched_name') or '(matched)'}", r.get("matched_url") or None),
+            (f"On: {r.get('matched_on') or '—'}", None),
+            (f"List: {r.get('list_source') or '—'}", None),
+            (f"Why: {r.get('review_reason') or '—'}", None),
+        ]
+    return [(note, None), ("", None), ("", None), ("", None)]
 
 
-def _estimate_row_height(cells_with_widths):
-    """Estimate a row height (px) tall enough for the most-wrapped cell.
+def _estimate_row_height(text, width):
+    """Row height (px) tall enough for one cell's text to wrap without clipping.
 
-    openpyxl does not auto-fit rows, so multi-line/wrapped cells would clip at
-    the default height.  We approximate wrapping by dividing each line's length
-    by its column's character width and summing.
+    openpyxl does not auto-fit rows, so a long Title would clip at the default
+    height.  Approximate wrapping by dividing the text length by the column's
+    character width.
     """
-    max_lines = 1
-    for text, width in cells_with_widths:
-        lines = sum(
-            max(1, -(-len(line) // max(1, width)))      # ceil(len / width)
-            for line in str(text).split("\n")
-        )
-        max_lines = max(max_lines, lines)
-    return min(160, max(22, max_lines * 15))
+    lines = max(1, -(-len(str(text)) // max(1, width)))      # ceil(len / width)
+    return min(140, max(16, lines * 15))
 
 
 def _write_results_sheet(ws, results):
-    """Write the per-paper Results sheet with grouped, multi-line columns."""
+    """Write the Results sheet: one multi-row block per paper.
+
+    Each paper spans ROWS_PER_PAPER rows.  The # and Status cells are merged
+    down the block; the Paper / Venue / Match columns show one labelled field
+    per row, so each field is its own selectable row.  Cells are fully styled
+    *before* the merge so borders render across the merged ranges.
+    """
     border = _border()
     for col, (header, width) in enumerate(COLUMNS, 1):
         cell = ws.cell(row=1, column=col, value=header)
@@ -189,35 +196,54 @@ def _write_results_sheet(ws, results):
     link_font = Font(name="Arial", size=9, color="0563C1", underline="single")
     status_font = Font(name="Arial", size=9, bold=True)
 
-    for row_idx, r in enumerate(results, 2):
-        paper, venue, match = _paper_cell(r), _venue_cell(r), _match_cell(r)
-        values = {
-            _NUM_COL:    row_idx - 1,
-            _STATUS_COL: r.get("status", ""),
-            _PAPER_COL:  paper,
-            _VENUE_COL:  venue,
-            _MATCH_COL:  match,
-        }
-        for col, value in values.items():
-            cell = ws.cell(row=row_idx, column=col, value=value)
-            cell.font = _DATA_FONT
-            cell.border = border
-            cell.alignment = _CENTER if col in _CENTER_COLS else _LEFT
-            if col == _STATUS_COL:
-                cell.fill = PatternFill(
-                    "solid", fgColor=STATUS_FILL_COLORS.get(r.get("status"), "FFFFFF")
-                )
-                cell.font = status_font
-            url = r.get(_LINK_COLS.get(col, ""), "")
-            if url:
-                cell.hyperlink = url
-                cell.font = link_font
+    row = 2
+    for i, r in enumerate(results):
+        top = row
+        bottom = top + ROWS_PER_PAPER - 1
+        shade_fill = PatternFill("solid", fgColor=_BLOCK_SHADE) if i % 2 else None
+        status = r.get("status", "")
+        status_fill = PatternFill(
+            "solid", fgColor=STATUS_FILL_COLORS.get(status, "FFFFFF")
+        )
+        col_subrows = (
+            (_PAPER_COL, _paper_subrows(r)),
+            (_VENUE_COL, _venue_subrows(r)),
+            (_MATCH_COL, _match_subrows(r)),
+        )
 
-        ws.row_dimensions[row_idx].height = _estimate_row_height([
-            (paper, COLUMNS[_PAPER_COL - 1][1]),
-            (venue, COLUMNS[_VENUE_COL - 1][1]),
-            (match, COLUMNS[_MATCH_COL - 1][1]),
-        ])
+        for sub in range(ROWS_PER_PAPER):
+            rr = top + sub
+            # # and Status: value only on the block's first row; merged later.
+            num = ws.cell(row=rr, column=_NUM_COL, value=(i + 1) if sub == 0 else None)
+            num.font, num.border, num.alignment = _DATA_FONT, border, _CENTER
+            if shade_fill:
+                num.fill = shade_fill
+            st = ws.cell(row=rr, column=_STATUS_COL, value=status if sub == 0 else None)
+            st.font, st.border, st.alignment, st.fill = (
+                status_font, border, _CENTER, status_fill
+            )
+
+            height = 16
+            for col, subrows in col_subrows:
+                text, url = subrows[sub]
+                cell = ws.cell(row=rr, column=col, value=text)
+                cell.font, cell.border, cell.alignment = _DATA_FONT, border, _LEFT
+                if shade_fill:
+                    cell.fill = shade_fill
+                if url:
+                    cell.hyperlink = url
+                    cell.font = link_font
+                height = max(height, _estimate_row_height(text, COLUMNS[col - 1][1]))
+            ws.row_dimensions[rr].height = height
+
+        # Merge # and Status down the block (after styling, so borders draw).
+        if ROWS_PER_PAPER > 1:
+            ws.merge_cells(start_row=top, start_column=_NUM_COL,
+                           end_row=bottom, end_column=_NUM_COL)
+            ws.merge_cells(start_row=top, start_column=_STATUS_COL,
+                           end_row=bottom, end_column=_STATUS_COL)
+
+        row = bottom + 1
 
 
 def _write_summary_sheet(ws, results, snapshot_meta, corpus_files):
@@ -363,26 +389,31 @@ _LEGEND_SECTIONS = [
         ],
     },
     {
-        "title": "Columns in the Results / Flagged-only sheets",
-        "headers": ("Column", "Lines (top -> bottom)", "Meaning"),
+        "title": "Layout of the Results / Flagged-only sheets",
+        "headers": ("Column", "Rows (top -> bottom)", "Meaning"),
         "rows": [
-            ("#", "row number", "Sequential index within the sheet."),
-            ("Status", "status", "Classification of the paper (see the Status "
-             "section); the cell is colored by status."),
-            ("Paper", "title / year · source file / DOI",
-             "Paper identity. The whole cell is a link to the article at its "
-             "publisher (via DOI). 'source file' is which corpus JSON the "
-             "paper came from."),
-            ("Venue", "name / type · domain / ISSN",
-             "The publication venue from Semantic Scholar. 'type' is "
-             "journal/conference (conferences are out of scope); 'domain' is "
-             "the venue website host — the main match key."),
-            ("Match", "matched entry / on: signal · list / why",
-             "What was matched and how. 'on:' is the signal that fired (see "
-             "the 'Matched On' section); 'list' is which Beall list it came "
-             "from; 'why' explains a 'review' verdict. The whole cell links to "
-             "the matched Beall entry's own URL. For clean / no_venue / error "
-             "rows it shows a short status note instead."),
+            ("(blocks)", "4 rows per paper", "Each paper occupies a 4-row "
+             "block; alternating blocks are lightly shaded so they are easy to "
+             "tell apart."),
+            ("#", "(merged)", "Sequential paper number; the cell spans the "
+             "paper's whole block."),
+            ("Status", "(merged)", "Classification of the paper (see the Status "
+             "section); spans the block and is colored by status."),
+            ("Paper", "Title / Year / Source / DOI",
+             "Paper identity, one field per row. 'Source' is which corpus JSON "
+             "the paper came from. The DOI row is a link to the article at its "
+             "publisher."),
+            ("Venue", "Venue / Type / Domain / ISSN",
+             "The publication venue from Semantic Scholar, one field per row. "
+             "'Type' is journal/conference (conferences are out of scope); "
+             "'Domain' is the venue website host — the main match key."),
+            ("Match", "Matched / On / List / Why",
+             "What was matched, one field per row. 'On' is the signal that "
+             "fired (see the 'Matched On' section); 'List' is which Beall list "
+             "it came from; 'Why' explains a 'review' verdict. The Matched row "
+             "is a link to the Beall entry's own URL. For clean / no_venue / "
+             "error rows the first row shows a short note and the rest are "
+             "blank."),
         ],
     },
     {
