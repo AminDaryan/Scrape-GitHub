@@ -247,6 +247,14 @@ By default the corpus is read from `docs/Updated Abstract Papers/*.json`
 (git-ignored — it's large); override the location with the `BEALLS_CORPUS_DIR`
 environment variable.
 
+The scraper covers all five list pages (publishers, standalone journals,
+hijacked journals, misleading metrics, vanity press) and is careful about what
+it captures: it **skips the site's "Excluded — decide after reading" section**
+(e.g. MDPI, which Beall explicitly chose *not* to list), captures both linked
+and **plain-text (name-only) entries**, **decodes HTML entities** so names like
+`Research & Development Organization` match, and **retries transient `503`s** so
+a blip never yields a half-built snapshot.
+
 **How a venue is classified** — signals are tried strongest-first and the first
 hit is recorded, so every row says exactly *why* it was flagged:
 
@@ -338,9 +346,10 @@ requirement_checks/
 │   ├── 5.2.2.maintenance_activity_indicators/
 │   ├── 5.2.3.adoption_metrics/
 │   └── 5.2.4.post_publication_maintenance/
-└── bealls_list_check/                      # Standalone Beall's List check (no LLM, no PAPERS)
+└── bealls_list_check/                      # Standalone Beall's List check (no PAPERS list)
     ├── scrape_bealls_list.py              # Step 1: vendor data/bealls_snapshot.json from beallslist.net
-    ├── bealls_list_check.py               # Step 2: match the Semantic Scholar corpus → Excel
+    ├── bealls_list_check.py               # Step 2: match the Semantic Scholar corpus → Excel (no LLM)
+    ├── bealls_llm_check.py                # Optional LLM second pass (recall booster; see below)
     ├── match.py                           # Matching tiers (domain / ISSN / name / fuzzy)
     ├── normalize.py                       # Name / host / ISSN normalization shared by scraper + matcher
     ├── config.py                          # Paths + matching tunables (fuzzy cutoff, preprint/generic hosts)

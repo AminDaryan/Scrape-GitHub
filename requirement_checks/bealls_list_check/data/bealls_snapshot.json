@@ -1,7 +1,7 @@
 {
  "meta": {
   "source": "https://beallslist.net",
-  "scraped_utc": "2026-06-09T16:42:03+00:00",
+  "scraped_utc": "2026-06-10T08:57:10+00:00",
   "pages": [
    "/",
    "/standalone-journals",
@@ -10,13 +10,13 @@
    "/vanity-press"
   ],
   "counts_raw": {
-   "publishers": 1336,
+   "publishers": 1339,
    "standalone_journal": 1505,
    "hijacked": 139,
    "misleading_metric": 55,
    "vanity_press": 15
   },
-  "total_entries": 3042,
+  "total_entries": 3045,
   "note": "Unofficial archived copy of Beall's List. Appearance on this list is an allegation as of the scrape date, not authoritative proof a venue is predatory. The list is frozen/contested."
  },
  "entries": [
@@ -261,10 +261,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Academic World Education &amp; Research Center",
+   "name": "Academic World Education & Research Center",
    "url": "http://www.awer-center.org/journals.htm",
    "domain": "awer-center.org",
-   "normalized_name": "academic world education and amp research center",
+   "normalized_name": "academic world education and research center",
    "issns": [],
    "list_source": "publishers"
   },
@@ -309,10 +309,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Academy of Business &amp; Scientific Research",
+   "name": "Academy of Business & Scientific Research",
    "url": "http://www.absronline.org/",
    "domain": "absronline.org",
-   "normalized_name": "academy of business and amp scientific research",
+   "normalized_name": "academy of business and scientific research",
    "issns": [],
    "list_source": "publishers"
   },
@@ -429,10 +429,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Advance Educational Institute &amp; Research Centre",
+   "name": "Advance Educational Institute & Research Centre",
    "url": "http://aeirc-edu.com/",
    "domain": "aeirc-edu.com",
-   "normalized_name": "advance educational institute and amp research centre",
+   "normalized_name": "advance educational institute and research centre",
    "issns": [],
    "list_source": "publishers"
   },
@@ -501,10 +501,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Advanced Technology &amp; Science",
+   "name": "Advanced Technology & Science",
    "url": "http://atscience.org/",
    "domain": "atscience.org",
-   "normalized_name": "advanced technology and amp science",
+   "normalized_name": "advanced technology and science",
    "issns": [],
    "list_source": "publishers"
   },
@@ -629,10 +629,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "American Academic &amp; Scholarly Research Center",
+   "name": "American Academic & Scholarly Research Center",
    "url": "http://aasrc.org/",
    "domain": "aasrc.org",
-   "normalized_name": "american academic and amp scholarly research center",
+   "normalized_name": "american academic and scholarly research center",
    "issns": [],
    "list_source": "publishers"
   },
@@ -821,10 +821,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Archers &amp; Elevators Publishing House",
+   "name": "Archers & Elevators Publishing House",
    "url": "http://www.aeph.in/",
    "domain": "aeph.in",
-   "normalized_name": "archers and amp elevators publishing house",
+   "normalized_name": "archers and elevators publishing house",
    "issns": [],
    "list_source": "publishers"
   },
@@ -1013,10 +1013,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Athal Press &amp; Media",
+   "name": "Athal Press & Media",
    "url": "http://www.athalgroup.com/Athal-Press-and-Media.aspx",
    "domain": "athalgroup.com",
-   "normalized_name": "athal press and amp media",
+   "normalized_name": "athal press and media",
    "issns": [],
    "list_source": "publishers"
   },
@@ -1101,10 +1101,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Australian Society for Commerce Industry &amp; Engineering",
+   "name": "Australian Society for Commerce Industry & Engineering",
    "url": "http://www.scie.org.au/",
    "domain": "scie.org.au",
-   "normalized_name": "australian society for commerce industry and amp engineering",
+   "normalized_name": "australian society for commerce industry and engineering",
    "issns": [],
    "list_source": "publishers"
   },
@@ -1229,10 +1229,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Betty Jones &amp; Sisters Publishing",
+   "name": "Betty Jones & Sisters Publishing",
    "url": "http://bettyjonespub.com/",
    "domain": "bettyjonespub.com",
-   "normalized_name": "betty jones and amp sisters publishing",
+   "normalized_name": "betty jones and sisters publishing",
    "issns": [],
    "list_source": "publishers"
   },
@@ -1341,10 +1341,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Bioscience Research &amp; Educational Institute",
+   "name": "Bioscience Research & Educational Institute",
    "url": "http://www.bret.ac.in/",
    "domain": "bret.ac.in",
-   "normalized_name": "bioscience research and amp educational institute",
+   "normalized_name": "bioscience research and educational institute",
    "issns": [],
    "list_source": "publishers"
   },
@@ -1365,10 +1365,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Blue Eyes Intelligence Engineering &amp; Sciences Publication",
+   "name": "Blue Eyes Intelligence Engineering & Sciences Publication",
    "url": "http://blueeyesintelligence.org/",
    "domain": "blueeyesintelligence.org",
-   "normalized_name": "blue eyes intelligence engineering and amp sciences publication",
+   "normalized_name": "blue eyes intelligence engineering and sciences publication",
    "issns": [],
    "list_source": "publishers"
   },
@@ -1557,18 +1557,18 @@
    "list_source": "publishers"
   },
   {
-   "name": "The Center for Innovations in Business &amp; Management Practice",
+   "name": "The Center for Innovations in Business & Management Practice",
    "url": "http://www.cibmp.org/",
    "domain": "cibmp.org",
-   "normalized_name": "center for innovations in business and amp management practice",
+   "normalized_name": "center for innovations in business and management practice",
    "issns": [],
    "list_source": "publishers"
   },
   {
-   "name": "Center for Natural Science &amp; Engineering Research",
+   "name": "Center for Natural Science & Engineering Research",
    "url": "http://cennser.org/",
    "domain": "cennser.org",
-   "normalized_name": "center for natural science and amp engineering research",
+   "normalized_name": "center for natural science and engineering research",
    "issns": [],
    "list_source": "publishers"
   },
@@ -1637,10 +1637,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Centre of Excellence for Scientific &amp; Research Journalism",
+   "name": "Centre of Excellence for Scientific & Research Journalism",
    "url": "http://www.centreofexcellence.net/",
    "domain": "centreofexcellence.net",
-   "normalized_name": "centre of excellence for scientific and amp research journalism",
+   "normalized_name": "centre of excellence for scientific and research journalism",
    "issns": [],
    "list_source": "publishers"
   },
@@ -2205,10 +2205,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "E-International Journals of Academic &amp; Scientific Research",
+   "name": "E-International Journals of Academic & Scientific Research",
    "url": "http://eijasr.com/index.php",
    "domain": "eijasr.com",
-   "normalized_name": "e international journals of academic and amp scientific research",
+   "normalized_name": "e international journals of academic and scientific research",
    "issns": [],
    "list_source": "publishers"
   },
@@ -2253,10 +2253,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "eJournals of Academic Research &amp; Reviews",
+   "name": "eJournals of Academic Research & Reviews",
    "url": "http://www.ejarr.com/",
    "domain": "ejarr.com",
-   "normalized_name": "ejournals of academic research and amp reviews",
+   "normalized_name": "ejournals of academic research and reviews",
    "issns": [],
    "list_source": "publishers"
   },
@@ -2685,18 +2685,18 @@
    "list_source": "publishers"
   },
   {
-   "name": "Focus in Research &amp; Education",
+   "name": "Focus in Research & Education",
    "url": "http://firepubs.com/index.php",
    "domain": "firepubs.com",
-   "normalized_name": "focus in research and amp education",
+   "normalized_name": "focus in research and education",
    "issns": [],
    "list_source": "publishers"
   },
   {
-   "name": "Foundation for Promotion of Basic &amp; Applied Science",
+   "name": "Foundation for Promotion of Basic & Applied Science",
    "url": "http://www.fopras.org/",
    "domain": "fopras.org",
-   "normalized_name": "foundation for promotion of basic and amp applied science",
+   "normalized_name": "foundation for promotion of basic and applied science",
    "issns": [],
    "list_source": "publishers"
   },
@@ -2781,10 +2781,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "GBS Publishers &amp; Distributors (India)",
+   "name": "GBS Publishers & Distributors (India)",
    "url": "http://www.gbspublisher.com/",
    "domain": "gbspublisher.com",
-   "normalized_name": "gbs publishers and amp distributors india",
+   "normalized_name": "gbs publishers and distributors india",
    "issns": [],
    "list_source": "publishers"
   },
@@ -2973,10 +2973,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Global Technocrats &amp; Intellectual’s Association",
+   "name": "Global Technocrats & Intellectual’s Association",
    "url": "http://www.gtia.co.in/",
    "domain": "gtia.co.in",
-   "normalized_name": "global technocrats and amp intellectual s association",
+   "normalized_name": "global technocrats and intellectual s association",
    "issns": [],
    "list_source": "publishers"
   },
@@ -3125,10 +3125,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Har Krishan Bhalla &amp; Sons",
+   "name": "Har Krishan Bhalla & Sons",
    "url": "http://hkbpublications.com/",
    "domain": "hkbpublications.com",
-   "normalized_name": "har krishan bhalla and amp sons",
+   "normalized_name": "har krishan bhalla and sons",
    "issns": [],
    "list_source": "publishers"
   },
@@ -3309,10 +3309,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "IERI &amp; PRESS",
+   "name": "IERI & PRESS",
    "url": "http://www.ieripress.com/",
    "domain": "ieripress.com",
-   "normalized_name": "ieri and amp press",
+   "normalized_name": "ieri and press",
    "issns": [],
    "list_source": "publishers"
   },
@@ -3445,10 +3445,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Indus Foundation for Education, Research &amp; Social Welfare",
+   "name": "Indus Foundation for Education, Research & Social Welfare",
    "url": "http://www.indusedu.org/",
    "domain": "indusedu.org",
-   "normalized_name": "indus foundation for education research and amp social welfare",
+   "normalized_name": "indus foundation for education research and social welfare",
    "issns": [],
    "list_source": "publishers"
   },
@@ -3645,10 +3645,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Institute of Electronic &amp; Information Technology",
+   "name": "Institute of Electronic & Information Technology",
    "url": "http://www.ieit-web.org/apscj/editorialboard.html",
    "domain": "ieit-web.org",
-   "normalized_name": "institute of electronic and amp information technology",
+   "normalized_name": "institute of electronic and information technology",
    "issns": [],
    "list_source": "publishers"
   },
@@ -3813,18 +3813,18 @@
    "list_source": "publishers"
   },
   {
-   "name": "International Academy for Science &amp; Technology Education and Research",
+   "name": "International Academy for Science & Technology Education and Research",
    "url": "http://www.iaster.com/index.php",
    "domain": "iaster.com",
-   "normalized_name": "international academy for science and amp technology education and research",
+   "normalized_name": "international academy for science and technology education and research",
    "issns": [],
    "list_source": "publishers"
   },
   {
-   "name": "International Academy of Arts, Science &amp; Technology",
+   "name": "International Academy of Arts, Science & Technology",
    "url": "http://iaast.org/",
    "domain": "iaast.org",
-   "normalized_name": "international academy of arts science and amp technology",
+   "normalized_name": "international academy of arts science and technology",
    "issns": [],
    "list_source": "publishers"
   },
@@ -3837,18 +3837,18 @@
    "list_source": "publishers"
   },
   {
-   "name": "International Academy of Business &amp; Economics",
+   "name": "International Academy of Business & Economics",
    "url": "http://www.iabe.org/",
    "domain": "iabe.org",
-   "normalized_name": "international academy of business and amp economics",
+   "normalized_name": "international academy of business and economics",
    "issns": [],
    "list_source": "publishers"
   },
   {
-   "name": "International Academy of Computer &amp; IT Engineering",
+   "name": "International Academy of Computer & IT Engineering",
    "url": "http://iacite.org/",
    "domain": "iacite.org",
-   "normalized_name": "international academy of computer and amp it engineering",
+   "normalized_name": "international academy of computer and it engineering",
    "issns": [],
    "list_source": "publishers"
   },
@@ -3933,10 +3933,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "International Association for Engineering &amp; Technology",
+   "name": "International Association for Engineering & Technology",
    "url": "http://www.iaet.net/",
    "domain": "iaet.net",
-   "normalized_name": "international association for engineering and amp technology",
+   "normalized_name": "international association for engineering and technology",
    "issns": [],
    "list_source": "publishers"
   },
@@ -3965,18 +3965,18 @@
    "list_source": "publishers"
   },
   {
-   "name": "International Association of Engineering &amp; Technology Researchers",
+   "name": "International Association of Engineering & Technology Researchers",
    "url": "http://iaetr.org/",
    "domain": "iaetr.org",
-   "normalized_name": "international association of engineering and amp technology researchers",
+   "normalized_name": "international association of engineering and technology researchers",
    "issns": [],
    "list_source": "publishers"
   },
   {
-   "name": "International Association of Journals &amp; Conferences",
+   "name": "International Association of Journals & Conferences",
    "url": "http://www.iajc.org/overview.html",
    "domain": "iajc.org",
-   "normalized_name": "international association of journals and amp conferences",
+   "normalized_name": "international association of journals and conferences",
    "issns": [],
    "list_source": "publishers"
   },
@@ -3989,10 +3989,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "International Association of Technology Education &amp; Industry",
+   "name": "International Association of Technology Education & Industry",
    "url": "http://iatei.org/",
    "domain": "iatei.org",
-   "normalized_name": "international association of technology education and amp industry",
+   "normalized_name": "international association of technology education and industry",
    "issns": [],
    "list_source": "publishers"
   },
@@ -4165,10 +4165,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "International Institute of Engineers &amp; Researchers",
+   "name": "International Institute of Engineers & Researchers",
    "url": "http://theiier.org/Conference/Singapore/1/ICSTEM/publication.php",
    "domain": "theiier.org",
-   "normalized_name": "international institute of engineers and amp researchers",
+   "normalized_name": "international institute of engineers and researchers",
    "issns": [],
    "list_source": "publishers"
   },
@@ -4181,10 +4181,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "International Institute of Science &amp; Industry Research",
+   "name": "International Institute of Science & Industry Research",
    "url": "http://www.iisir.org/",
    "domain": "iisir.org",
-   "normalized_name": "international institute of science and amp industry research",
+   "normalized_name": "international institute of science and industry research",
    "issns": [],
    "list_source": "publishers"
   },
@@ -4197,18 +4197,18 @@
    "list_source": "publishers"
   },
   {
-   "name": "International Journal of College &amp; University",
+   "name": "International Journal of College & University",
    "url": "http://ijcu.us/",
    "domain": "ijcu.us",
-   "normalized_name": "international journal of college and amp university",
+   "normalized_name": "international journal of college and university",
    "issns": [],
    "list_source": "publishers"
   },
   {
-   "name": "International Journal of Research &amp; Development Organisation",
+   "name": "International Journal of Research & Development Organisation",
    "url": "http://www.ijrdo.org/",
    "domain": "ijrdo.org",
-   "normalized_name": "international journal of research and amp development organisation",
+   "normalized_name": "international journal of research and development organisation",
    "issns": [],
    "list_source": "publishers"
   },
@@ -4277,10 +4277,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "International Journals of Engineering &amp; Sciences",
+   "name": "International Journals of Engineering & Sciences",
    "url": "http://www.ijens.org/",
    "domain": "ijens.org",
-   "normalized_name": "international journals of engineering and amp sciences",
+   "normalized_name": "international journals of engineering and sciences",
    "issns": [],
    "list_source": "publishers"
   },
@@ -4301,10 +4301,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "International Journals of N&amp;N Global Technology",
+   "name": "International Journals of N&N Global Technology",
    "url": "http://www.ijnngt.org/index.php",
    "domain": "ijnngt.org",
-   "normalized_name": "international journals of n and amp n global technology",
+   "normalized_name": "international journals of n and n global technology",
    "issns": [],
    "list_source": "publishers"
   },
@@ -4381,10 +4381,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "International Network for Scientific &amp; Industrial Information",
+   "name": "International Network for Scientific & Industrial Information",
    "url": "http://insii.com/index.php",
    "domain": "insii.com",
-   "normalized_name": "international network for scientific and amp industrial information",
+   "normalized_name": "international network for scientific and industrial information",
    "issns": [],
    "list_source": "publishers"
   },
@@ -4445,10 +4445,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "International Publisher &amp; C.O",
+   "name": "International Publisher & C.O",
    "url": "http://ipco-co.com/",
    "domain": "ipco-co.com",
-   "normalized_name": "international publisher and amp c o",
+   "normalized_name": "international publisher and c o",
    "issns": [],
    "list_source": "publishers"
   },
@@ -4477,10 +4477,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "International Research Association of Computer Science, &amp; Technology",
+   "name": "International Research Association of Computer Science, & Technology",
    "url": "http://www.iracst.org/home.htm",
    "domain": "iracst.org",
-   "normalized_name": "international research association of computer science and amp technology",
+   "normalized_name": "international research association of computer science and technology",
    "issns": [],
    "list_source": "publishers"
   },
@@ -4557,10 +4557,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "International Science &amp; Research Journals",
+   "name": "International Science & Research Journals",
    "url": "http://www.isrjournals.org/",
    "domain": "isrjournals.org",
-   "normalized_name": "international science and amp research journals",
+   "normalized_name": "international science and research journals",
    "issns": [],
    "list_source": "publishers"
   },
@@ -4589,10 +4589,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "International Scientific Academy of Engineering &amp; Technology",
+   "name": "International Scientific Academy of Engineering & Technology",
    "url": "http://www.isaet.org/",
    "domain": "isaet.org",
-   "normalized_name": "international scientific academy of engineering and amp technology",
+   "normalized_name": "international scientific academy of engineering and technology",
    "issns": [],
    "list_source": "publishers"
   },
@@ -4901,10 +4901,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Journals of Scientifics R&amp;D",
+   "name": "Journals of Scientifics R&D",
    "url": "http://journals-of-scientifcs-rd.com/",
    "domain": "journals-of-scientifcs-rd.com",
-   "normalized_name": "journals of scientifics r and amp d",
+   "normalized_name": "journals of scientifics r and d",
    "issns": [],
    "list_source": "publishers"
   },
@@ -4965,10 +4965,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Journals Club &amp; Co.",
+   "name": "Journals Club & Co.",
    "url": "https://journalsclub.com/",
    "domain": "journalsclub.com",
-   "normalized_name": "journals club and amp co",
+   "normalized_name": "journals club and co",
    "issns": [],
    "list_source": "publishers"
   },
@@ -5109,10 +5109,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Knowledge Publishing Printing &amp; Distribution House",
+   "name": "Knowledge Publishing Printing & Distribution House",
    "url": "http://www.knowledgepublishinghouse.com/index.html",
    "domain": "knowledgepublishinghouse.com",
-   "normalized_name": "knowledge publishing printing and amp distribution house",
+   "normalized_name": "knowledge publishing printing and distribution house",
    "issns": [],
    "list_source": "publishers"
   },
@@ -5245,10 +5245,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Leena &amp; Luna International",
+   "name": "Leena & Luna International",
    "url": "http://www.ajssh.leena-luna.co.jp/",
    "domain": "ajssh.leena-luna.co.jp",
-   "normalized_name": "leena and amp luna international",
+   "normalized_name": "leena and luna international",
    "issns": [],
    "list_source": "publishers"
   },
@@ -5605,10 +5605,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "MuK Publications &amp; Distributions",
+   "name": "MuK Publications & Distributions",
    "url": "http://www.mukpublications.com/",
    "domain": "mukpublications.com",
-   "normalized_name": "muk publications and amp distributions",
+   "normalized_name": "muk publications and distributions",
    "issns": [],
    "list_source": "publishers"
   },
@@ -5629,10 +5629,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "N&amp;N Global Technology",
+   "name": "N&N Global Technology",
    "url": "http://www.nngt.org/",
    "domain": "nngt.org",
-   "normalized_name": "n and amp n global technology",
+   "normalized_name": "n and n global technology",
    "issns": [],
    "list_source": "publishers"
   },
@@ -6629,18 +6629,18 @@
    "list_source": "publishers"
   },
   {
-   "name": "R&amp;D Modern Research Publication",
+   "name": "R&D Modern Research Publication",
    "url": "http://rdmodernresearch.com/",
    "domain": "rdmodernresearch.com",
-   "normalized_name": "r and amp d modern research publication",
+   "normalized_name": "r and d modern research publication",
    "issns": [],
    "list_source": "publishers"
   },
   {
-   "name": "R &amp; S Publications",
+   "name": "R & S Publications",
    "url": "https://sites.google.com/a/randspublications.org/randspublications/home",
    "domain": "sites.google.com",
-   "normalized_name": "r and amp s publications",
+   "normalized_name": "r and s publications",
    "issns": [],
    "list_source": "publishers"
   },
@@ -6709,10 +6709,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Research &amp; Analysis Journals",
+   "name": "Research & Analysis Journals",
    "url": "http://www.rajournals.in/",
    "domain": "rajournals.in",
-   "normalized_name": "research and amp analysis journals",
+   "normalized_name": "research and analysis journals",
    "issns": [],
    "list_source": "publishers"
   },
@@ -6757,10 +6757,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Research &amp; Reviews",
+   "name": "Research & Reviews",
    "url": "http://www.rroij.com/",
    "domain": "rroij.com",
-   "normalized_name": "research and amp reviews",
+   "normalized_name": "research and reviews",
    "issns": [],
    "list_source": "publishers"
   },
@@ -7189,10 +7189,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Scholedge R&amp;D Center",
+   "name": "Scholedge R&D Center",
    "url": "http://thescholedge.org/",
    "domain": "thescholedge.org",
-   "normalized_name": "scholedge r and amp d center",
+   "normalized_name": "scholedge r and d center",
    "issns": [],
    "list_source": "publishers"
   },
@@ -7253,18 +7253,18 @@
    "list_source": "publishers"
   },
   {
-   "name": "Science &amp; Engineering Research Support soCiety",
+   "name": "Science & Engineering Research Support soCiety",
    "url": "http://www.sersc.org/",
    "domain": "sersc.org",
-   "normalized_name": "science and amp engineering research support society",
+   "normalized_name": "science and engineering research support society",
    "issns": [],
    "list_source": "publishers"
   },
   {
-   "name": "Science &amp; Knowledge Publishing Corporation Limited",
+   "name": "Science & Knowledge Publishing Corporation Limited",
    "url": "http://scik.org/",
    "domain": "scik.org",
-   "normalized_name": "science and amp knowledge publishing corporation limited",
+   "normalized_name": "science and knowledge publishing corporation limited",
    "issns": [],
    "list_source": "publishers"
   },
@@ -7541,10 +7541,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Sciences &amp; Engineering Research Publication",
+   "name": "Sciences & Engineering Research Publication",
    "url": "http://www.scenrp.com/",
    "domain": "scenrp.com",
-   "normalized_name": "sciences and amp engineering research publication",
+   "normalized_name": "sciences and engineering research publication",
    "issns": [],
    "list_source": "publishers"
   },
@@ -7605,10 +7605,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Scientific &amp; Academic Publishing",
+   "name": "Scientific & Academic Publishing",
    "url": "http://www.sapub.org/journal/index.aspx",
    "domain": "sapub.org",
-   "normalized_name": "scientific and amp academic publishing",
+   "normalized_name": "scientific and academic publishing",
    "issns": [],
    "list_source": "publishers"
   },
@@ -7853,10 +7853,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "SEAHI Publications &amp; Academic Journals",
+   "name": "SEAHI Publications & Academic Journals",
    "url": "http://seahipaj.org/",
    "domain": "seahipaj.org",
-   "normalized_name": "seahi publications and amp academic journals",
+   "normalized_name": "seahi publications and academic journals",
    "issns": [],
    "list_source": "publishers"
   },
@@ -7901,10 +7901,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Shri Param Hans Education &amp; Research Foundation Trust",
+   "name": "Shri Param Hans Education & Research Foundation Trust",
    "url": "http://www.sphert.org/",
    "domain": "sphert.org",
-   "normalized_name": "shri param hans education and amp research foundation trust",
+   "normalized_name": "shri param hans education and research foundation trust",
    "issns": [],
    "list_source": "publishers"
   },
@@ -7981,10 +7981,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Smart Science &amp; Technology",
+   "name": "Smart Science & Technology",
    "url": "http://www.smartscitech.com/",
    "domain": "smartscitech.com",
-   "normalized_name": "smart science and amp technology",
+   "normalized_name": "smart science and technology",
    "issns": [],
    "list_source": "publishers"
   },
@@ -8005,10 +8005,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Smith &amp; Franklin Academic Publishing Corporation",
+   "name": "Smith & Franklin Academic Publishing Corporation",
    "url": "http://smithandfranklin.com/",
    "domain": "smithandfranklin.com",
-   "normalized_name": "smith and amp franklin academic publishing corporation",
+   "normalized_name": "smith and franklin academic publishing corporation",
    "issns": [],
    "list_source": "publishers"
   },
@@ -8117,10 +8117,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Spring International S&amp;T Publishing Media Co.",
+   "name": "Spring International S&T Publishing Media Co.",
    "url": "http://springpublishing.org/index.php/index/index",
    "domain": "springpublishing.org",
-   "normalized_name": "spring international s and amp t publishing media co",
+   "normalized_name": "spring international s and t publishing media co",
    "issns": [],
    "list_source": "publishers"
   },
@@ -8149,10 +8149,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Sri Krishna International Research &amp; Educational Consortium",
+   "name": "Sri Krishna International Research & Educational Consortium",
    "url": "http://skirec.org/index",
    "domain": "skirec.org",
-   "normalized_name": "sri krishna international research and amp educational consortium",
+   "normalized_name": "sri krishna international research and educational consortium",
    "issns": [],
    "list_source": "publishers"
   },
@@ -8309,10 +8309,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "T&amp;S Journal PUblications",
+   "name": "T&S Journal PUblications",
    "url": "http://tands-journal-publications.com/",
    "domain": "tands-journal-publications.com",
-   "normalized_name": "t and amp s journal publications",
+   "normalized_name": "t and s journal publications",
    "issns": [],
    "list_source": "publishers"
   },
@@ -8421,10 +8421,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Thomson &amp; Ryberg Publications",
+   "name": "Thomson & Ryberg Publications",
    "url": "http://www.trpubonline.com/index.php",
    "domain": "trpubonline.com",
-   "normalized_name": "thomson and amp ryberg publications",
+   "normalized_name": "thomson and ryberg publications",
    "issns": [],
    "list_source": "publishers"
   },
@@ -8613,10 +8613,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Universal Publishing &amp; Research Organization",
+   "name": "Universal Publishing & Research Organization",
    "url": "http://www.upro.org.in/",
    "domain": "upro.org.in",
-   "normalized_name": "universal publishing and amp research organization",
+   "normalized_name": "universal publishing and research organization",
    "issns": [],
    "list_source": "publishers"
   },
@@ -8805,10 +8805,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Wesley &amp; Eber Publishing",
+   "name": "Wesley & Eber Publishing",
    "url": "http://weberpub.org/",
    "domain": "weberpub.org",
-   "normalized_name": "wesley and amp eber publishing",
+   "normalized_name": "wesley and eber publishing",
    "issns": [],
    "list_source": "publishers"
   },
@@ -8877,10 +8877,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "World Academic Journal of Business &amp; Applied Science",
+   "name": "World Academic Journal of Business & Applied Science",
    "url": "http://wajbas.webs.com/",
    "domain": "wajbas.webs.com",
-   "normalized_name": "world academic journal of business and amp applied science",
+   "normalized_name": "world academic journal of business and applied science",
    "issns": [],
    "list_source": "publishers"
   },
@@ -9069,10 +9069,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Xia &amp; He Publishing",
+   "name": "Xia & He Publishing",
    "url": "http://www.xandhpublishing.com/Default.aspx?sid=1",
    "domain": "xandhpublishing.com",
-   "normalized_name": "xia and amp he publishing",
+   "normalized_name": "xia and he publishing",
    "issns": [],
    "list_source": "publishers"
   },
@@ -9469,10 +9469,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Centre for Research on Islamic Banking &amp; Finance and Business",
+   "name": "Centre for Research on Islamic Banking & Finance and Business",
    "url": "https://www.cribfb.com/",
    "domain": "cribfb.com",
-   "normalized_name": "centre for research on islamic banking and amp finance and business",
+   "normalized_name": "centre for research on islamic banking and finance and business",
    "issns": [],
    "list_source": "publishers"
   },
@@ -9813,10 +9813,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "Institute for Promoting Research &amp; Policy Development",
+   "name": "Institute for Promoting Research & Policy Development",
    "url": "https://iprpd.org/",
    "domain": "iprpd.org",
-   "normalized_name": "institute for promoting research and amp policy development",
+   "normalized_name": "institute for promoting research and policy development",
    "issns": [],
    "list_source": "publishers"
   },
@@ -10621,10 +10621,10 @@
    "list_source": "publishers"
   },
   {
-   "name": "TSNS &#8220;Interaktiv plus&#8221;, LLC",
+   "name": "TSNS “Interaktiv plus”, LLC",
    "url": "https://interactive-plus.ru/en",
    "domain": "interactive-plus.ru",
-   "normalized_name": "tsns and 8220 interaktiv plus and 8221 llc",
+   "normalized_name": "tsns interaktiv plus llc",
    "issns": [],
    "list_source": "publishers"
   },
@@ -10673,6 +10673,30 @@
    "url": "https://winsomepublishing.org/",
    "domain": "winsomepublishing.org",
    "normalized_name": "winsome publishing llc",
+   "issns": [],
+   "list_source": "publishers"
+  },
+  {
+   "name": "Akademik Plus Publication",
+   "url": "",
+   "domain": "",
+   "normalized_name": "akademik plus publication",
+   "issns": [],
+   "list_source": "publishers"
+  },
+  {
+   "name": "International Knowledge Sharing Platform",
+   "url": "",
+   "domain": "",
+   "normalized_name": "international knowledge sharing platform",
+   "issns": [],
+   "list_source": "publishers"
+  },
+  {
+   "name": "Research & Development Organization",
+   "url": "",
+   "domain": "",
+   "normalized_name": "research and development organization",
    "issns": [],
    "list_source": "publishers"
   },
@@ -11005,10 +11029,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "American Transactions on Engineering &amp; Applied Sciences",
+   "name": "American Transactions on Engineering & Applied Sciences",
    "url": "http://tuengr.com/ATEAS/index.html",
    "domain": "tuengr.com",
-   "normalized_name": "american transactions on engineering and amp applied sciences",
+   "normalized_name": "american transactions on engineering and applied sciences",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -11365,10 +11389,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Biomedical &amp; Pharmacology Journa",
+   "name": "Biomedical & Pharmacology Journa",
    "url": "http://www.biomedpharmajournal.org/",
    "domain": "biomedpharmajournal.org",
-   "normalized_name": "biomedical and amp pharmacology journa",
+   "normalized_name": "biomedical and pharmacology journa",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -11533,10 +11557,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Bulletin of Mathematical Sciences &amp; Applications",
+   "name": "Bulletin of Mathematical Sciences & Applications",
    "url": "http://www.bmsa.us/index.php",
    "domain": "bmsa.us",
-   "normalized_name": "bulletin of mathematical sciences and amp applications",
+   "normalized_name": "bulletin of mathematical sciences and applications",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -11725,10 +11749,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Computational Research Progress in Applied Science &amp; Engineering",
+   "name": "Computational Research Progress in Applied Science & Engineering",
    "url": "http://www.crpase.com/",
    "domain": "crpase.com",
-   "normalized_name": "computational research progress in applied science and amp engineering",
+   "normalized_name": "computational research progress in applied science and engineering",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -11949,10 +11973,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Engineering &amp; IT Journal",
+   "name": "Engineering & IT Journal",
    "url": "http://www.eitjournal.com/",
    "domain": "eitjournal.com",
-   "normalized_name": "engineering and amp it journal",
+   "normalized_name": "engineering and it journal",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -12053,10 +12077,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "European Journal of Advances in Engineering &amp; Technology",
+   "name": "European Journal of Advances in Engineering & Technology",
    "url": "http://ejaet.com/theme.php?go=home",
    "domain": "ejaet.com",
-   "normalized_name": "european journal of advances in engineering and amp technology",
+   "normalized_name": "european journal of advances in engineering and technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -12245,10 +12269,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Functional Analysis: Theory, Method &amp; Applications",
+   "name": "Functional Analysis: Theory, Method & Applications",
    "url": "http://jfatma.com/index.php",
    "domain": "jfatma.com",
-   "normalized_name": "functional analysis theory method and amp applications",
+   "normalized_name": "functional analysis theory method and applications",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -12277,10 +12301,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Genes &amp; Cancer",
+   "name": "Genes & Cancer",
    "url": "http://www.impactjournals.com/Genes&amp;Cancer/",
    "domain": "impactjournals.com",
-   "normalized_name": "genes and amp cancer",
+   "normalized_name": "genes and cancer",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -12309,10 +12333,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Global Business &amp; Finance Review",
+   "name": "Global Business & Finance Review",
    "url": "http://www.gbfrjournal.org/html/",
    "domain": "gbfrjournal.org",
-   "normalized_name": "global business and amp finance review",
+   "normalized_name": "global business and finance review",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -12581,10 +12605,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Indian Journal of Pharmaceutical Science &amp; Research",
+   "name": "Indian Journal of Pharmaceutical Science & Research",
    "url": "http://www.ijpsrjournal.com/index.php",
    "domain": "ijpsrjournal.com",
-   "normalized_name": "indian journal of pharmaceutical science and amp research",
+   "normalized_name": "indian journal of pharmaceutical science and research",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -12693,10 +12717,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Institute of Electrical &amp; Electronics Engineers Advanced Journal",
+   "name": "Institute of Electrical & Electronics Engineers Advanced Journal",
    "url": "http://www.ieeeaj.com/",
    "domain": "ieeeaj.com",
-   "normalized_name": "institute of electrical and amp electronics engineers advanced journal",
+   "normalized_name": "institute of electrical and electronics engineers advanced journal",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -12861,10 +12885,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal &amp; Magazine of Engineering, Technology, Management and Research",
+   "name": "International Journal & Magazine of Engineering, Technology, Management and Research",
    "url": "http://www.ijmetmr.com/",
    "domain": "ijmetmr.com",
-   "normalized_name": "international journal and amp magazine of engineering technology management and research",
+   "normalized_name": "international journal and magazine of engineering technology management and research",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -12941,10 +12965,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal for Research &amp; Development in Technology",
+   "name": "International Journal for Research & Development in Technology",
    "url": "http://ijrdt.org/",
    "domain": "ijrdt.org",
-   "normalized_name": "international journal for research and amp development in technology",
+   "normalized_name": "international journal for research and development in technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -12965,18 +12989,18 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal for Research in Engineering Application &amp; Management",
+   "name": "International Journal for Research in Engineering Application & Management",
    "url": "http://www.ijream.org/",
    "domain": "ijream.org",
-   "normalized_name": "international journal for research in engineering application and amp management",
+   "normalized_name": "international journal for research in engineering application and management",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal for Scientific Research &amp; Development",
+   "name": "International Journal for Scientific Research & Development",
    "url": "http://www.ijsrd.com/",
    "domain": "ijsrd.com",
-   "normalized_name": "international journal for scientific research and amp development",
+   "normalized_name": "international journal for scientific research and development",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -13293,18 +13317,18 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Advanced Research in Computer Science &amp; Technology",
+   "name": "International Journal of Advanced Research in Computer Science & Technology",
    "url": "http://www.ijarcst.com/index.html",
    "domain": "ijarcst.com",
-   "normalized_name": "international journal of advanced research in computer science and amp technology",
+   "normalized_name": "international journal of advanced research in computer science and technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Advanced Research in Education &amp; Technology",
+   "name": "International Journal of Advanced Research in Education & Technology",
    "url": "http://ijaret.com/",
    "domain": "ijaret.com",
-   "normalized_name": "international journal of advanced research in education and amp technology",
+   "normalized_name": "international journal of advanced research in education and technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -13317,10 +13341,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Advanced Research in Engineering &amp; Management",
+   "name": "International Journal of Advanced Research in Engineering & Management",
    "url": "http://www.ijarem.org/",
    "domain": "ijarem.org",
-   "normalized_name": "international journal of advanced research in engineering and amp management",
+   "normalized_name": "international journal of advanced research in engineering and management",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -13333,10 +13357,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Advanced Research in Mechanical Engineering &amp; Technology",
+   "name": "International Journal of Advanced Research in Mechanical Engineering & Technology",
    "url": "http://ijarmet.com/",
    "domain": "ijarmet.com",
-   "normalized_name": "international journal of advanced research in mechanical engineering and amp technology",
+   "normalized_name": "international journal of advanced research in mechanical engineering and technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -13365,10 +13389,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Advanced Scientific Research &amp; Development",
+   "name": "International Journal of Advanced Scientific Research & Development",
    "url": "https://www.ijasrd.org/in/",
    "domain": "ijasrd.org",
-   "normalized_name": "international journal of advanced scientific research and amp development",
+   "normalized_name": "international journal of advanced scientific research and development",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -13413,10 +13437,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Advancement in Engineering Technology, Management &amp; Applied Science",
+   "name": "International Journal of Advancement in Engineering Technology, Management & Applied Science",
    "url": "http://www.ijaetmas.com/",
    "domain": "ijaetmas.com",
-   "normalized_name": "international journal of advancement in engineering technology management and amp applied science",
+   "normalized_name": "international journal of advancement in engineering technology management and applied science",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -13429,10 +13453,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Advancements in Research &amp; Technology",
+   "name": "International Journal of Advancements in Research & Technology",
    "url": "http://www.ijoart.org/",
    "domain": "ijoart.org",
-   "normalized_name": "international journal of advancements in research and amp technology",
+   "normalized_name": "international journal of advancements in research and technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -13453,10 +13477,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Advances in Engineering &amp; Technology",
+   "name": "International Journal of Advances in Engineering & Technology",
    "url": "http://www.ijaet.org/",
    "domain": "ijaet.org",
-   "normalized_name": "international journal of advances in engineering and amp technology",
+   "normalized_name": "international journal of advances in engineering and technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -13557,10 +13581,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Agricultural, Forestry &amp; Plantation",
+   "name": "International Journal of Agricultural, Forestry & Plantation",
    "url": "http://ijafp.com/",
    "domain": "ijafp.com",
-   "normalized_name": "international journal of agricultural forestry and amp plantation",
+   "normalized_name": "international journal of agricultural forestry and plantation",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -13573,26 +13597,26 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Agronomy &amp; Plant Production",
+   "name": "International Journal of Agronomy & Plant Production",
    "url": "http://www.ijappjournal.com/",
    "domain": "ijappjournal.com",
-   "normalized_name": "international journal of agronomy and amp plant production",
+   "normalized_name": "international journal of agronomy and plant production",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of All Research Education &amp; Scientific Methods",
+   "name": "International Journal of All Research Education & Scientific Methods",
    "url": "http://www.ijaresm.com/",
    "domain": "ijaresm.com",
-   "normalized_name": "international journal of all research education and amp scientific methods",
+   "normalized_name": "international journal of all research education and scientific methods",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Application or Innovation in Engineering &amp; Management",
+   "name": "International Journal of Application or Innovation in Engineering & Management",
    "url": "http://www.ijaiem.org/",
    "domain": "ijaiem.org",
-   "normalized_name": "international journal of application or innovation in engineering and amp management",
+   "normalized_name": "international journal of application or innovation in engineering and management",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -13637,18 +13661,18 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Applied Linguistics &amp; English Literature",
+   "name": "International Journal of Applied Linguistics & English Literature",
    "url": "http://www.journals.aiac.org.au/index.php/IJALEL",
    "domain": "journals.aiac.org.au",
-   "normalized_name": "international journal of applied linguistics and amp english literature",
+   "normalized_name": "international journal of applied linguistics and english literature",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Applied Pharmaceutical &amp; Biological Research",
+   "name": "International Journal of Applied Pharmaceutical & Biological Research",
    "url": "http://www.ijapbr.com/",
    "domain": "ijapbr.com",
-   "normalized_name": "international journal of applied pharmaceutical and amp biological research",
+   "normalized_name": "international journal of applied pharmaceutical and biological research",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -13669,10 +13693,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Applied Research &amp; Studies",
+   "name": "International Journal of Applied Research & Studies",
    "url": "http://www.ijars.in/",
    "domain": "ijars.in",
-   "normalized_name": "international journal of applied research and amp studies",
+   "normalized_name": "international journal of applied research and studies",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -13829,10 +13853,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Biological &amp; Pharmaceutical Research",
+   "name": "International Journal of Biological & Pharmaceutical Research",
    "url": "http://www.ijbpr.com/",
    "domain": "ijbpr.com",
-   "normalized_name": "international journal of biological and amp pharmaceutical research",
+   "normalized_name": "international journal of biological and pharmaceutical research",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -13885,10 +13909,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "The International Journal of Business &amp; Management",
+   "name": "The International Journal of Business & Management",
    "url": "http://www.theijbm.com/",
    "domain": "theijbm.com",
-   "normalized_name": "international journal of business and amp management",
+   "normalized_name": "international journal of business and management",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -13941,10 +13965,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Business Tourism &amp; Applied Sciences",
+   "name": "International Journal of Business Tourism & Applied Sciences",
    "url": "http://www.ijbts-journal.com/",
    "domain": "ijbts-journal.com",
-   "normalized_name": "international journal of business tourism and amp applied sciences",
+   "normalized_name": "international journal of business tourism and applied sciences",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -14005,10 +14029,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Collaborative Research on Internal Medicine &amp; Public Health",
+   "name": "International Journal of Collaborative Research on Internal Medicine & Public Health",
    "url": "http://www.iomcworld.com/ijcrimph/",
    "domain": "iomcworld.com",
-   "normalized_name": "international journal of collaborative research on internal medicine and amp public health",
+   "normalized_name": "international journal of collaborative research on internal medicine and public health",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -14069,18 +14093,18 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Computer &amp; Electronics Research",
+   "name": "International Journal of Computer & Electronics Research",
    "url": "http://ijcer.org/",
    "domain": "ijcer.org",
-   "normalized_name": "international journal of computer and amp electronics research",
+   "normalized_name": "international journal of computer and electronics research",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Computer &amp; Communication Engineering Research",
+   "name": "International Journal of Computer & Communication Engineering Research",
    "url": "http://www.ijccer.org/",
    "domain": "ijccer.org",
-   "normalized_name": "international journal of computer and amp communication engineering research",
+   "normalized_name": "international journal of computer and communication engineering research",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -14125,10 +14149,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Computer Engineering &amp; Applications",
+   "name": "International Journal of Computer Engineering & Applications",
    "url": "http://www.ijcea.com/",
    "domain": "ijcea.com",
-   "normalized_name": "international journal of computer engineering and amp applications",
+   "normalized_name": "international journal of computer engineering and applications",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -14157,10 +14181,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Computer Science &amp; Communication Security",
+   "name": "International Journal of Computer Science & Communication Security",
    "url": "http://www.ijcscs.org/",
    "domain": "ijcscs.org",
-   "normalized_name": "international journal of computer science and amp communication security",
+   "normalized_name": "international journal of computer science and communication security",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -14261,10 +14285,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Computer Science, Information Technology, &amp; Security",
+   "name": "International Journal of Computer Science, Information Technology, & Security",
    "url": "http://ijcsits.org/",
    "domain": "ijcsits.org",
-   "normalized_name": "international journal of computer science information technology and amp security",
+   "normalized_name": "international journal of computer science information technology and security",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -14701,10 +14725,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Electronics &amp; Communication Technology",
+   "name": "International Journal of Electronics & Communication Technology",
    "url": "http://iject.org/",
    "domain": "iject.org",
-   "normalized_name": "international journal of electronics and amp communication technology",
+   "normalized_name": "international journal of electronics and communication technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -14773,10 +14797,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Emerging Technology &amp; Research",
+   "name": "International Journal of Emerging Technology & Research",
    "url": "http://www.ijetr.org/",
    "domain": "ijetr.org",
-   "normalized_name": "international journal of emerging technology and amp research",
+   "normalized_name": "international journal of emerging technology and research",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -14821,10 +14845,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Energy &amp; Technology",
+   "name": "International Journal of Energy & Technology",
    "url": "http://www.journal-enertech.eu/",
    "domain": "journal-enertech.eu",
-   "normalized_name": "international journal of energy and amp technology",
+   "normalized_name": "international journal of energy and technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -14837,10 +14861,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Engineering &amp; Science Research",
+   "name": "International Journal of Engineering & Science Research",
    "url": "http://www.ijesr.org/",
    "domain": "ijesr.org",
-   "normalized_name": "international journal of engineering and amp science research",
+   "normalized_name": "international journal of engineering and science research",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -14909,10 +14933,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Engineering &amp; Technology",
+   "name": "International Journal of Engineering & Technology",
    "url": "http://www.iet-journals.org/",
    "domain": "iet-journals.org",
-   "normalized_name": "international journal of engineering and amp technology",
+   "normalized_name": "international journal of engineering and technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -15013,34 +15037,34 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Engineering Research &amp; Management",
+   "name": "International Journal of Engineering Research & Management",
    "url": "https://www.ijerm.com/",
    "domain": "ijerm.com",
-   "normalized_name": "international journal of engineering research and amp management",
+   "normalized_name": "international journal of engineering research and management",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Engineering Research &amp; Science",
+   "name": "International Journal of Engineering Research & Science",
    "url": "http://www.ijoer.com/",
    "domain": "ijoer.com",
-   "normalized_name": "international journal of engineering research and amp science",
+   "normalized_name": "international journal of engineering research and science",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Engineering Research and Science &amp; Technology",
+   "name": "International Journal of Engineering Research and Science & Technology",
    "url": "http://www.ijerst.com/index.php",
    "domain": "ijerst.com",
-   "normalized_name": "international journal of engineering research and science and amp technology",
+   "normalized_name": "international journal of engineering research and science and technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Engineering Research &amp; Technology",
+   "name": "International Journal of Engineering Research & Technology",
    "url": "https://www.ijert.org/",
    "domain": "ijert.org",
-   "normalized_name": "international journal of engineering research and amp technology",
+   "normalized_name": "international journal of engineering research and technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -15053,10 +15077,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Engineering Science &amp; Advanced Technology",
+   "name": "International Journal of Engineering Science & Advanced Technology",
    "url": "http://ijesat.org/",
    "domain": "ijesat.org",
-   "normalized_name": "international journal of engineering science and amp advanced technology",
+   "normalized_name": "international journal of engineering science and advanced technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -15093,26 +15117,26 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Engineering Science Invention-Research &amp; Development",
+   "name": "International Journal of Engineering Science Invention-Research & Development",
    "url": "http://www.ijesird.com/",
    "domain": "ijesird.com",
-   "normalized_name": "international journal of engineering science invention research and amp development",
+   "normalized_name": "international journal of engineering science invention research and development",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Engineering Sciences &amp; Research Technology",
+   "name": "International Journal of Engineering Sciences & Research Technology",
    "url": "http://www.ijesrt.com/index.html",
    "domain": "ijesrt.com",
-   "normalized_name": "international journal of engineering sciences and amp research technology",
+   "normalized_name": "international journal of engineering sciences and research technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Engineering Sciences &amp; Management",
+   "name": "International Journal of Engineering Sciences & Management",
    "url": "http://www.ijesmr.com/",
    "domain": "ijesmr.com",
-   "normalized_name": "international journal of engineering sciences and amp management",
+   "normalized_name": "international journal of engineering sciences and management",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -15181,18 +15205,18 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of English Language &amp; Translation Studies",
+   "name": "International Journal of English Language & Translation Studies",
    "url": "http://eltsjournal.org/",
    "domain": "eltsjournal.org",
-   "normalized_name": "international journal of english language and amp translation studies",
+   "normalized_name": "international journal of english language and translation studies",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of English Language , Literature &amp; Humanities",
+   "name": "International Journal of English Language , Literature & Humanities",
    "url": "http://ijellh.com/",
    "domain": "ijellh.com",
-   "normalized_name": "international journal of english language literature and amp humanities",
+   "normalized_name": "international journal of english language literature and humanities",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -15229,10 +15253,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Environmental &amp; Agriculture Research",
+   "name": "International Journal of Environmental & Agriculture Research",
    "url": "http://www.ijoear.com/",
    "domain": "ijoear.com",
-   "normalized_name": "international journal of environmental and amp agriculture research",
+   "normalized_name": "international journal of environmental and agriculture research",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -15285,10 +15309,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Fundamental &amp; Applied Sciences",
+   "name": "International Journal of Fundamental & Applied Sciences",
    "url": "http://www.bma.org.in/IJFAS.aspx",
    "domain": "bma.org.in",
-   "normalized_name": "international journal of fundamental and amp applied sciences",
+   "normalized_name": "international journal of fundamental and applied sciences",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -15421,18 +15445,18 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "The International Journal of Humanities &amp; Social Studies",
+   "name": "The International Journal of Humanities & Social Studies",
    "url": "http://www.theijhss.com/",
    "domain": "theijhss.com",
-   "normalized_name": "international journal of humanities and amp social studies",
+   "normalized_name": "international journal of humanities and social studies",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Humanities &amp; Social Sciences",
+   "name": "International Journal of Humanities & Social Sciences",
    "url": "http://aajhss.org/index.php/ijhss/index",
    "domain": "aajhss.org",
-   "normalized_name": "international journal of humanities and amp social sciences",
+   "normalized_name": "international journal of humanities and social sciences",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -15509,18 +15533,18 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Information Technology &amp; Business Management",
+   "name": "International Journal of Information Technology & Business Management",
    "url": "http://www.jitbm.com/",
    "domain": "jitbm.com",
-   "normalized_name": "international journal of information technology and amp business management",
+   "normalized_name": "international journal of information technology and business management",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Information Technology &amp; Computer Science",
+   "name": "International Journal of Information Technology & Computer Science",
    "url": "http://ijitcs.com/",
    "domain": "ijitcs.com",
-   "normalized_name": "international journal of information technology and amp computer science",
+   "normalized_name": "international journal of information technology and computer science",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -15605,10 +15629,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Innovative Computer Science &amp; Engineering",
+   "name": "International Journal of Innovative Computer Science & Engineering",
    "url": "http://ijicse.in/",
    "domain": "ijicse.in",
-   "normalized_name": "international journal of innovative computer science and amp engineering",
+   "normalized_name": "international journal of innovative computer science and engineering",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -15645,10 +15669,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Innovative Research &amp; Advanced Studies",
+   "name": "International Journal of Innovative Research & Advanced Studies",
    "url": "http://www.ijiras.com/",
    "domain": "ijiras.com",
-   "normalized_name": "international journal of innovative research and amp advanced studies",
+   "normalized_name": "international journal of innovative research and advanced studies",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -15701,18 +15725,18 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Innovative Research in Computer Science &amp; Technology",
+   "name": "International Journal of Innovative Research in Computer Science & Technology",
    "url": "http://www.ijircst.org/",
    "domain": "ijircst.org",
-   "normalized_name": "international journal of innovative research in computer science and amp technology",
+   "normalized_name": "international journal of innovative research in computer science and technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Innovative Research in Engineering &amp; Multidisciplinary Physical Sciences",
+   "name": "International Journal of Innovative Research in Engineering & Multidisciplinary Physical Sciences",
    "url": "http://ijirmps.com/",
    "domain": "ijirmps.com",
-   "normalized_name": "international journal of innovative research in engineering and amp multidisciplinary physical sciences",
+   "normalized_name": "international journal of innovative research in engineering and multidisciplinary physical sciences",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -15757,10 +15781,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Innovative Research in Technology &amp; Science",
+   "name": "International Journal of Innovative Research in Technology & Science",
    "url": "http://www.ijirts.org/",
    "domain": "ijirts.org",
-   "normalized_name": "international journal of innovative research in technology and amp science",
+   "normalized_name": "international journal of innovative research in technology and science",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -15821,10 +15845,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Integrated Computer Applications &amp; Research",
+   "name": "International Journal of Integrated Computer Applications & Research",
    "url": "http://ijicar.net/",
    "domain": "ijicar.net",
-   "normalized_name": "international journal of integrated computer applications and amp research",
+   "normalized_name": "international journal of integrated computer applications and research",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -15933,10 +15957,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Latest Technology in Engineering, Management &amp; Applied Science",
+   "name": "International Journal of Latest Technology in Engineering, Management & Applied Science",
    "url": "http://www.ijltemas.in/",
    "domain": "ijltemas.in",
-   "normalized_name": "international journal of latest technology in engineering management and amp applied science",
+   "normalized_name": "international journal of latest technology in engineering management and applied science",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -15989,10 +16013,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Liberal Arts &amp; Social Science",
+   "name": "International Journal of Liberal Arts & Social Science",
    "url": "http://www.ijlass.org/",
    "domain": "ijlass.org",
-   "normalized_name": "international journal of liberal arts and amp social science",
+   "normalized_name": "international journal of liberal arts and social science",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -16045,10 +16069,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Management, Accounting &amp; Economics (IJMAE)",
+   "name": "International Journal of Management, Accounting & Economics (IJMAE)",
    "url": "http://iaajs.com/ijmae/",
    "domain": "iaajs.com",
-   "normalized_name": "international journal of management accounting and amp economics ijmae",
+   "normalized_name": "international journal of management accounting and economics ijmae",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -16117,18 +16141,18 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Mathematical Research &amp; Science",
+   "name": "International Journal of Mathematical Research & Science",
    "url": "http://www.ijmrs.org/",
    "domain": "ijmrs.org",
-   "normalized_name": "international journal of mathematical research and amp science",
+   "normalized_name": "international journal of mathematical research and science",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Mathematical Sciences &amp; Applications",
+   "name": "International Journal of Mathematical Sciences & Applications",
    "url": "http://ijmsa.yolasite.com/",
    "domain": "ijmsa.yolasite.com",
-   "normalized_name": "international journal of mathematical sciences and amp applications",
+   "normalized_name": "international journal of mathematical sciences and applications",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -16189,18 +16213,18 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Medical Research &amp; Health Sciences",
+   "name": "International Journal of Medical Research & Health Sciences",
    "url": "http://ijmrhs.com/",
    "domain": "ijmrhs.com",
-   "normalized_name": "international journal of medical research and amp health sciences",
+   "normalized_name": "international journal of medical research and health sciences",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Medical Research &amp; Review",
+   "name": "International Journal of Medical Research & Review",
    "url": "http://www.ijmrr.in/Default.aspx?pageid=1",
    "domain": "ijmrr.in",
-   "normalized_name": "international journal of medical research and amp review",
+   "normalized_name": "international journal of medical research and review",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -16453,10 +16477,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of New Trends in Arts, Sports &amp; Science Education",
+   "name": "International Journal of New Trends in Arts, Sports & Science Education",
    "url": "http://www.ijtase.net/ojs/index.php/IJTASE",
    "domain": "ijtase.net",
-   "normalized_name": "international journal of new trends in arts sports and amp science education",
+   "normalized_name": "international journal of new trends in arts sports and science education",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -16533,10 +16557,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Pharmaceutical &amp; Research Science",
+   "name": "International Journal of Pharmaceutical & Research Science",
    "url": "http://www.ijprsjournal.com/index.html",
    "domain": "ijprsjournal.com",
-   "normalized_name": "international journal of pharmaceutical and amp research science",
+   "normalized_name": "international journal of pharmaceutical and research science",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -16693,10 +16717,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Pharmacy &amp; Industrial Research",
+   "name": "International Journal of Pharmacy & Industrial Research",
    "url": "http://www.ijpir.com/%20",
    "domain": "ijpir.com",
-   "normalized_name": "international journal of pharmacy and amp industrial research",
+   "normalized_name": "international journal of pharmacy and industrial research",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -16765,10 +16789,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Printing, Packaging &amp; Allied Sciences",
+   "name": "International Journal of Printing, Packaging & Allied Sciences",
    "url": "http://ijppas.com/index.php",
    "domain": "ijppas.com",
-   "normalized_name": "international journal of printing packaging and amp allied sciences",
+   "normalized_name": "international journal of printing packaging and allied sciences",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -16797,10 +16821,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Pure &amp; Applied Bioscience",
+   "name": "International Journal of Pure & Applied Bioscience",
    "url": "http://www.ijpab.com/",
    "domain": "ijpab.com",
-   "normalized_name": "international journal of pure and amp applied bioscience",
+   "normalized_name": "international journal of pure and applied bioscience",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -16877,18 +16901,18 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Recent Trends in Electrical &amp; Electronics Engineering",
+   "name": "International Journal of Recent Trends in Electrical & Electronics Engineering",
    "url": "https://scholarlyoa.com/individual-journals/International%20Journal%20of%20Recent%20trends%20in%20Electrical%20&amp;%20Electronics%20Engineering%20(IJRTE)",
    "domain": "scholarlyoa.com",
-   "normalized_name": "international journal of recent trends in electrical and amp electronics engineering",
+   "normalized_name": "international journal of recent trends in electrical and electronics engineering",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Recent Trends in Engineering &amp; Research",
+   "name": "International Journal of Recent Trends in Engineering & Research",
    "url": "http://www.ijrter.com/",
    "domain": "ijrter.com",
-   "normalized_name": "international journal of recent trends in engineering and amp research",
+   "normalized_name": "international journal of recent trends in engineering and research",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -16917,18 +16941,18 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Research and Development in Pharmacy &amp; Life Sciences",
+   "name": "International Journal of Research and Development in Pharmacy & Life Sciences",
    "url": "http://www.ijrdpl.com/",
    "domain": "ijrdpl.com",
-   "normalized_name": "international journal of research and development in pharmacy and amp life sciences",
+   "normalized_name": "international journal of research and development in pharmacy and life sciences",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Research and Development in Technology &amp; Management Sciences Kailash",
+   "name": "International Journal of Research and Development in Technology & Management Sciences Kailash",
    "url": "http://journal.rtmonline.in/",
    "domain": "journal.rtmonline.in",
-   "normalized_name": "international journal of research and development in technology and amp management sciences kailash",
+   "normalized_name": "international journal of research and development in technology and management sciences kailash",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -17045,10 +17069,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Research in Computer Engineering &amp; Electronics",
+   "name": "International Journal of Research in Computer Engineering & Electronics",
    "url": "http://www.ijrcee.org/index.php/ijrcee",
    "domain": "ijrcee.org",
-   "normalized_name": "international journal of research in computer engineering and amp electronics",
+   "normalized_name": "international journal of research in computer engineering and electronics",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -17085,10 +17109,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Research in Electronics &amp; Communication Technology",
+   "name": "International Journal of Research in Electronics & Communication Technology",
    "url": "http://ijrect.com/",
    "domain": "ijrect.com",
-   "normalized_name": "international journal of research in electronics and amp communication technology",
+   "normalized_name": "international journal of research in electronics and communication technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -17133,10 +17157,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Research in Management &amp; Business Studies",
+   "name": "International Journal of Research in Management & Business Studies",
    "url": "http://ijrmbs.com/",
    "domain": "ijrmbs.com",
-   "normalized_name": "international journal of research in management and amp business studies",
+   "normalized_name": "international journal of research in management and business studies",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -17149,10 +17173,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Research in Medical &amp; Applied Sciences",
+   "name": "International Journal of Research in Medical & Applied Sciences",
    "url": "http://ijrmas.org/",
    "domain": "ijrmas.org",
-   "normalized_name": "international journal of research in medical and amp applied sciences",
+   "normalized_name": "international journal of research in medical and applied sciences",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -17181,18 +17205,18 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Research in Science &amp; Engineering",
+   "name": "International Journal of Research in Science & Engineering",
    "url": "http://ijrise.org/home",
    "domain": "ijrise.org",
-   "normalized_name": "international journal of research in science and amp engineering",
+   "normalized_name": "international journal of research in science and engineering",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Research in Science &amp; Technology",
+   "name": "International Journal of Research in Science & Technology",
    "url": "http://www.ijrst.com/index.php",
    "domain": "ijrst.com",
-   "normalized_name": "international journal of research in science and amp technology",
+   "normalized_name": "international journal of research in science and technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -17277,10 +17301,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Science &amp; Engineering Development Research",
+   "name": "International Journal of Science & Engineering Development Research",
    "url": "http://www.ijsdr.org/index.php",
    "domain": "ijsdr.org",
-   "normalized_name": "international journal of science and amp engineering development research",
+   "normalized_name": "international journal of science and engineering development research",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -17301,10 +17325,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "The International Journal of Science &amp; Technoledge",
+   "name": "The International Journal of Science & Technoledge",
    "url": "http://www.theijst.com/",
    "domain": "theijst.com",
-   "normalized_name": "international journal of science and amp technoledge",
+   "normalized_name": "international journal of science and technoledge",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -17333,10 +17357,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Science &amp; Technology",
+   "name": "International Journal of Science & Technology",
    "url": "http://www.journalofsciences-technology.org/",
    "domain": "journalofsciences-technology.org",
-   "normalized_name": "international journal of science and amp technology",
+   "normalized_name": "international journal of science and technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -17397,10 +17421,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal Of Science Technology &amp; Management",
+   "name": "International Journal Of Science Technology & Management",
    "url": "http://www.ijstm.com/",
    "domain": "ijstm.com",
-   "normalized_name": "international journal of science technology and amp management",
+   "normalized_name": "international journal of science technology and management",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -17421,10 +17445,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Scientific &amp; Technology Research",
+   "name": "International Journal of Scientific & Technology Research",
    "url": "http://www.ijstr.org/",
    "domain": "ijstr.org",
-   "normalized_name": "international journal of scientific and amp technology research",
+   "normalized_name": "international journal of scientific and technology research",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -17485,10 +17509,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Scientific Progress &amp; Research",
+   "name": "International Journal of Scientific Progress & Research",
    "url": "http://www.ijspr.com/index.php",
    "domain": "ijspr.com",
-   "normalized_name": "international journal of scientific progress and amp research",
+   "normalized_name": "international journal of scientific progress and research",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -17509,10 +17533,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Scientific Research &amp; Management Studies",
+   "name": "International Journal of Scientific Research & Management Studies",
    "url": "http://www.ijsrms.com/home/index.html",
    "domain": "ijsrms.com",
-   "normalized_name": "international journal of scientific research and amp management studies",
+   "normalized_name": "international journal of scientific research and management studies",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -17597,10 +17621,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Social Science &amp; Economic Research",
+   "name": "International Journal of Social Science & Economic Research",
    "url": "http://ijsser.org/index.php",
    "domain": "ijsser.org",
-   "normalized_name": "international journal of social science and amp economic research",
+   "normalized_name": "international journal of social science and economic research",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -17645,10 +17669,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Society, Culture &amp; Language",
+   "name": "International Journal of Society, Culture & Language",
    "url": "http://ijscl.net/",
    "domain": "ijscl.net",
-   "normalized_name": "international journal of society culture and amp language",
+   "normalized_name": "international journal of society culture and language",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -17965,10 +17989,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Research Journal of Multidisciplinary Science &amp; Technology",
+   "name": "International Research Journal of Multidisciplinary Science & Technology",
    "url": "http://www.irjmrs.com/",
    "domain": "irjmrs.com",
-   "normalized_name": "international research journal of multidisciplinary science and amp technology",
+   "normalized_name": "international research journal of multidisciplinary science and technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -17997,10 +18021,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Research Journal of Sustainable Science &amp; Engineering",
+   "name": "International Research Journal of Sustainable Science & Engineering",
    "url": "http://irjse.com/",
    "domain": "irjse.com",
-   "normalized_name": "international research journal of sustainable science and amp engineering",
+   "normalized_name": "international research journal of sustainable science and engineering",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -18053,10 +18077,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Scientific Journal Theoretical &amp; Applied Science",
+   "name": "International Scientific Journal Theoretical & Applied Science",
    "url": "http://www.t-science.org/",
    "domain": "t-science.org",
-   "normalized_name": "international scientific journal theoretical and amp applied science",
+   "normalized_name": "international scientific journal theoretical and applied science",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -18077,10 +18101,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Invention Journal of Research Technology in Engineering &amp; Management",
+   "name": "Invention Journal of Research Technology in Engineering & Management",
    "url": "http://www.ijrtem.com/",
    "domain": "ijrtem.com",
-   "normalized_name": "invention journal of research technology in engineering and amp management",
+   "normalized_name": "invention journal of research technology in engineering and management",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -18093,10 +18117,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Italian Journal of Science &amp; Engineering",
+   "name": "Italian Journal of Science & Engineering",
    "url": "http://ijournalse.org/index.php/IJSE",
    "domain": "ijournalse.org",
-   "normalized_name": "italian journal of science and amp engineering",
+   "normalized_name": "italian journal of science and engineering",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -18117,10 +18141,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Journal of Accounting, Ethics &amp; Public Policy",
+   "name": "Journal of Accounting, Ethics & Public Policy",
    "url": "http://www.jaepp.org/",
    "domain": "jaepp.org",
-   "normalized_name": "journal of accounting ethics and amp public policy",
+   "normalized_name": "journal of accounting ethics and public policy",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -18237,10 +18261,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Journal of Agriculture, Forestry &amp; Environmental Sciences",
+   "name": "Journal of Agriculture, Forestry & Environmental Sciences",
    "url": "http://jafes.eduved.org/",
    "domain": "jafes.eduved.org",
-   "normalized_name": "journal of agriculture forestry and amp environmental sciences",
+   "normalized_name": "journal of agriculture forestry and environmental sciences",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -18317,10 +18341,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Journal of Applied Biology &amp; Biotechnology",
+   "name": "Journal of Applied Biology & Biotechnology",
    "url": "http://jabonline.in/",
    "domain": "jabonline.in",
-   "normalized_name": "journal of applied biology and amp biotechnology",
+   "normalized_name": "journal of applied biology and biotechnology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -18741,10 +18765,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Journal of Engineering Innovation &amp; Research",
+   "name": "Journal of Engineering Innovation & Research",
    "url": "http://jeir.org/",
    "domain": "jeir.org",
-   "normalized_name": "journal of engineering innovation and amp research",
+   "normalized_name": "journal of engineering innovation and research",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -18805,10 +18829,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Journal of Environmental Science, Computer Science and Engineering &amp; Technology",
+   "name": "Journal of Environmental Science, Computer Science and Engineering & Technology",
    "url": "http://www.jecet.org/",
    "domain": "jecet.org",
-   "normalized_name": "journal of environmental science computer science and engineering and amp technology",
+   "normalized_name": "journal of environmental science computer science and engineering and technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -18989,10 +19013,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Journal of Humanities and Cultural Studies R&amp;D",
+   "name": "Journal of Humanities and Cultural Studies R&D",
    "url": "http://jrsdjournal.wix.com/humanities-cultural",
    "domain": "jrsdjournal.wix.com",
-   "normalized_name": "journal of humanities and cultural studies r and amp d",
+   "normalized_name": "journal of humanities and cultural studies r and d",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -19101,10 +19125,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Journal of International Environmental Application &amp; Science",
+   "name": "Journal of International Environmental Application & Science",
    "url": "http://www.jieas.com/index.html",
    "domain": "jieas.com",
-   "normalized_name": "journal of international environmental application and amp science",
+   "normalized_name": "journal of international environmental application and science",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -19165,10 +19189,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Journal of Media &amp; Mass Communication",
+   "name": "Journal of Media & Mass Communication",
    "url": "http://www.jmmc.org/",
    "domain": "jmmc.org",
-   "normalized_name": "journal of media and amp mass communication",
+   "normalized_name": "journal of media and mass communication",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -19293,10 +19317,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Journal of Modern Science &amp; Heritage",
+   "name": "Journal of Modern Science & Heritage",
    "url": "http://www.jmsh.eu/",
    "domain": "jmsh.eu",
-   "normalized_name": "journal of modern science and amp heritage",
+   "normalized_name": "journal of modern science and heritage",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -19341,10 +19365,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Journal of Neurology &amp; Neuromedicine",
+   "name": "Journal of Neurology & Neuromedicine",
    "url": "http://www.jneurology.com/index.php",
    "domain": "jneurology.com",
-   "normalized_name": "journal of neurology and amp neuromedicine",
+   "normalized_name": "journal of neurology and neuromedicine",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -19453,10 +19477,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Journal of Rare Diseases Research &amp; Treatment",
+   "name": "Journal of Rare Diseases Research & Treatment",
    "url": "http://rarediseasesjournal.com/index.php",
    "domain": "rarediseasesjournal.com",
-   "normalized_name": "journal of rare diseases research and amp treatment",
+   "normalized_name": "journal of rare diseases research and treatment",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -19613,10 +19637,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Journal of Scientific Research in Physical &amp; Mathematical Sciences",
+   "name": "Journal of Scientific Research in Physical & Mathematical Sciences",
    "url": "http://www.jsrpms.com/index.php",
    "domain": "jsrpms.com",
-   "normalized_name": "journal of scientific research in physical and amp mathematical sciences",
+   "normalized_name": "journal of scientific research in physical and mathematical sciences",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -19629,10 +19653,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Journal of Social Issues &amp; Humanities",
+   "name": "Journal of Social Issues & Humanities",
    "url": "http://www.journalsih.com/index.html",
    "domain": "journalsih.com",
-   "normalized_name": "journal of social issues and amp humanities",
+   "normalized_name": "journal of social issues and humanities",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -19661,10 +19685,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Journal of Surgery &amp; Patient Care",
+   "name": "Journal of Surgery & Patient Care",
    "url": "http://surgeryopenaccess.com/",
    "domain": "surgeryopenaccess.com",
-   "normalized_name": "journal of surgery and amp patient care",
+   "normalized_name": "journal of surgery and patient care",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -19805,10 +19829,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Mechanics, Materials Science &amp; Engineering Journal",
+   "name": "Mechanics, Materials Science & Engineering Journal",
    "url": "http://mmse.xyz/en/",
    "domain": "mmse.xyz",
-   "normalized_name": "mechanics materials science and amp engineering journal",
+   "normalized_name": "mechanics materials science and engineering journal",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -19845,10 +19869,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Mediterranean Journal of Modeling &amp; Simulation",
+   "name": "Mediterranean Journal of Modeling & Simulation",
    "url": "https://sites.google.com/site/lesimjms/home",
    "domain": "sites.google.com",
-   "normalized_name": "mediterranean journal of modeling and amp simulation",
+   "normalized_name": "mediterranean journal of modeling and simulation",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -19901,10 +19925,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Munis Entomology &amp; Zoology",
+   "name": "Munis Entomology & Zoology",
    "url": "http://www.munisentzool.org/",
    "domain": "munisentzool.org",
-   "normalized_name": "munis entomology and amp zoology",
+   "normalized_name": "munis entomology and zoology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -20005,10 +20029,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Online Journal of Library &amp; Information Science",
+   "name": "Online Journal of Library & Information Science",
    "url": "http://ojlis.sel.org.pk/",
    "domain": "ojlis.sel.org.pk",
-   "normalized_name": "online journal of library and amp information science",
+   "normalized_name": "online journal of library and information science",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -20037,18 +20061,18 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Open Journal of Clinical &amp; Medical Sciences",
+   "name": "Open Journal of Clinical & Medical Sciences",
    "url": "http://jclinmedsciences.com/index.html",
    "domain": "jclinmedsciences.com",
-   "normalized_name": "open journal of clinical and amp medical sciences",
+   "normalized_name": "open journal of clinical and medical sciences",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "Open Journal of Clinical &amp; Medical Case Reports",
+   "name": "Open Journal of Clinical & Medical Case Reports",
    "url": "http://jclinmedcasereports.com/index.html",
    "domain": "jclinmedcasereports.com",
-   "normalized_name": "open journal of clinical and amp medical case reports",
+   "normalized_name": "open journal of clinical and medical case reports",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -20365,10 +20389,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Researchers World – Journal of Arts Science &amp; Commerce",
+   "name": "Researchers World – Journal of Arts Science & Commerce",
    "url": "http://www.researchersworld.com/index.html",
    "domain": "researchersworld.com",
-   "normalized_name": "researchers world journal of arts science and amp commerce",
+   "normalized_name": "researchers world journal of arts science and commerce",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -20597,10 +20621,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Sensors &amp; Transducers Journal",
+   "name": "Sensors & Transducers Journal",
    "url": "http://www.sensorsportal.com/HTML/DIGEST/Journal_Subscription.htm",
    "domain": "sensorsportal.com",
-   "normalized_name": "sensors and amp transducers journal",
+   "normalized_name": "sensors and transducers journal",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -20621,18 +20645,18 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Shiv Rudraksha International Journal of Advanced Research in Engineering &amp; Management",
+   "name": "Shiv Rudraksha International Journal of Advanced Research in Engineering & Management",
    "url": "http://www.srijarem.in/",
    "domain": "srijarem.in",
-   "normalized_name": "shiv rudraksha international journal of advanced research in engineering and amp management",
+   "normalized_name": "shiv rudraksha international journal of advanced research in engineering and management",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "Smart &amp; Young",
+   "name": "Smart & Young",
    "url": "http://smartandyoung.com.ua/uk/",
    "domain": "smartandyoung.com.ua",
-   "normalized_name": "smart and amp young",
+   "normalized_name": "smart and young",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -21029,26 +21053,26 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "AGU International Journal of Engineering &amp; Technology",
+   "name": "AGU International Journal of Engineering & Technology",
    "url": "http://aguijet.com/",
    "domain": "aguijet.com",
-   "normalized_name": "agu international journal of engineering and amp technology",
+   "normalized_name": "agu international journal of engineering and technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "AGU International Journal of Professional Studies &amp; Research",
+   "name": "AGU International Journal of Professional Studies & Research",
    "url": "http://aguijpsr.com/",
    "domain": "aguijpsr.com",
-   "normalized_name": "agu international journal of professional studies and amp research",
+   "normalized_name": "agu international journal of professional studies and research",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "AGU International Journal of Research in Social Science &amp; Humanities",
+   "name": "AGU International Journal of Research in Social Science & Humanities",
    "url": "http://aguijrssh.com/",
    "domain": "aguijrssh.com",
-   "normalized_name": "agu international journal of research in social science and amp humanities",
+   "normalized_name": "agu international journal of research in social science and humanities",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -21069,10 +21093,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "American Journal of Biomedical Science &amp; Research",
+   "name": "American Journal of Biomedical Science & Research",
    "url": "https://biomedgrid.com/",
    "domain": "biomedgrid.com",
-   "normalized_name": "american journal of biomedical science and amp research",
+   "normalized_name": "american journal of biomedical science and research",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -21093,10 +21117,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Amphibian &amp; Reptile Conservation",
+   "name": "Amphibian & Reptile Conservation",
    "url": "http://amphibian-reptile-conservation.org/",
    "domain": "amphibian-reptile-conservation.org",
-   "normalized_name": "amphibian and amp reptile conservation",
+   "normalized_name": "amphibian and reptile conservation",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -21165,10 +21189,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Biomedical Journal of Scientific &amp; Technical Research",
+   "name": "Biomedical Journal of Scientific & Technical Research",
    "url": "https://biomedres.us/",
    "domain": "biomedres.us",
-   "normalized_name": "biomedical journal of scientific and amp technical research",
+   "normalized_name": "biomedical journal of scientific and technical research",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -21189,10 +21213,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "British Journal of Medical &amp; Health Sciences",
+   "name": "British Journal of Medical & Health Sciences",
    "url": "http://jmhsci.org/",
    "domain": "jmhsci.org",
-   "normalized_name": "british journal of medical and amp health sciences",
+   "normalized_name": "british journal of medical and health sciences",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -21317,10 +21341,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "European Journal of Molecular &amp; Clinical Medicine",
+   "name": "European Journal of Molecular & Clinical Medicine",
    "url": "https://ejmcm.com/",
    "domain": "ejmcm.com",
-   "normalized_name": "european journal of molecular and amp clinical medicine",
+   "normalized_name": "european journal of molecular and clinical medicine",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -21357,18 +21381,18 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Global Journal of Research on Medicinal Plants &amp; Indigenous Medicine",
+   "name": "Global Journal of Research on Medicinal Plants & Indigenous Medicine",
    "url": "http://www.gjrmi.com/",
    "domain": "gjrmi.com",
-   "normalized_name": "global journal of research on medicinal plants and amp indigenous medicine",
+   "normalized_name": "global journal of research on medicinal plants and indigenous medicine",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "Global Scientific Journal &#8211; GSJ Publication",
+   "name": "Global Scientific Journal – GSJ Publication",
    "url": "http://www.globalscientificjournal.com/",
    "domain": "globalscientificjournal.com",
-   "normalized_name": "global scientific journal and 8211 gsj publication",
+   "normalized_name": "global scientific journal gsj publication",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -21389,18 +21413,18 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "IBMRD&#8217;s Journal of Management Research",
+   "name": "IBMRD’s Journal of Management Research",
    "url": "http://www.ibmrdjournal.com/",
    "domain": "ibmrdjournal.com",
-   "normalized_name": "ibmrd and 8217 s journal of management research",
+   "normalized_name": "ibmrd s journal of management research",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "Iconic Research &amp; Engineering Journals",
+   "name": "Iconic Research & Engineering Journals",
    "url": "http://www.irejournals.com/",
    "domain": "irejournals.com",
-   "normalized_name": "iconic research and amp engineering journals",
+   "normalized_name": "iconic research and engineering journals",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -21413,10 +21437,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "IJPUB &#8211; International Peer Reviewed, Open Access Journal",
+   "name": "IJPUB – International Peer Reviewed, Open Access Journal",
    "url": "http://ijpub.org/",
    "domain": "ijpub.org",
-   "normalized_name": "ijpub and 8211 international peer reviewed open access journal",
+   "normalized_name": "ijpub international peer reviewed open access journal",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -21533,10 +21557,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Advanced Research in Computer Engineering &amp; Technology",
+   "name": "International Journal of Advanced Research in Computer Engineering & Technology",
    "url": "http://ijarcet.org/",
    "domain": "ijarcet.org",
-   "normalized_name": "international journal of advanced research in computer engineering and amp technology",
+   "normalized_name": "international journal of advanced research in computer engineering and technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -21637,10 +21661,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Basic &amp; Clinical Pharmacology",
+   "name": "International Journal of Basic & Clinical Pharmacology",
    "url": "http://www.ijbcp.com/",
    "domain": "ijbcp.com",
-   "normalized_name": "international journal of basic and amp clinical pharmacology",
+   "normalized_name": "international journal of basic and clinical pharmacology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -21901,10 +21925,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Multidisciplinary Approach &amp; Studies",
+   "name": "International Journal of Multidisciplinary Approach & Studies",
    "url": "http://ijmas.com/",
    "domain": "ijmas.com",
-   "normalized_name": "international journal of multidisciplinary approach and amp studies",
+   "normalized_name": "international journal of multidisciplinary approach and studies",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -22013,10 +22037,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "International Journal of Scientific Research Engineering &amp; Technology",
+   "name": "International Journal of Scientific Research Engineering & Technology",
    "url": "http://ijsret.org/",
    "domain": "ijsret.org",
-   "normalized_name": "international journal of scientific research engineering and amp technology",
+   "normalized_name": "international journal of scientific research engineering and technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -22325,18 +22349,18 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Journal of Xi&#8217;an Shiyou University",
+   "name": "Journal of Xi’an Shiyou University",
    "url": "https://www.xisdxjxsu.asia/",
    "domain": "xisdxjxsu.asia",
-   "normalized_name": "journal of xi and 8217 an shiyou university",
+   "normalized_name": "journal of xi an shiyou university",
    "issns": [],
    "list_source": "standalone_journal"
   },
   {
-   "name": "Journal of Xi’an University of Architecture &amp; Technology",
+   "name": "Journal of Xi’an University of Architecture & Technology",
    "url": "http://www.xajzkjdx.cn/",
    "domain": "xajzkjdx.cn",
-   "normalized_name": "journal of xi an university of architecture and amp technology",
+   "normalized_name": "journal of xi an university of architecture and technology",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -22405,10 +22429,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Medical &#8211; Surgical Nursing Journal",
+   "name": "Medical – Surgical Nursing Journal",
    "url": "http://medsnj.com/en/index.html",
    "domain": "medsnj.com",
-   "normalized_name": "medical and 8211 surgical nursing journal",
+   "normalized_name": "medical surgical nursing journal",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -22605,10 +22629,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "Signa Vitae &#8211; Journal of Intensive Care and Emergency Medicine",
+   "name": "Signa Vitae – Journal of Intensive Care and Emergency Medicine",
    "url": "http://www.signavitae.com/",
    "domain": "signavitae.com",
-   "normalized_name": "signa vitae and 8211 journal of intensive care and emergency medicine",
+   "normalized_name": "signa vitae journal of intensive care and emergency medicine",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -22653,10 +22677,10 @@
    "list_source": "standalone_journal"
   },
   {
-   "name": "TEST: Engineering &amp; Management",
+   "name": "TEST: Engineering & Management",
    "url": "http://www.testmagzine.biz/",
    "domain": "testmagzine.biz",
-   "normalized_name": "test engineering and amp management",
+   "normalized_name": "test engineering and management",
    "issns": [],
    "list_source": "standalone_journal"
   },
@@ -22989,10 +23013,10 @@
    "list_source": "hijacked"
   },
   {
-   "name": "Electronics Information &amp; Planning",
+   "name": "Electronics Information & Planning",
    "url": "http://ccscomputeronline.com/",
    "domain": "ccscomputeronline.com",
-   "normalized_name": "electronics information and amp planning",
+   "normalized_name": "electronics information and planning",
    "issns": [],
    "list_source": "hijacked"
   },
@@ -23389,10 +23413,10 @@
    "list_source": "hijacked"
   },
   {
-   "name": "Recht &amp; Psychiatrie",
+   "name": "Recht & Psychiatrie",
    "url": "http://kclcs.com/",
    "domain": "kclcs.com",
-   "normalized_name": "recht and amp psychiatrie",
+   "normalized_name": "recht and psychiatrie",
    "issns": [],
    "list_source": "hijacked"
   },
@@ -23693,18 +23717,18 @@
    "list_source": "hijacked"
   },
   {
-   "name": "Journal of Xi&#8217;an Shiyou University",
+   "name": "Journal of Xi’an Shiyou University",
    "url": "https://www.xisdxjxsu.asia/",
    "domain": "xisdxjxsu.asia",
-   "normalized_name": "journal of xi and 8217 an shiyou university",
+   "normalized_name": "journal of xi an shiyou university",
    "issns": [],
    "list_source": "hijacked"
   },
   {
-   "name": "Journal of Xi&#8217;an University of Architecture &amp; Technology",
+   "name": "Journal of Xi’an University of Architecture & Technology",
    "url": "http://www.xajzkjdx.cn/",
    "domain": "xajzkjdx.cn",
-   "normalized_name": "journal of xi and 8217 an university of architecture and amp technology",
+   "normalized_name": "journal of xi an university of architecture and technology",
    "issns": [],
    "list_source": "hijacked"
   },
@@ -23781,10 +23805,10 @@
    "list_source": "hijacked"
   },
   {
-   "name": "TEST: Engineering &amp; Management",
+   "name": "TEST: Engineering & Management",
    "url": "http://www.testmagzine.biz/",
    "domain": "testmagzine.biz",
-   "normalized_name": "test engineering and amp management",
+   "normalized_name": "test engineering and management",
    "issns": [],
    "list_source": "hijacked"
   },
@@ -24165,10 +24189,10 @@
    "list_source": "misleading_metric"
   },
   {
-   "name": "Scientific Indexing Services&nbsp;",
+   "name": "Scientific Indexing Services",
    "url": "http://sindexs.org/",
    "domain": "sindexs.org",
-   "normalized_name": "scientific indexing services and nbsp",
+   "normalized_name": "scientific indexing services",
    "issns": [],
    "list_source": "misleading_metric"
   },
@@ -24229,10 +24253,10 @@
    "list_source": "misleading_metric"
   },
   {
-   "name": "Journal&#8217;s International Compliance Index",
+   "name": "Journal’s International Compliance Index",
    "url": "https://jicindex.com/",
    "domain": "jicindex.com",
-   "normalized_name": "journal and 8217 s international compliance index",
+   "normalized_name": "journal s international compliance index",
    "issns": [],
    "list_source": "misleading_metric"
   },
