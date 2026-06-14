@@ -268,9 +268,12 @@ hit is recorded, so every row says exactly *why* it was flagged:
 
 **Output:** `requirement_checks/bealls_list_check/results/bealls_list_results.xlsx`
 (git-ignored) with four sheets — **Results**, **Flagged only** (the actionable
-`on_list` + `review` subset), **Summary** (counts + run metadata), and **Legend**
-(a full data dictionary). Matching tunables (fuzzy cutoff, preprint and generic-host
-lists) live in [bealls_list_check/config.py](requirement_checks/bealls_list_check/config.py).
+`on_list` + `review` subset), **Summary** (counts, per-signal and per-list
+breakdowns, run metadata), and **Legend** (a full data dictionary). Every row also
+has a **Mentioned in** column listing all venue names/URLs the paper appears under
+(canonical + alternates + the open-access PDF host), for auditing. Matching tunables
+(fuzzy cutoff, preprint and generic-host lists) live in
+[bealls_list_check/config.py](requirement_checks/bealls_list_check/config.py).
 
 > **Caveat:** appearance on Beall's List is an *allegation as of the snapshot date*,
 > not proof a venue is predatory. Some listed publishers are contested — Frontiers,
@@ -294,12 +297,19 @@ python requirement_checks/bealls_list_check/bealls_llm_check.py --limit 50 # che
 It runs the deterministic check first, then asks the LLM **once per distinct
 venue** (deduplicated, so far fewer calls than papers) — grounded with the
 nearest Beall's List entries, Beall's predatory-journal criteria, and the
-model's own knowledge — whether the venue or its publisher is predatory. A venue
-the LLM flags that was `clean`/`no_venue` is **promoted to `review`** (a human
-still confirms — the LLM never asserts `on_list` on its own). Output is
-`results/bealls_llm_results.xlsx`: the same layout plus an **"LLM assessment"**
-column (verdict + reason, tagged as LLM-decided) and an **"LLM second pass"**
-token counter in the Summary. Uses your configured `LLM_PROVIDER` / `AZURE_OPENAI_DEPLOYMENT`.
+model's own knowledge — whether the venue or its publisher is predatory. It
+checks the **already-flagged (`on_list`/`review`) venues first**, so even a
+`--limit` run annotates the actionable rows. A venue the LLM flags that was
+`clean`/`no_venue` is **promoted to `review`** (a human still confirms — the LLM
+never asserts `on_list` on its own).
+
+Output is `results/bealls_llm_results.xlsx`. Every sheet (including **Flagged
+only**) carries an **"LLM assessment"** column — verdict + matched entity +
+reason, tagged as LLM-decided. It adds an **"LLM vs deterministic"** sheet
+listing every paper where the two disagree (LLM flagged it but the rules didn't,
+or vice-versa), and the Summary gains an **"LLM second pass"** section with the
+token counter and the disagreement count. Uses your configured `LLM_PROVIDER` /
+`AZURE_OPENAI_DEPLOYMENT`.
 
 ---
 

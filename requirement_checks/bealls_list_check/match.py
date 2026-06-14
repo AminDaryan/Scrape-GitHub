@@ -124,6 +124,31 @@ def _paper_url(paper, ext):
     return oa.get("url") or paper.get("url") or ""
 
 
+def _collect_mentions(paper, pv):
+    """Every venue name + URL this paper is mentioned under, deduped in order.
+
+    Surfaced as its own column so a reviewer can see *all* the names/links
+    Semantic Scholar associates with the paper (canonical + alternates + the
+    open-access PDF host), which is useful when auditing a flagged paper or
+    untangling a merged-venue record.
+    """
+    oa = paper.get("openAccessPdf") or {}
+    candidates = (
+        [paper.get("venue"), pv.get("name")]
+        + list(pv.get("alternate_names") or [])
+        + [pv.get("url")]
+        + list(pv.get("alternate_urls") or [])
+        + [oa.get("url")]
+    )
+    mentions, seen = [], set()
+    for c in candidates:
+        c = (c or "").strip()
+        if c and c.lower() not in seen:
+            seen.add(c.lower())
+            mentions.append(c)
+    return mentions
+
+
 def _blank_result(paper, source_file):
     """Build the result skeleton with the venue fields echoed for auditing."""
     ext = paper.get("externalIds") or {}
@@ -139,6 +164,7 @@ def _blank_result(paper, source_file):
         "venue_type": pv.get("type", "") or "",
         "venue_domain": "",
         "issn": normalize_issn(pv.get("issn")) if pv.get("issn") else "",
+        "mentions": _collect_mentions(paper, pv),
         # filled in by matching:
         "status": "clean",
         "list_source": "",

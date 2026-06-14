@@ -84,15 +84,16 @@ def load_corpus():
 # cell.  Only the DOI row (-> article) and the Matched row (-> Beall entry) are
 # hyperlinks.
 COLUMNS = [
-    ("#",      6),
-    ("Status", 12),
-    ("Paper",  60),
-    ("Venue",  44),
-    ("Match",  60),
+    ("#",            6),
+    ("Status",       12),
+    ("Paper",        60),
+    ("Venue",        44),
+    ("Match",        60),
+    ("Mentioned in", 50),
 ]
 
 # 1-based column indices, named so the writer reads clearly.
-_NUM_COL, _STATUS_COL, _PAPER_COL, _VENUE_COL, _MATCH_COL = 1, 2, 3, 4, 5
+_NUM_COL, _STATUS_COL, _PAPER_COL, _VENUE_COL, _MATCH_COL, _MENTIONS_COL = 1, 2, 3, 4, 5, 6
 
 # Each paper block is this many rows tall (one labelled field per row).
 ROWS_PER_PAPER = 4
@@ -260,6 +261,25 @@ def _match_subrows(r):
     return [(note, None), ("", None), ("", None), ("", None)]
 
 
+def _mentions_subrows(r):
+    """Every venue name / URL the paper was mentioned under, one per row.
+
+    URLs are rendered as links.  If there are more than fit in the block, the
+    last row shows '(+N more)'.
+    """
+    mentions = r.get("mentions") or []
+    if not mentions:
+        return [("—", None)]
+    if len(mentions) <= ROWS_PER_PAPER:
+        shown, overflow = mentions, 0
+    else:
+        shown, overflow = mentions[:ROWS_PER_PAPER - 1], len(mentions) - (ROWS_PER_PAPER - 1)
+    rows = [(m, m if m.lower().startswith("http") else None) for m in shown]
+    if overflow:
+        rows.append((f"(+{overflow} more)", None))
+    return rows
+
+
 def _estimate_row_height(text, width):
     """Row height (px) tall enough for one cell's text to wrap without clipping.
 
@@ -278,18 +298,22 @@ def _padded_subrows(subrows):
     return subrows
 
 
-def _write_results_sheet(ws, results, extra_columns=None):
+def _write_results_sheet(ws, results, extra_columns=None, status_key="status"):
     """Write the Results sheet: one multi-row block per paper.
 
     Each paper spans ROWS_PER_PAPER rows.  The # and Status cells are merged
-    down the block; the Paper / Venue / Match columns (and any *extra_columns*)
-    show one labelled field per row.  Cells are styled *before* the merge so
-    borders render across the merged ranges.
+    down the block; the Paper / Venue / Match / Mentioned-in columns (and any
+    *extra_columns*) show one labelled field per row.  Cells are styled *before*
+    the merge so borders render across the merged ranges.
 
     extra_columns: optional list of ``(header, width, subrows_fn)`` appended
-    after Match.  ``subrows_fn(result)`` returns ``[(text, url_or_None), ...]``
-    (padded/truncated to ROWS_PER_PAPER).  The LLM pass uses this to add an
-    'LLM assessment' column without duplicating this writer.
+    after the core columns.  ``subrows_fn(result)`` returns
+    ``[(text, url_or_None), ...]`` (padded/truncated to ROWS_PER_PAPER).  The LLM
+    pass uses this to add an 'LLM assessment' column without duplicating this
+    writer.
+    status_key: which result field drives the Status cell + row color.  The
+    'LLM vs deterministic' sheet passes ``"det_status"`` so it shows the
+    *deterministic* verdict next to the LLM one.
     """
     extra_columns = extra_columns or []
     columns = list(COLUMNS) + [(h, w) for (h, w, _fn) in extra_columns]
@@ -312,12 +336,13 @@ def _write_results_sheet(ws, results, extra_columns=None):
     block_top_border = Border(left=_edge, right=_edge, bottom=_edge,
                               top=Side(style="medium", color="7F9BC4"))
 
+    n_core = len(COLUMNS)
     row = 2
     for i, r in enumerate(results):
         top = row
         bottom = top + ROWS_PER_PAPER - 1
         shade_fill = PatternFill("solid", fgColor=_BLOCK_SHADE) if i % 2 else None
-        status = r.get("status", "")
+        status = r.get(status_key) or r.get("status", "")
         status_fill = PatternFill(
             "solid", fgColor=STATUS_FILL_COLORS.get(status, "FFFFFF")
         )
@@ -325,9 +350,10 @@ def _write_results_sheet(ws, results, extra_columns=None):
             (_PAPER_COL, _padded_subrows(_paper_subrows(r))),
             (_VENUE_COL, _padded_subrows(_venue_subrows(r))),
             (_MATCH_COL, _padded_subrows(_match_subrows(r))),
+            (_MENTIONS_COL, _padded_subrows(_mentions_subrows(r))),
         ]
         for k, (_h, _w, fn) in enumerate(extra_columns):
-            col_subrows.append((_MATCH_COL + 1 + k, _padded_subrows(fn(r))))
+            col_subrows.append((n_core + 1 + k, _padded_subrows(fn(r))))
 
         for sub in range(ROWS_PER_PAPER):
             rr = top + sub
@@ -440,6 +466,8 @@ def _write_summary_sheet(ws, results, snapshot_meta, corpus_files,
             kv(row, "Venues the LLM judged predatory", llm_stats["llm_yes"]); row += 1
         if "promoted" in llm_stats:
             kv(row, "Papers clean/no_venue -> review by LLM", llm_stats["promoted"]); row += 1
+        if "disagreements" in llm_stats:
+            kv(row, "LLM vs deterministic disagreements", llm_stats["disagreements"]); row += 1
         if token_usage is not None:
             kv(row, "LLM requests", token_usage.request_count); row += 1
             kv(row, "Input tokens", f"{token_usage.prompt_tokens:,}"); row += 1
@@ -560,6 +588,16 @@ _LEGEND_SECTIONS = [
              "by' is how it matched (see the 'Matched by' section); 'Why "
              "flagged' is a plain-English reason. For clean / no_venue / error "
              "rows the first row shows a short note and the rest are blank."),
+            ("Mentioned in", "every venue name / URL",
+             "All venue names and URLs Semantic Scholar associates with the "
+             "paper (canonical + alternates + the open-access PDF host); URLs "
+             "are links. Useful for auditing a flag or untangling a merged "
+             "venue. '(+N more)' means the list was truncated to fit."),
+            ("LLM assessment", "(LLM workbook only)",
+             "Present only in bealls_llm_results.xlsx: the LLM's verdict "
+             "(likely predatory / not / uncertain), the entity it matched, and "
+             "its reason. Clearly tagged 'LLM' — it never sets on_list on its "
+             "own; an LLM 'yes' on a clean/no_venue venue makes it 'review'."),
         ],
     },
     {
@@ -631,13 +669,15 @@ def _write_legend_sheet(ws):
 
 def save_workbook(results, snapshot_meta, corpus_files, *,
                   extra_columns=None, token_usage=None, llm_stats=None,
-                  results_filename=None):
+                  disagreement_results=None, results_filename=None):
     """Build and save the combined workbook; return ``(path, n_flagged)``.
 
     The keyword-only args let the optional LLM pass (bealls_llm_check.py) reuse
     this exact writer: *extra_columns* adds the 'LLM assessment' column,
     *token_usage* / *llm_stats* feed the Summary's 'LLM second pass' section,
-    and *results_filename* writes to a different file than the default.
+    *disagreement_results* (if given) is written to an 'LLM vs deterministic'
+    sheet showing the deterministic verdict next to the LLM one, and
+    *results_filename* writes to a different file than the default.
     """
     wb = openpyxl.Workbook()
     ws_results = wb.active
@@ -646,6 +686,13 @@ def save_workbook(results, snapshot_meta, corpus_files, *,
 
     ws_flagged = wb.create_sheet("Flagged only")
     n_flagged = _write_flagged_sheet(ws_flagged, results, extra_columns=extra_columns)
+
+    if disagreement_results is not None:
+        ws_disagree = wb.create_sheet("LLM vs deterministic")
+        # Status column shows the DETERMINISTIC verdict; the LLM column shows the
+        # LLM's — so each row makes the disagreement explicit.
+        _write_results_sheet(ws_disagree, disagreement_results,
+                             extra_columns=extra_columns, status_key="det_status")
 
     ws_summary = wb.create_sheet("Summary")
     _write_summary_sheet(ws_summary, results, snapshot_meta, corpus_files,

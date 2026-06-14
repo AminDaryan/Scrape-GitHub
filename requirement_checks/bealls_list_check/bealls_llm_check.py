@@ -195,12 +195,19 @@ def run_llm_pass(results, index, *, client, deployment, token_usage, limit=None)
     # Group result rows by venue; skip venues with no identifying info at all.
     groups = {}
     for r in results:
+        # Remember the DETERMINISTIC verdict before we possibly promote it, so
+        # the disagreement sheet can contrast deterministic vs LLM.
+        r["det_status"] = r["status"]
         key = _venue_key(r)
         if not any(key):
             continue
         groups.setdefault(key, []).append(r)
 
-    keys = list(groups)
+    # Check the actionable venues (already on_list / review) FIRST, so that even
+    # a --limit run always annotates the flagged rows (the ones a human reviews).
+    def _flagged_first(key):
+        return 0 if groups[key][0]["status"] in ("on_list", "review") else 1
+    keys = sorted(groups, key=_flagged_first)
     if limit is not None:
         keys = keys[:limit]
     print(f"LLM pass: {len(keys)} distinct venues to check "
@@ -266,6 +273,20 @@ def llm_subrows(r):
     return rows
 
 
+def disagrees(r):
+    """True if the LLM and the deterministic pass reached opposite conclusions.
+
+    Only confident LLM verdicts count. Compares 'did the deterministic pass flag
+    it?' (det_status in on_list/review) with 'did the LLM flag it?' (verdict ==
+    yes).  These are the rows most worth a human's attention.
+    """
+    verdict = r.get("llm_verdict")
+    if verdict not in ("yes", "no"):
+        return False
+    det_flagged = r.get("det_status") in ("on_list", "review")
+    return det_flagged != (verdict == "yes")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="LLM second pass for the Beall's List check.")
     parser.add_argument("--limit", type=int, default=None,
@@ -292,15 +313,24 @@ def main(argv=None):
                              token_usage=token_usage, limit=args.limit)
     print_token_usage_report(token_usage, AZURE_OPENAI_DEPLOYMENT)
 
+    # Rows where the LLM and the deterministic pass disagree (LLM-found first).
+    disagreements = sorted(
+        (r for r in results if disagrees(r)),
+        key=lambda r: 0 if r.get("det_status") in ("clean", "no_venue") else 1,
+    )
+    llm_stats["disagreements"] = len(disagreements)
+
     out_path, n_flagged = det.save_workbook(
         results, snapshot["meta"], sorted(corpus_files),
         extra_columns=[("LLM assessment", 64, llm_subrows)],
         token_usage=token_usage,
         llm_stats=llm_stats,
+        disagreement_results=disagreements,
         results_filename="bealls_llm_results.xlsx",
     )
     print(f"\nDone in {time.time() - started:.1f}s. "
-          f"LLM promoted {llm_stats['promoted']} paper(s) to review. "
+          f"LLM promoted {llm_stats['promoted']} paper(s) to review; "
+          f"{len(disagreements)} LLM/deterministic disagreement(s). "
           f"Flagged (on_list + review): {n_flagged}")
     print(f"Saved -> {out_path}")
 
