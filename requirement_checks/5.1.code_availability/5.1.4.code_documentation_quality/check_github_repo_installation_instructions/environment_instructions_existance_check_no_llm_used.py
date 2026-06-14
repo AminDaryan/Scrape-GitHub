@@ -304,6 +304,23 @@ def classify_text_for_setup(text, threshold=0.7):
 # =============================================================================
 # FETCH README AND RUN DETECTION
 # =============================================================================
+def _fetch_file_text(owner, repo, path, headers=None):
+    """Fetch one file's decoded UTF-8 text via the GitHub Contents API.
+
+    Mirrors the root-README fetch in ``check_setup_with_nlp`` (requests +
+    base64) so this module stays self-contained. Returns the file text, or
+    None when the file is missing, binary, or the API call fails.
+    """
+    url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}"
+    resp = requests.get(url, headers=headers)
+    if resp.status_code != 200:
+        return None
+    payload = resp.json()
+    if "content" not in payload:
+        return None
+    return base64.b64decode(payload["content"]).decode("utf-8", errors="ignore")
+
+
 def check_setup_with_nlp(owner, repo, headers=None, threshold=0.7, check_all_readmes=False):
     """Fetch the root README from GitHub and run install-instruction detection on it.
 
@@ -339,7 +356,7 @@ def check_setup_with_nlp(owner, repo, headers=None, threshold=0.7, check_all_rea
             for filepath in all_files:
                 filename = filepath.split("/")[-1].lower()
                 if filename.startswith("readme") and "/" in filepath:
-                    content = fetch_file_content(owner, repo, filepath, headers)
+                    content = _fetch_file_text(owner, repo, filepath, headers)
                     if content:
                         label, score, snippet = classify_text_for_setup(content, threshold)
                         if label:

@@ -8,3 +8,6 @@ openpyxl>=3.1.2
 # NLP fallback/legacy pipeline dependencies
 transformers>=4.44.0
 torch>=2.3.0
+
+# Web UI (ui/app.py) — optional; only needed to run the Streamlit interface
+streamlit>=1.30.0

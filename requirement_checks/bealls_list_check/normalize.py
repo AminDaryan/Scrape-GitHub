@@ -62,20 +62,6 @@ def normalize_name(name) -> str:
 # Host / domain normalization
 # ---------------------------------------------------------------------------
 
-# Common multi-label public suffixes, so "journal.co.uk" yields "journal.co.uk"
-# (its registrable domain) rather than the meaningless "co.uk".
-_TWO_LEVEL_SUFFIXES = {
-    "co.uk", "ac.uk", "org.uk", "gov.uk",
-    "com.au", "org.au", "edu.au", "gov.au",
-    "co.in", "ac.in", "org.in", "edu.in", "gov.in",
-    "co.jp", "or.jp", "ac.jp",
-    "com.br", "org.br", "gov.br",
-    "co.za", "org.za",
-    "com.cn", "org.cn", "edu.cn",
-    "com.tr", "org.tr",
-    "com.pk", "edu.pk",
-}
-
 
 def normalize_host(url_or_host) -> str:
     """Return the lower-cased host of a URL with any leading ``www.`` removed.
@@ -94,26 +80,6 @@ def normalize_host(url_or_host) -> str:
     if host.startswith("www."):
         host = host[4:]
     return host
-
-
-def registrable_domain(host: str) -> str:
-    """Best-effort registrable domain (eTLD+1) of a normalized host.
-
-    This is a pragmatic approximation, not a full Public Suffix List lookup:
-    it handles a curated set of common two-label suffixes (``co.uk`` etc.) and
-    otherwise takes the last two labels.  Good enough to treat
-    ``journal.mdpi.com`` and ``www.mdpi.com`` as the same publisher while
-    keeping the dependency surface at zero.
-    """
-    if not host:
-        return ""
-    parts = host.split(".")
-    if len(parts) <= 2:
-        return host
-    last_two = ".".join(parts[-2:])
-    if last_two in _TWO_LEVEL_SUFFIXES:
-        return ".".join(parts[-3:])
-    return last_two
 
 
 # ---------------------------------------------------------------------------

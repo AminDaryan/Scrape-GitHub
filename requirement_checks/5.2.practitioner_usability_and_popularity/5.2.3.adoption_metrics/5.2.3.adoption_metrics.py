@@ -55,7 +55,9 @@ from common.github_helpers import (
     github_get, parse_github_repo, fetch_file_content,
 )
 from common.excel_output import thin_border
-from data.papers_from_database import PAPERS
+from data.papers_source import load_papers
+
+PAPERS = load_papers()
 
 NOT_STATED = "NOT STATED"
 

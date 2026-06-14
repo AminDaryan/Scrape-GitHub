@@ -48,6 +48,34 @@ Both scripts: create `.venv`, install [requirements.txt](requirements.txt), and 
 source .venv/bin/activate
 ```
 
+### Provide the paper list
+
+The `5.1.*` / `5.2.*` checkers read the corpus to evaluate from
+[`requirement_checks/data/papers_from_database.py`](requirement_checks/data/papers_from_database.py).
+**This file is git-ignored, so a fresh clone won't have it — you must create it.**
+It defines a single module-level `PAPERS` list:
+
+```python
+# requirement_checks/data/papers_from_database.py
+PAPERS = [
+    {
+        "title": "2OMe-LM: predicting 2'-O-methylation sites in human RNA ...",
+        "semanticscholarid": "949cab640f543f200ad1fbeed56cc1c9519b1251",
+        "repo": "https://github.com/CSUBioGroup/2OMe-LM",
+    },
+    # ... one dict per paper
+]
+```
+
+| Key | Required | Used for |
+|---|---|---|
+| `repo` | **yes** | The URL that gets checked. `github.com/<owner>/<repo>`, `*.github.io/<repo>`, and `…/blob/…` forms are all parsed; non-GitHub URLs are reported as *skipped*. |
+| `title` | **yes** | Human-readable label in the console logs and Excel output. |
+| `semanticscholarid` | optional | Carried through for traceability (only echoed into the 5.1.3 output); checkers don't depend on it. |
+
+> The Beall's List check (below) does **not** use this file — it reads a separate
+> corpus of Semantic Scholar dumps.
+
 ### Setup troubleshooting
 
 - **`Activate.ps1` blocked by execution policy:** run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned` first.
@@ -128,6 +156,42 @@ python "requirement_checks/5.2.practitioner_usability_and_popularity/5.2.4.post_
 
 ---
 
+## Web UI (Streamlit)
+
+Prefer clicking to typing? A local web UI wraps **every** check. The one-command
+launcher activates the venv and installs Streamlit on first run if needed:
+
+```powershell
+.\run_ui.ps1          # Windows PowerShell
+```
+```bash
+bash ./run_ui.sh      # macOS / Linux
+```
+
+Or do it manually (with the venv active): `pip install streamlit` then
+`streamlit run ui/app.py`. Either way it opens at http://localhost:8501.
+
+Three tabs — **5.1**, **5.2**, and **Beall's** — each with a checker dropdown.
+Upload a papers JSON (a list, or a single paper object) or paste it, hit **Run**,
+preview the result, and download the Excel.
+
+- **5.1 / 5.2 tabs** take papers with GitHub links: `{"title": ..., "repo": "https://github.com/owner/repo"}`.
+- **Beall's tab** takes Semantic Scholar paper records (with `publicationVenue`).
+- GitHub/LLM keys are read from `.env` exactly as the CLI does; LLM checks cost tokens.
+
+Under the hood the UI runs each checker as a subprocess with the upload injected
+via the `PAPERS_JSON` env var (Beall's uses `BEALLS_CORPUS_DIR`), so **the UI and
+the CLI produce identical output**. That hook lives in
+[data/papers_source.py](requirement_checks/data/papers_source.py): every checker
+now reads its papers through `load_papers()`, which returns the uploaded list
+when `PAPERS_JSON` is set and otherwise falls back to the vendored
+`papers_from_database.py`. The UI code is in [ui/](ui/) (`app.py` + `runners.py`).
+
+> The Beall's tab has optional **whitelist** (scope filter) and **blacklist**
+> (extend the list) inputs — see the expander after picking a check.
+
+---
+
 ## Criteria Reference
 
 Each criterion lives in its own folder. Click the script name to open it.
@@ -192,6 +256,121 @@ Date of last commit + total commit count, as a measure of ongoing care after the
 
 ---
 
+## Beall's List Predatory-Venue Check
+
+A separate, self-contained check ([`requirement_checks/bealls_list_check/`](requirement_checks/bealls_list_check/))
+that flags papers published in venues appearing on [Beall's List](https://beallslist.net)
+— an unofficial, archived, contested list of potentially predatory publishers and
+journals. Unlike the `5.x` checkers it does **not** read `papers_from_database.py`,
+and it uses **no LLM** (0 tokens): every verdict is deterministic and auditable.
+
+**Its input is different from the other checks:** it classifies a corpus of
+[Semantic Scholar](https://www.semanticscholar.org/) record dumps (`*.json`, one
+list of records per file) against a *vendored snapshot* of Beall's List.
+
+**Two-step workflow:**
+
+```bash
+# 1. Vendor a local snapshot of Beall's List (scrapes beallslist.net once).
+#    Writes data/bealls_snapshot.json — already committed, so skip this if present.
+python requirement_checks/bealls_list_check/scrape_bealls_list.py
+
+# 2. Match the corpus against the snapshot and write the Excel report.
+python requirement_checks/bealls_list_check/bealls_list_check.py
+```
+
+By default the corpus is read from `docs/Updated Abstract Papers/*.json`
+(git-ignored — it's large); override the location with the `BEALLS_CORPUS_DIR`
+environment variable.
+
+The scraper covers all five list pages (publishers, standalone journals,
+hijacked journals, misleading metrics, vanity press) and is careful about what
+it captures: it **skips the site's "Excluded — decide after reading" section**
+(e.g. MDPI, which Beall explicitly chose *not* to list), captures both linked
+and **plain-text (name-only) entries**, **decodes HTML entities** so names like
+`Research & Development Organization` match, and **retries transient `503`s** so
+a blip never yields a half-built snapshot.
+
+**How a venue is classified** — signals are tried strongest-first and the first
+hit is recorded, so every row says exactly *why* it was flagged:
+
+| Status | Meaning |
+|---|---|
+| `on_list` | Matched a core Beall list by a high-confidence signal: exact domain, subdomain of a listed domain, exact ISSN, or exact name. |
+| `review` | Only a softer or ambiguous signal matched (alternate-URL domain, open-access-PDF host, fuzzy name ≥ 93%, a name match against a hijacked-journal clone, or a "weak" vanity-press / fake-metrics list). Verify by hand. |
+| `clean` | Venue identified and not on the list. |
+| `no_venue` | Preprint server (e.g. arXiv) or no venue metadata — nothing to classify. |
+| `out_of_scope` | Only when a **whitelist** is supplied: the paper's venue isn't in it, so it was skipped. |
+| `error` | The record could not be processed. |
+
+### Whitelist / blacklist (scoping & extending)
+
+Two optional inputs let you tailor the run (CLI flags, also editable in the UI's
+Beall's tab). Each is a JSON list of `{"name": ..., "domain": ...}` (a plain
+string works as a name):
+
+```bash
+python requirement_checks/bealls_list_check/bealls_list_check.py \
+    --whitelist whitelist.json --blacklist blacklist.json
+```
+
+- **`--whitelist`** is a **scope filter**: when non-empty, only papers whose venue
+  matches a whitelisted entry are checked; every other paper is marked
+  `out_of_scope` and skipped. Matching is by domain (exact or subdomain — so a
+  publisher domain covers all its journals) or by the whitelisted name appearing
+  as a whole-word phrase in the venue name. An empty/absent whitelist means
+  "check everything".
+- **`--blacklist`** **extends** Beall's List: its venues are added to the snapshot
+  (`list_source="blacklist"`) and flagged exactly like a real entry, so a paper in
+  one is `on_list`. Both flags work for `bealls_llm_check.py` too.
+
+**Output:** `requirement_checks/bealls_list_check/results/bealls_list_results.xlsx`
+(git-ignored) with four sheets — **Results**, **Flagged only** (the actionable
+`on_list` + `review` subset), **Summary** (counts, per-signal and per-list
+breakdowns, run metadata), and **Legend** (a full data dictionary). Every row also
+has a **Mentioned in** column listing all venue names/URLs the paper appears under
+(canonical + alternates + the open-access PDF host), for auditing. Matching tunables
+(fuzzy cutoff, preprint and generic-host lists) live in
+[bealls_list_check/config.py](requirement_checks/bealls_list_check/config.py).
+
+> **Caveat:** appearance on Beall's List is an *allegation as of the snapshot date*,
+> not proof a venue is predatory. Some listed publishers are contested — Frontiers,
+> for example, is on the list but widely considered legitimate. (MDPI sits in the
+> site's "Excluded — decide after reading" section, so it is **not** flagged.) The
+> check classifies the *venue*, never the paper's quality.
+
+### Optional LLM second pass (recall booster)
+
+The deterministic matcher is precise but structurally misses some real cases —
+e.g. a journal whose Semantic Scholar URL is on an *alias* domain, or where the
+list records a *publisher* name while the paper carries the *journal* name (the
+[WSEAS](https://wseas.org) case). [`bealls_llm_check.py`](requirement_checks/bealls_list_check/bealls_llm_check.py)
+adds an **opt-in** LLM pass to catch those:
+
+```bash
+python requirement_checks/bealls_list_check/bealls_llm_check.py            # all venues (costs tokens)
+python requirement_checks/bealls_list_check/bealls_llm_check.py --limit 50 # cheap test on 50 venues
+```
+
+It runs the deterministic check first, then asks the LLM **once per distinct
+venue** (deduplicated, so far fewer calls than papers) — grounded with the
+nearest Beall's List entries, Beall's predatory-journal criteria, and the
+model's own knowledge — whether the venue or its publisher is predatory. It
+checks the **already-flagged (`on_list`/`review`) venues first**, so even a
+`--limit` run annotates the actionable rows. A venue the LLM flags that was
+`clean`/`no_venue` is **promoted to `review`** (a human still confirms — the LLM
+never asserts `on_list` on its own).
+
+Output is `results/bealls_llm_results.xlsx`. Every sheet (including **Flagged
+only**) carries an **"LLM assessment"** column — verdict + matched entity +
+reason, tagged as LLM-decided. It adds an **"LLM vs deterministic"** sheet
+listing every paper where the two disagree (LLM flagged it but the rules didn't,
+or vice-versa), and the Summary gains an **"LLM second pass"** section with the
+token counter and the disagreement count. Uses your configured `LLM_PROVIDER` /
+`AZURE_OPENAI_DEPLOYMENT`.
+
+---
+
 ## Multi-Model Runs
 
 For LLM-based checkers, set `AZURE_OPENAI_DEPLOYMENT` to a JSON array:
@@ -220,7 +399,7 @@ requirement_checks/
 │   ├── checker_pipeline.py                # run_pipeline orchestrator: papers × models → Excel
 │   └── excel_output.py                    # Borders, headers, status-coloured rows, summary/comparison sheets
 ├── data/
-│   └── papers_from_database.py            # PAPERS list (title, semanticscholarid, repo URL) — consumed by every checker
+│   └── papers_from_database.py            # PAPERS list (title, semanticscholarid, repo URL) — consumed by every 5.x checker (git-ignored; you create it)
 ├── openai_client.py                       # LiteLLM-backed client; preserves the client.chat.completions.create() interface
 ├── 5.1.code_availability/
 │   ├── 5.1.3.pre-processing_&_pipeline_code/
@@ -231,10 +410,18 @@ requirement_checks/
 │   │   ├── check_github_repo_api_documentation/
 │   │   └── shared/                        # check_paper_common.py — helpers shared by the 5.1.4 sub-checkers
 │   └── 5.1.5.code_license/
-└── 5.2.practitioner_usability_and_popularity/
-    ├── 5.2.2.maintenance_activity_indicators/
-    ├── 5.2.3.adoption_metrics/
-    └── 5.2.4.post_publication_maintenance/
+├── 5.2.practitioner_usability_and_popularity/
+│   ├── 5.2.2.maintenance_activity_indicators/
+│   ├── 5.2.3.adoption_metrics/
+│   └── 5.2.4.post_publication_maintenance/
+└── bealls_list_check/                      # Standalone Beall's List check (no PAPERS list)
+    ├── scrape_bealls_list.py              # Step 1: vendor data/bealls_snapshot.json from beallslist.net
+    ├── bealls_list_check.py               # Step 2: match the Semantic Scholar corpus → Excel (no LLM)
+    ├── bealls_llm_check.py                # Optional LLM second pass (recall booster; see below)
+    ├── match.py                           # Matching tiers (domain / ISSN / name / fuzzy)
+    ├── normalize.py                       # Name / host / ISSN normalization shared by scraper + matcher
+    ├── config.py                          # Paths + matching tunables (fuzzy cutoff, preprint/generic hosts)
+    └── data/bealls_snapshot.json          # Vendored snapshot (committed)
 ```
 
 Each checker folder follows the same convention: `<checker_name>.py` is the entry point, with `config.py` (limits, thresholds) and `prompts.py` (LLM prompts) alongside it. Results land in a sibling `results/` directory.
@@ -261,6 +448,7 @@ flowchart TD
   q52 --> q522["5.2.2 maintenance indicators"]
   q52 --> q523["5.2.3 adoption metrics"]
   q52 --> q524["5.2.4 post-publication maintenance"]
+  rc --> bealls["bealls_list_check/<br/>scrape + match venues vs Beall's List<br/>(no LLM, separate corpus)"]
 ```
 
 > Open Markdown Preview (`Ctrl+Shift+V` in VS Code) or view this file on GitHub to render the diagram.

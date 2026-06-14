@@ -51,7 +51,9 @@ from common.github_helpers import (
     github_get, parse_github_repo, list_all_repo_files,
 )
 from common.excel_output import thin_border, write_header_row
-from data.papers_from_database import PAPERS
+from data.papers_source import load_papers
+
+PAPERS = load_papers()
 
 MISSING = "MISSING"
 

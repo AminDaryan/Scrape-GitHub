@@ -64,8 +64,10 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font
 
 from openai_client import client, AZURE_OPENAI_DEPLOYMENTS
-from data.papers_from_database import PAPERS
+from data.papers_source import load_papers
 from prompts import SYSTEM_PROMPT, USER_PROMPT
+
+PAPERS = load_papers()
 from config import (
     PREPROC_NAME_RE, PREPROC_FOLDER_PREFIXES, SOURCE_EXTS,
     SKIP_FOLDER_PREFIXES,

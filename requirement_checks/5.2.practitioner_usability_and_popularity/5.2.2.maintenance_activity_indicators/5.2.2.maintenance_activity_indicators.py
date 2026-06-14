@@ -26,7 +26,7 @@ Both layers are written to one Excel workbook with two sheets:
   - "Summary"  — counts of each overall maintenance status.
 
 Usage:
-  python scrape_github_data.py
+  python 5.2.2.maintenance_activity_indicators.py
 """
 
 import os
@@ -50,7 +50,9 @@ _this = Path(__file__).resolve()
 #   _this.parent.parent.parent = requirement_checks/   ← needed for common/, data/, openai_client
 sys.path.insert(0, str(_this.parent.parent.parent))
 
-from data.papers_from_database import PAPERS
+from data.papers_source import load_papers
+
+PAPERS = load_papers()
 
 # Setup-related filenames that indicate the repo has installation instructions.
 # This is a lightweight replacement for the original NLP-based detector — if
@@ -306,7 +308,8 @@ def assess_repo(owner, repo, headers=None):
     Two layers of information are gathered:
       A) Basic metadata, available straight from the repo API response:
          stars, forks, open_issues, language, license, last push/update dates.
-         README and setup-instructions checks via the project's NLP utility.
+         README and setup-file presence via a scan of the repo's root file tree
+         (no NLP/LLM — see SETUP_FILE_BASENAMES).
       B) Maintenance indicators, requiring extra API calls:
          recent commits, issue responses, contributors, versioned releases,
          staleness, archived/deprecated flag.

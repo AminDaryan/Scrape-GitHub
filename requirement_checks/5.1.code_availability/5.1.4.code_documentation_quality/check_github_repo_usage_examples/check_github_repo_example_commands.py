@@ -56,7 +56,9 @@ from shared import check_paper_generic
 
 load_dotenv()
 
-from data.papers_from_database import PAPERS
+from data.papers_source import load_papers
+
+PAPERS = load_papers()
 from openai_client import client, AZURE_OPENAI_DEPLOYMENTS as DEPLOYMENTS
 from prompts import SYSTEM_PROMPT
 from config import (

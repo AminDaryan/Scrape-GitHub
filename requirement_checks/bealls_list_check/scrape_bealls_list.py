@@ -40,6 +40,7 @@ import re
 import sys
 import time
 from datetime import datetime, timezone
+from html import unescape
 from pathlib import Path
 
 import requests
@@ -80,36 +81,125 @@ _LI_A_RE = re.compile(
 _TR_RE = re.compile(r"<tr[^>]*>(.*?)</tr>", re.IGNORECASE | re.DOTALL)
 _TD_RE = re.compile(r"<t[dh][^>]*>(.*?)</t[dh]>", re.IGNORECASE | re.DOTALL)
 _HREF_RE = re.compile(r"href=\"(https?://[^\"]+)\"", re.IGNORECASE)
+_HEADING_RE = re.compile(r"<(h[1-4])[^>]*>(.*?)</\1>", re.IGNORECASE | re.DOTALL)
+_LI_RE = re.compile(r"<li[^>]*>(.*?)</li>", re.IGNORECASE | re.DOTALL)
+_UL_RE = re.compile(r"<ul[^>]*>(.*?)</ul>", re.IGNORECASE | re.DOTALL)
+_HTTP_HREF_RE = re.compile(r'href="https?://[^"]+"', re.IGNORECASE)
 
 
 def _text(html_fragment: str) -> str:
-    """Strip tags and collapse whitespace from an HTML fragment."""
-    return re.sub(r"\s+", " ", _TAG_RE.sub("", html_fragment)).strip()
+    """Strip tags, decode HTML entities, and collapse whitespace.
+
+    Decoding matters for matching: a listed name like "Science &amp; Education"
+    must become "Science & Education" so it normalizes the same way as the venue
+    string Semantic Scholar reports (which carries a real "&"); otherwise the
+    stray "amp" defeats the name match.
+    """
+    text = unescape(_TAG_RE.sub("", html_fragment))
+    return re.sub(r"\s+", " ", text).strip()
 
 
-def fetch(path: str) -> str:
-    """GET a page and return its decoded HTML (raises on HTTP error)."""
+def _has_external_link(fragment: str) -> bool:
+    """True if *fragment* contains an http(s) link to a non-beallslist host."""
+    return any("beallslist.net" not in m.group(0).lower()
+               for m in _HTTP_HREF_RE.finditer(fragment))
+
+
+def strip_excluded_sections(html: str) -> str:
+    """Remove any ``<hN>Excluded …</hN>`` section (heading + content up to the
+    next heading) from a page before its entries are parsed.
+
+    beallslist.net's Publishers page ends with a section titled
+    "Excluded – decide after reading" that lists publishers the author
+    deliberately did NOT put on the list (e.g. MDPI: "I decided not to include
+    MDPI on the list itself"). Those are explicitly *not* listed, so scraping
+    them as entries is wrong. Only this section is removed; the real
+    "Original list" and "Update" sections above it are untouched.
+    """
+    headings = list(_HEADING_RE.finditer(html))
+    cuts = []
+    for i, m in enumerate(headings):
+        if "exclud" in _text(m.group(2)).lower():
+            end = headings[i + 1].start() if i + 1 < len(headings) else len(html)
+            cuts.append((m.start(), end))
+    for start, end in reversed(cuts):      # back-to-front keeps earlier indices valid
+        html = html[:start] + html[end:]
+    return html
+
+
+def fetch(path: str, retries: int = 4, backoff: float = 3.0) -> str:
+    """GET a page and return its decoded HTML, retrying transient failures.
+
+    beallslist.net intermittently returns 503 (Service Unavailable) under load,
+    and a single blip should not lose a whole scrape (which would silently
+    produce an incomplete snapshot). Retry a few times with linear backoff and
+    only raise if every attempt fails.
+    """
     url = BASE + path
-    resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=30)
-    resp.raise_for_status()
-    resp.encoding = resp.apparent_encoding or "utf-8"
-    return resp.text
+    last_err = None
+    for attempt in range(1, retries + 1):
+        try:
+            resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=30)
+            resp.raise_for_status()
+            resp.encoding = resp.apparent_encoding or "utf-8"
+            return resp.text
+        except requests.RequestException as err:
+            last_err = err
+            if attempt < retries:
+                wait = backoff * attempt
+                print(f"\n  (fetch {path} failed: {err}; retry {attempt}/{retries - 1} "
+                      f"in {wait:.0f}s)", end=" ", flush=True)
+                time.sleep(wait)
+    raise last_err
 
 
 def parse_links(html: str, list_source: str) -> list:
     """Parse a ``<li><a href=...>Name</a>`` list page into entries.
 
-    Keeps only external links (the entry websites); the site's own nav/footer
-    links point back to beallslist.net and are dropped.
+    Two kinds of entry are captured:
+      * linked    — ``<li><a href="https://...">Name</a></li>`` (the common case).
+                    Only external links are kept; the site's own nav/footer
+                    links point back to beallslist.net and are dropped.
+      * name-only — ``<li>Name</li>`` with no link (a few predatory publishers
+                    are listed as plain text). These have no domain and can
+                    only match by name, but omitting them would be a recall gap.
+                    They are taken ONLY from ``<ul>`` blocks that already hold
+                    real linked entries, so navigation/footer/info lists never
+                    leak in. A "Alias SEE Canonical Name" cross-reference keeps
+                    just the alias.
     """
     entries = []
+    linked_names = set()
+
+    # 1) Linked entries.
     for url, inner in _LI_A_RE.findall(html):
         if "beallslist.net" in url.lower():
             continue
         name = _text(inner)
         if name.lower() in _CHROME_TEXTS or len(name) < 2:
             continue
+        linked_names.add(name.lower())
         entries.append(_make_entry(name, url, list_source))
+
+    # 2) Name-only entries, scoped to <ul> blocks that are real entry lists.
+    seen = set()
+    for ul in _UL_RE.findall(html):
+        if not _has_external_link(ul):
+            continue                                  # nav / footer / info list
+        for m in _LI_RE.finditer(ul):
+            inner = m.group(1)
+            if "beallslist.net" in inner.lower() or _HTTP_HREF_RE.search(inner):
+                continue                              # linked (handled above) or nav
+            name = _text(inner)
+            if " SEE " in name:                       # "Alias SEE Canonical" -> keep the alias
+                name = name.split(" SEE ", 1)[0].strip()
+            key = name.lower()
+            if (key in _CHROME_TEXTS or key in linked_names or key in seen
+                    or len(name) < 8 or len(name.split()) < 2):
+                continue
+            seen.add(key)
+            entries.append(_make_entry(name, "", list_source))
+
     return entries
 
 
@@ -159,7 +249,7 @@ def scrape() -> dict:
     counts = {}
     for path, list_source, mode in LIST_PAGES:
         print(f"Fetching {BASE + path} ...", end=" ", flush=True)
-        html = fetch(path)
+        html = strip_excluded_sections(fetch(path))
         if mode == "hijacked_table":
             entries = parse_hijacked_table(html, list_source)
         else:
