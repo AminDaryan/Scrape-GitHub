@@ -158,12 +158,18 @@ python "requirement_checks/5.2.practitioner_usability_and_popularity/5.2.4.post_
 
 ## Web UI (Streamlit)
 
-Prefer clicking to typing? A local web UI wraps **every** check.
+Prefer clicking to typing? A local web UI wraps **every** check. The one-command
+launcher activates the venv and installs Streamlit on first run if needed:
 
-```bash
-pip install streamlit          # one-time (also in requirements.txt)
-streamlit run ui/app.py        # opens http://localhost:8501
+```powershell
+.\run_ui.ps1          # Windows PowerShell
 ```
+```bash
+bash ./run_ui.sh      # macOS / Linux
+```
+
+Or do it manually (with the venv active): `pip install streamlit` then
+`streamlit run ui/app.py`. Either way it opens at http://localhost:8501.
 
 Three tabs — **5.1**, **5.2**, and **Beall's** — each with a checker dropdown.
 Upload a papers JSON (a list, or a single paper object) or paste it, hit **Run**,
