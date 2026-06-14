@@ -46,7 +46,9 @@ MIN_NAME_LEN = 5
 
 # Lists that the fuzzy tier is allowed to match against.  Fuzzy matching the
 # low-relevance metric/vanity lists produces noise, so those are exact-only.
-FUZZY_LIST_SOURCES = {"publishers", "standalone_journal", "hijacked"}
+# "blacklist" = venues the *user* added (see user_lists.py); treated as a core,
+# high-confidence list (asserts on_list, eligible for fuzzy near-name matching).
+FUZZY_LIST_SOURCES = {"publishers", "standalone_journal", "hijacked", "blacklist"}
 
 # "Weak" lists that should never assert a high-confidence "on_list" verdict for
 # a journal article:
@@ -107,10 +109,13 @@ PREPRINT_NAMES = {
 #   clean    green  — venue identified and not on the list
 #   no_venue grey   — preprint or no venue info; not classifiable
 #   error    dark   — record could not be processed
+# out_of_scope blue — paper's venue isn't in the user's whitelist, so it was
+#                      skipped (only ever used when a whitelist is supplied).
 STATUS_FILL_COLORS = {
-    "on_list":  "FFC7CE",
-    "review":   "FFD79A",
-    "clean":    "C6EFCE",
-    "no_venue": "D9D9D9",
-    "error":    "C00000",
+    "on_list":      "FFC7CE",
+    "review":       "FFD79A",
+    "clean":        "C6EFCE",
+    "no_venue":     "D9D9D9",
+    "out_of_scope": "BDD7EE",
+    "error":        "C00000",
 }

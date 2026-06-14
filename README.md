@@ -181,7 +181,8 @@ now reads its papers through `load_papers()`, which returns the uploaded list
 when `PAPERS_JSON` is set and otherwise falls back to the vendored
 `papers_from_database.py`. The UI code is in [ui/](ui/) (`app.py` + `runners.py`).
 
-> Whitelist / blacklist controls for the Beall's tab are coming next.
+> The Beall's tab has optional **whitelist** (scope filter) and **blacklist**
+> (extend the list) inputs — see the expander after picking a check.
 
 ---
 
@@ -293,7 +294,29 @@ hit is recorded, so every row says exactly *why* it was flagged:
 | `review` | Only a softer or ambiguous signal matched (alternate-URL domain, open-access-PDF host, fuzzy name ≥ 93%, a name match against a hijacked-journal clone, or a "weak" vanity-press / fake-metrics list). Verify by hand. |
 | `clean` | Venue identified and not on the list. |
 | `no_venue` | Preprint server (e.g. arXiv) or no venue metadata — nothing to classify. |
+| `out_of_scope` | Only when a **whitelist** is supplied: the paper's venue isn't in it, so it was skipped. |
 | `error` | The record could not be processed. |
+
+### Whitelist / blacklist (scoping & extending)
+
+Two optional inputs let you tailor the run (CLI flags, also editable in the UI's
+Beall's tab). Each is a JSON list of `{"name": ..., "domain": ...}` (a plain
+string works as a name):
+
+```bash
+python requirement_checks/bealls_list_check/bealls_list_check.py \
+    --whitelist whitelist.json --blacklist blacklist.json
+```
+
+- **`--whitelist`** is a **scope filter**: when non-empty, only papers whose venue
+  matches a whitelisted entry are checked; every other paper is marked
+  `out_of_scope` and skipped. Matching is by domain (exact or subdomain — so a
+  publisher domain covers all its journals) or by the whitelisted name appearing
+  as a whole-word phrase in the venue name. An empty/absent whitelist means
+  "check everything".
+- **`--blacklist`** **extends** Beall's List: its venues are added to the snapshot
+  (`list_source="blacklist"`) and flagged exactly like a real entry, so a paper in
+  one is `on_list`. Both flags work for `bealls_llm_check.py` too.
 
 **Output:** `requirement_checks/bealls_list_check/results/bealls_list_results.xlsx`
 (git-ignored) with four sheets — **Results**, **Flagged only** (the actionable

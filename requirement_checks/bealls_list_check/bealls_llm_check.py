@@ -45,9 +45,9 @@ _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE))                       # config, match, normalize, bealls_list_check
 sys.path.insert(0, str(_HERE.parent))                # requirement_checks/ -> common, openai_client
 
-import bealls_list_check as det                       # the deterministic pass + Excel writer
-from match import BeallIndex, match_paper
+import bealls_list_check as det                       # deterministic pass, index/corpus helpers, Excel writer
 from normalize import normalize_name, significant_tokens, similarity
+from user_lists import load_user_entries, WhitelistMatcher
 
 from common.llm_helpers import TokenUsageTracker, llm_call_parse_retry, print_token_usage_report
 from openai_client import client as default_client, AZURE_OPENAI_DEPLOYMENT
@@ -198,6 +198,8 @@ def run_llm_pass(results, index, *, client, deployment, token_usage, limit=None)
         # Remember the DETERMINISTIC verdict before we possibly promote it, so
         # the disagreement sheet can contrast deterministic vs LLM.
         r["det_status"] = r["status"]
+        if r["status"] == "out_of_scope":
+            continue                       # whitelist excluded it — don't spend LLM on it
         key = _venue_key(r)
         if not any(key):
             continue
@@ -291,20 +293,24 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="LLM second pass for the Beall's List check.")
     parser.add_argument("--limit", type=int, default=None,
                         help="check only the first N distinct venues (cheap test run)")
+    parser.add_argument("--whitelist", help="JSON list of venues; only papers in it are checked")
+    parser.add_argument("--blacklist", help="JSON list of venues to add to Beall's List as predatory")
     args = parser.parse_args(argv)
 
     print("=" * 70)
     print("Beall's List check — LLM second pass")
     print("=" * 70)
 
-    snapshot = det.load_snapshot()
-    index = BeallIndex(snapshot["entries"])
+    index, snapshot, n_black = det.build_index(args.blacklist)
+    if n_black:
+        print(f"Added {n_black} user blacklist entr(ies) as predatory.")
+    whitelist = (WhitelistMatcher(load_user_entries(args.whitelist, "whitelist"))
+                 if args.whitelist else None)
+    if whitelist is not None:
+        print(f"Whitelist active — papers outside it are skipped (out_of_scope).")
 
     print("Running the deterministic pass first ...")
-    results, corpus_files = [], set()
-    for source_file, paper in det.load_corpus():
-        corpus_files.add(source_file)
-        results.append(match_paper(index, paper, source_file))
+    results, corpus_files, _n_scope = det.classify_corpus(index, whitelist)
 
     token_usage = TokenUsageTracker()
     started = time.time()

@@ -16,6 +16,7 @@ Run the scraper first (scrape_bealls_list.py) to produce the snapshot, then:
   python bealls_list_check.py
 """
 
+import argparse
 import json
 import sys
 import time
@@ -31,7 +32,8 @@ from config import (
     CORPUS_DIR, CORPUS_GLOB, SNAPSHOT_PATH, RESULTS_DIR, RESULTS_FILENAME,
     STATUS_FILL_COLORS,
 )
-from match import BeallIndex, match_paper
+from match import BeallIndex, match_paper, out_of_scope_result
+from user_lists import load_user_entries, WhitelistMatcher
 
 
 # =============================================================================
@@ -47,6 +49,42 @@ def load_snapshot():
         )
     with open(SNAPSHOT_PATH, encoding="utf-8") as f:
         return json.load(f)
+
+
+def build_index(blacklist_path=None):
+    """Load the snapshot (plus an optional user blacklist) into a BeallIndex.
+
+    The blacklist entries are tagged ``list_source="blacklist"`` and matched
+    exactly like real Beall entries (asserting ``on_list``).  Returns
+    ``(index, snapshot, n_blacklist_added)``.
+    """
+    snapshot = load_snapshot()
+    entries = list(snapshot["entries"])
+    n_black = 0
+    if blacklist_path:
+        added = load_user_entries(blacklist_path, "blacklist")
+        entries += added
+        n_black = len(added)
+    return BeallIndex(entries), snapshot, n_black
+
+
+def classify_corpus(index, whitelist=None):
+    """Classify every corpus paper, applying the optional whitelist scope filter.
+
+    When a *whitelist* is active, papers whose venue is not in it are marked
+    ``out_of_scope`` and not matched.  Returns ``(results, sorted_corpus_files,
+    n_out_of_scope)``.
+    """
+    results, corpus_files, n_scope = [], set(), 0
+    for source_file, paper in load_corpus():
+        corpus_files.add(source_file)
+        if whitelist is not None and whitelist.active and not whitelist.in_scope(paper):
+            results.append(out_of_scope_result(paper, source_file))
+            n_scope += 1
+        else:
+            # match_paper never raises — a bad record returns an 'error' result.
+            results.append(match_paper(index, paper, source_file))
+    return results, sorted(corpus_files), n_scope
 
 
 def load_corpus():
@@ -227,8 +265,9 @@ def _list_plain(list_source):
 
 # Short note shown on the first Match row for statuses that matched nothing.
 _NONMATCH_NOTES = {
-    "clean":    "Venue identified — not on the list",
-    "no_venue": "No venue to classify (preprint / no info)",
+    "clean":        "Venue identified — not on the list",
+    "no_venue":     "No venue to classify (preprint / no info)",
+    "out_of_scope": "Not in the whitelist — skipped",
 }
 
 
@@ -435,6 +474,7 @@ def _write_summary_sheet(ws, results, snapshot_meta, corpus_files,
     kv(row, "Needs review (soft match)", status_counts.get("review", 0)); row += 1
     kv(row, "Clean (venue identified, not listed)", status_counts.get("clean", 0)); row += 1
     kv(row, "No venue (preprint / no info)", status_counts.get("no_venue", 0)); row += 1
+    kv(row, "Out of scope (not in whitelist)", status_counts.get("out_of_scope", 0)); row += 1
     kv(row, "Errors", status_counts.get("error", 0)); row += 2
 
     # Breakdown by HOW each flagged paper matched (the 'Matched by' signal),
@@ -524,6 +564,9 @@ _LEGEND_SECTIONS = [
              "Beall entry."),
             ("no_venue", "—", "Preprint server (e.g. arXiv) or no venue "
              "metadata — there is no journal/publisher to classify."),
+            ("out_of_scope", "—", "Only when a whitelist was supplied: the "
+             "paper's venue is not in it, so the paper was skipped (not "
+             "matched against the list at all)."),
             ("error", "—", "The record could not be processed; the Python "
              "error is shown in the 'Matched On' column."),
         ],
@@ -720,41 +763,44 @@ def save_workbook(results, snapshot_meta, corpus_files, *,
 # MAIN
 # =============================================================================
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Beall's List predatory-venue check.")
+    parser.add_argument("--whitelist", help="JSON list of venues; only papers whose "
+                                            "venue is in it are checked (others -> out_of_scope)")
+    parser.add_argument("--blacklist", help="JSON list of venues to add to Beall's List "
+                                            "as predatory before matching")
+    args = parser.parse_args(argv)
+
     print("=" * 70)
     print("Beall's List predatory-venue check")
     print("=" * 70)
 
-    snapshot = load_snapshot()
-    index = BeallIndex(snapshot["entries"])
+    index, snapshot, n_black = build_index(args.blacklist)
     print(f"Loaded snapshot: {len(snapshot['entries'])} entries "
           f"(scraped {snapshot['meta'].get('scraped_utc', '?')})")
+    if n_black:
+        print(f"Added {n_black} user blacklist entr(ies) as predatory.")
+
+    whitelist = None
+    if args.whitelist:
+        whitelist = WhitelistMatcher(load_user_entries(args.whitelist, "whitelist"))
+        print(f"Whitelist active ({len(whitelist.domains)} domain(s) + "
+              f"{len(whitelist.name_phrases)} name(s)) — papers outside it are skipped.")
 
     print(f"Loading corpus from {CORPUS_DIR} ...")
     started = time.time()
-    results = []
-    corpus_files = set()
-    for source_file, paper in load_corpus():
-        corpus_files.add(source_file)
-        # match_paper never raises — a bad record returns an 'error' result.
-        results.append(match_paper(index, paper, source_file))
+    results, corpus_files, n_scope = classify_corpus(index, whitelist)
 
     elapsed = time.time() - started
-    out_path, n_flagged = save_workbook(
-        results, snapshot["meta"], sorted(corpus_files)
-    )
+    out_path, n_flagged = save_workbook(results, snapshot["meta"], corpus_files)
 
-    # Console summary.
     counts = {s: 0 for s in STATUS_FILL_COLORS}
     for r in results:
         counts[r["status"]] = counts.get(r["status"], 0) + 1
     print("-" * 70)
     print(f"Checked {len(results)} papers in {elapsed:.1f}s")
-    print(f"  on_list : {counts.get('on_list', 0)}")
-    print(f"  review  : {counts.get('review', 0)}")
-    print(f"  clean   : {counts.get('clean', 0)}")
-    print(f"  no_venue: {counts.get('no_venue', 0)}")
-    print(f"  error   : {counts.get('error', 0)}")
+    for status in ("on_list", "review", "clean", "no_venue", "out_of_scope", "error"):
+        print(f"  {status:13}: {counts.get(status, 0)}")
     print(f"Flagged (on_list + review): {n_flagged}")
     print(f"Saved -> {out_path}")
 

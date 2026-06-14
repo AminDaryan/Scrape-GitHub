@@ -83,6 +83,25 @@ def get_papers(section_key: str, corpus: bool):
     return items
 
 
+def venue_list_input(label: str, key: str):
+    """Optional JSON list of venues for whitelist/blacklist. Returns list or None."""
+    raw = st.text_area(label, height=90, key=key,
+                       placeholder='[{"name": "IEEE", "domain": "ieee.org"}, "Nature"]')
+    if not raw or not raw.strip():
+        return None
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as e:
+        st.error(f"{label}: invalid JSON ({e})")
+        return None
+    if isinstance(parsed, dict):
+        parsed = [parsed]
+    if not isinstance(parsed, list):
+        st.error(f"{label}: must be a JSON list of venues.")
+        return None
+    return parsed
+
+
 def render_result(res: runners.RunResult, checker: runners.Checker):
     if res.ok:
         st.success(f"Done — produced `{res.output_path.name}`.")
@@ -137,13 +156,25 @@ def section_tab(section: str):
 
     items = get_papers(f"{section}_{checker.id}", corpus=checker.corpus_based)
 
+    aux_lists = None
+    if section == "bealls":
+        with st.expander("Whitelist / blacklist (optional)"):
+            st.caption(
+                "**Whitelist** — only papers whose venue is in this list are checked; "
+                "the rest are marked *out_of_scope*. Empty = check everything.  "
+                "**Blacklist** — these venues are added to Beall's List as predatory.  "
+                'Format: a JSON list of `{"name": …, "domain": …}` (a plain string works as a name).')
+            wl = venue_list_input("Whitelist venues (JSON)", f"wl_{checker.id}")
+            bl = venue_list_input("Blacklist venues (JSON)", f"bl_{checker.id}")
+        aux_lists = {"--whitelist": wl, "--blacklist": bl}
+
     run = st.button("▶ Run check", type="primary", key=f"run_{checker.id}",
                     disabled=items is None)
     if run and items is not None:
         with st.spinner(f"Running {checker.label} on {len(items)} paper(s)… "
                         "this can take a while for large lists or LLM checks."):
             try:
-                res = runners.run_checker(checker, items)
+                res = runners.run_checker(checker, items, aux_lists=aux_lists)
             except Exception as e:                 # surface any launch failure
                 st.session_state[f"res_{checker.id}"] = None
                 st.exception(e)
@@ -169,5 +200,6 @@ with tab52:
     section_tab("5.2")
 with tab_b:
     st.subheader("Beall's List predatory-venue check")
-    st.caption("Whitelist / blacklist controls are coming next; for now this runs the standard check.")
+    st.caption("Optionally scope with a whitelist or extend the list with a blacklist "
+               "(see the expander after choosing a check).")
     section_tab("bealls")

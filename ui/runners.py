@@ -118,32 +118,46 @@ def _newest_xlsx_since(folder: Path, since_ts: float) -> Optional[Path]:
     return max(candidates, key=lambda p: p.stat().st_mtime, default=None)
 
 
-def run_checker(checker: Checker, items: list, *, timeout: Optional[int] = None) -> RunResult:
+def run_checker(checker: Checker, items: list, *, aux_lists: Optional[dict] = None,
+                timeout: Optional[int] = None) -> RunResult:
     """Run one checker over *items* and return its produced Excel.
 
     *items* is a list of paper objects (GitHub-link papers for 5.1/5.2; Semantic
     Scholar records for Beall's).  We inject them via a temp file + env var and
     run the checker as a subprocess, inheriting the repo's ``.env`` (the checker
     calls ``load_dotenv()`` itself, so GitHub/LLM keys are picked up).
+
+    *aux_lists* maps a CLI flag to a list written to a temp JSON and passed to
+    the checker — used for Beall's ``--whitelist`` / ``--blacklist``; empty
+    lists are skipped.
     """
     started = time.time()
     with tempfile.TemporaryDirectory(prefix="bealls_ui_") as tmp:
         tmp = Path(tmp)
         env = os.environ.copy()
         if checker.corpus_based:
-            (tmp / "uploaded_corpus.json").write_text(
+            # The corpus dir is globbed for *.json, so it must contain ONLY the
+            # uploaded corpus — keep it in its own subdir away from the aux files.
+            corpus_dir = tmp / "corpus"
+            corpus_dir.mkdir()
+            (corpus_dir / "uploaded_corpus.json").write_text(
                 json.dumps(items, ensure_ascii=False), encoding="utf-8")
-            env["BEALLS_CORPUS_DIR"] = str(tmp)
+            env["BEALLS_CORPUS_DIR"] = str(corpus_dir)
         else:
             papers_file = tmp / "uploaded_papers.json"
             papers_file.write_text(json.dumps(items, ensure_ascii=False), encoding="utf-8")
             env["PAPERS_JSON"] = str(papers_file)
 
-        proc = subprocess.run(
-            [sys.executable, str(checker.script)],
-            env=env, cwd=str(REPO_ROOT),
-            capture_output=True, text=True, timeout=timeout,
-        )
+        cmd = [sys.executable, str(checker.script)]
+        for flag, entries in (aux_lists or {}).items():
+            if not entries:
+                continue
+            aux_file = tmp / (flag.lstrip("-") + ".json")   # in tmp, never the corpus dir
+            aux_file.write_text(json.dumps(entries, ensure_ascii=False), encoding="utf-8")
+            cmd += [flag, str(aux_file)]
+
+        proc = subprocess.run(cmd, env=env, cwd=str(REPO_ROOT),
+                              capture_output=True, text=True, timeout=timeout)
 
     out_path = checker.output if checker.output.exists() else None
     fresh = _newest_xlsx_since(checker.output.parent, started)

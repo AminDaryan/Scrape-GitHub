@@ -35,7 +35,9 @@ from config import (
 )
 
 # When several entries share a domain, prefer the more paper-relevant list.
+# "blacklist" (user-supplied) outranks everything — the user explicitly asserted it.
 _LIST_PRIORITY = {
+    "blacklist": -1,
     "publishers": 0, "standalone_journal": 1, "hijacked": 2,
     "vanity_press": 3, "misleading_metric": 4,
 }
@@ -44,6 +46,27 @@ _LIST_PRIORITY = {
 def _best(entries):
     """Pick the most paper-relevant entry from a list of candidates."""
     return min(entries, key=lambda e: _LIST_PRIORITY.get(e["list_source"], 9))
+
+
+def venue_signals(paper):
+    """Return ``(venue_domains, normalized_names)`` for whitelist scoping.
+
+    venue_domains = the canonical + alternate *venue* hosts (NOT the open-access
+    PDF host — a paper's PDF living on a publisher's server does not mean it
+    belongs to that publisher).  Used by the whitelist filter in user_lists.py.
+    """
+    pv = paper.get("publicationVenue") or {}
+    domains = ([normalize_host(pv["url"])] if pv.get("url") else []) + [
+        normalize_host(u) for u in (pv.get("alternate_urls") or []) if u
+    ]
+    domains = [d for d in domains if d]
+    names, seen = [], set()
+    for n in [paper.get("venue"), pv.get("name")] + list(pv.get("alternate_names") or []):
+        nn = normalize_name(n)
+        if nn and nn not in seen:
+            seen.add(nn)
+            names.append(nn)
+    return domains, names
 
 
 class BeallIndex:
@@ -202,6 +225,13 @@ def _review_reason(r: dict) -> str:
         return ("Matched a WEAK list (vanity-press book publisher or fake-metrics "
                 "company), which is not a predatory-journal signal.")
     return "Soft match — verify by hand."
+
+
+def out_of_scope_result(paper, source_file):
+    """Result for a paper skipped because it isn't in the user's whitelist."""
+    r = _blank_result(paper, source_file)
+    r["status"] = "out_of_scope"
+    return r
 
 
 def match_paper(index: BeallIndex, paper: dict, source_file: str) -> dict:
