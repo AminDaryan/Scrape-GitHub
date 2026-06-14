@@ -50,7 +50,9 @@ _this = Path(__file__).resolve()
 #   _this.parent.parent.parent = requirement_checks/   ← needed for common/, data/, openai_client
 sys.path.insert(0, str(_this.parent.parent.parent))
 
-from data.papers_from_database import PAPERS
+from data.papers_source import load_papers
+
+PAPERS = load_papers()
 
 # Setup-related filenames that indicate the repo has installation instructions.
 # This is a lightweight replacement for the original NLP-based detector — if

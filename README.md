@@ -156,6 +156,35 @@ python "requirement_checks/5.2.practitioner_usability_and_popularity/5.2.4.post_
 
 ---
 
+## Web UI (Streamlit)
+
+Prefer clicking to typing? A local web UI wraps **every** check.
+
+```bash
+pip install streamlit          # one-time (also in requirements.txt)
+streamlit run ui/app.py        # opens http://localhost:8501
+```
+
+Three tabs — **5.1**, **5.2**, and **Beall's** — each with a checker dropdown.
+Upload a papers JSON (a list, or a single paper object) or paste it, hit **Run**,
+preview the result, and download the Excel.
+
+- **5.1 / 5.2 tabs** take papers with GitHub links: `{"title": ..., "repo": "https://github.com/owner/repo"}`.
+- **Beall's tab** takes Semantic Scholar paper records (with `publicationVenue`).
+- GitHub/LLM keys are read from `.env` exactly as the CLI does; LLM checks cost tokens.
+
+Under the hood the UI runs each checker as a subprocess with the upload injected
+via the `PAPERS_JSON` env var (Beall's uses `BEALLS_CORPUS_DIR`), so **the UI and
+the CLI produce identical output**. That hook lives in
+[data/papers_source.py](requirement_checks/data/papers_source.py): every checker
+now reads its papers through `load_papers()`, which returns the uploaded list
+when `PAPERS_JSON` is set and otherwise falls back to the vendored
+`papers_from_database.py`. The UI code is in [ui/](ui/) (`app.py` + `runners.py`).
+
+> Whitelist / blacklist controls for the Beall's tab are coming next.
+
+---
+
 ## Criteria Reference
 
 Each criterion lives in its own folder. Click the script name to open it.

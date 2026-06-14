@@ -103,7 +103,9 @@ from config import (
     MAX_SOURCE_FILES,
     MAX_DOC_FILES,
 )
-from data.papers_from_database import PAPERS
+from data.papers_source import load_papers
+
+PAPERS = load_papers()
 
 load_dotenv()
 
