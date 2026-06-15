@@ -301,22 +301,15 @@ def _match_subrows(r):
 
 
 def _mentions_subrows(r):
-    """Every venue name / URL the paper was mentioned under, one per row.
+    """One row per venue name / URL the paper was mentioned under (URLs link).
 
-    URLs are rendered as links.  If there are more than fit in the block, the
-    last row shows '(+N more)'.
+    Returns ALL mentions — the paper's block grows to fit them — so nothing is
+    hidden, however many there are.
     """
     mentions = r.get("mentions") or []
     if not mentions:
         return [("—", None)]
-    if len(mentions) <= ROWS_PER_PAPER:
-        shown, overflow = mentions, 0
-    else:
-        shown, overflow = mentions[:ROWS_PER_PAPER - 1], len(mentions) - (ROWS_PER_PAPER - 1)
-    rows = [(m, m if m.lower().startswith("http") else None) for m in shown]
-    if overflow:
-        rows.append((f"(+{overflow} more)", None))
-    return rows
+    return [(m, m if m.lower().startswith("http") else None) for m in mentions]
 
 
 def _estimate_row_height(text, width):
@@ -330,10 +323,10 @@ def _estimate_row_height(text, width):
     return min(140, max(16, lines * 15))
 
 
-def _padded_subrows(subrows):
-    """Force a sub-row list to exactly ROWS_PER_PAPER ``(text, url)`` tuples."""
-    subrows = list(subrows)[:ROWS_PER_PAPER]
-    subrows += [("", None)] * (ROWS_PER_PAPER - len(subrows))
+def _padded_subrows(subrows, n):
+    """Pad (or truncate) a sub-row list to exactly *n* ``(text, url)`` tuples."""
+    subrows = list(subrows)[:n]
+    subrows += [("", None)] * (n - len(subrows))
     return subrows
 
 
@@ -378,23 +371,29 @@ def _write_results_sheet(ws, results, extra_columns=None, status_key="status"):
     n_core = len(COLUMNS)
     row = 2
     for i, r in enumerate(results):
+        # Build each column's sub-rows first, then size the block to the tallest
+        # one — so 'Mentioned in' can list EVERY mention (the block grows to fit),
+        # while Paper/Venue/Match keep their fixed fields and pad with blanks.
+        raw_cols = [
+            (_PAPER_COL, _paper_subrows(r)),
+            (_VENUE_COL, _venue_subrows(r)),
+            (_MATCH_COL, _match_subrows(r)),
+            (_MENTIONS_COL, _mentions_subrows(r)),
+        ]
+        for k, (_h, _w, fn) in enumerate(extra_columns):
+            raw_cols.append((n_core + 1 + k, fn(r)))
+        block_rows = max(ROWS_PER_PAPER, max(len(sr) for _, sr in raw_cols))
+        col_subrows = [(col, _padded_subrows(sr, block_rows)) for col, sr in raw_cols]
+
         top = row
-        bottom = top + ROWS_PER_PAPER - 1
+        bottom = top + block_rows - 1
         shade_fill = PatternFill("solid", fgColor=_BLOCK_SHADE) if i % 2 else None
         status = r.get(status_key) or r.get("status", "")
         status_fill = PatternFill(
             "solid", fgColor=STATUS_FILL_COLORS.get(status, "FFFFFF")
         )
-        col_subrows = [
-            (_PAPER_COL, _padded_subrows(_paper_subrows(r))),
-            (_VENUE_COL, _padded_subrows(_venue_subrows(r))),
-            (_MATCH_COL, _padded_subrows(_match_subrows(r))),
-            (_MENTIONS_COL, _padded_subrows(_mentions_subrows(r))),
-        ]
-        for k, (_h, _w, fn) in enumerate(extra_columns):
-            col_subrows.append((n_core + 1 + k, _padded_subrows(fn(r))))
 
-        for sub in range(ROWS_PER_PAPER):
+        for sub in range(block_rows):
             rr = top + sub
             cell_border = block_top_border if sub == 0 else border   # divider on row 1
             # # and Status: value only on the block's first row; merged later.
@@ -421,7 +420,7 @@ def _write_results_sheet(ws, results, extra_columns=None, status_key="status"):
             ws.row_dimensions[rr].height = height
 
         # Merge # and Status down the block (after styling, so borders draw).
-        if ROWS_PER_PAPER > 1:
+        if block_rows > 1:
             ws.merge_cells(start_row=top, start_column=_NUM_COL,
                            end_row=bottom, end_column=_NUM_COL)
             ws.merge_cells(start_row=top, start_column=_STATUS_COL,
@@ -631,11 +630,12 @@ _LEGEND_SECTIONS = [
              "by' is how it matched (see the 'Matched by' section); 'Why "
              "flagged' is a plain-English reason. For clean / no_venue / error "
              "rows the first row shows a short note and the rest are blank."),
-            ("Mentioned in", "every venue name / URL",
+            ("Mentioned in", "one row per name / URL",
              "All venue names and URLs Semantic Scholar associates with the "
              "paper (canonical + alternates + the open-access PDF host); URLs "
              "are links. Useful for auditing a flag or untangling a merged "
-             "venue. '(+N more)' means the list was truncated to fit."),
+             "venue. Every mention is listed — the paper's block grows to as "
+             "many rows as it has mentions."),
             ("LLM assessment", "(LLM workbook only)",
              "Present only in bealls_llm_results.xlsx: the LLM's verdict "
              "(likely predatory / not / uncertain), the entity it matched, and "
