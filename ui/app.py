@@ -162,13 +162,13 @@ def _preview(xlsx_bytes: bytes, max_rows: int = 40):
         st.caption(f"(showing first {max_rows} of {len(rows) - 1} rows — download for the full sheet)")
 
 
-def show_input_quality(items, corpus):
+def show_input_quality(items, corpus, key):
     """Persistent panel showing the input-validation (data-quality) check + result.
 
     This is where the data-quality / Semantic-Scholar check is visible up front:
-    it runs the offline validators in-process on the loaded papers. (Deeper
-    checks — Crossref, repo-liveness — run inside the check itself and appear in
-    the run log.)
+    it runs the offline validators in-process on the loaded papers and offers the
+    report as a downloadable Excel. (Deeper checks — Crossref, repo-liveness —
+    run inside the check itself and appear in the run log + the result workbook.)
     """
     if not _VALIDATORS_OK:
         return
@@ -181,6 +181,10 @@ def show_input_quality(items, corpus):
     icon = "⚠️" if flagged else "✅"
     with st.expander(f"{icon} Input data quality ({what}) — {len(flagged)} of {len(items)} "
                      f"paper(s) flagged", expanded=bool(flagged)):
+        st.download_button("⬇️ Download report (.xlsx)",
+                           data=runners.build_input_quality_xlsx(items, flagged),
+                           file_name="input_data_quality.xlsx", key=f"dqdl_{key}",
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         if not flagged:
             st.caption("No issues found by the offline checks. (Not a guarantee of correctness; "
                        "Crossref / repo-liveness run during the check and show in the run log.)")
@@ -207,7 +211,7 @@ def section_tab(section: str):
 
     items = get_papers(f"{section}_{checker.id}", corpus=checker.corpus_based)
     if items is not None:
-        show_input_quality(items, checker.corpus_based)
+        show_input_quality(items, checker.corpus_based, key=checker.id)
 
     aux_lists = None
     extra_args = None

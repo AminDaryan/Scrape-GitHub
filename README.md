@@ -179,7 +179,8 @@ preview the result, and download the Excel.
 - **Beall's tab** takes Semantic Scholar paper records (with `publicationVenue`).
 - GitHub/LLM keys are read from `.env` exactly as the CLI does; LLM checks cost tokens.
 - As soon as papers load, an **Input data quality** panel shows the validation result
-  up front; during a run a **progress bar** tracks `[i/N]` and the live log line; and
+  up front and offers it as a **downloadable `.xlsx`** (one row per paper, "OK" or the
+  warnings); during a run a **progress bar** tracks `[i/N]` and the live log line; and
   status notifications appear as **toasts** (top-right) rather than permanent banners.
 
 Under the hood the UI runs each checker as a subprocess with the upload injected

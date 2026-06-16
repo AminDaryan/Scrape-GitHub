@@ -10,6 +10,7 @@ via an environment variable, then read back the Excel it produced.
 This module is import-safe (no Streamlit) so it can be unit-tested on its own.
 """
 
+import io
 import json
 import os
 import subprocess
@@ -19,6 +20,9 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
+
+import openpyxl
+from openpyxl.styles import Alignment, Font
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RC = REPO_ROOT / "requirement_checks"
@@ -196,6 +200,39 @@ def run_checker(checker: Checker, items: list, *, aux_lists: Optional[dict] = No
         output_path=out_path,
         output_bytes=output_bytes,
     )
+
+
+def build_input_quality_xlsx(items: list, flagged: list) -> bytes:
+    """Build a downloadable Excel of the input data-quality report (all papers).
+
+    *flagged* is the list of ``(index, paper, warnings)`` from
+    ``input_quality.validate_papers``; every paper gets a row, with "OK" when it
+    has no warnings.
+    """
+    flags_by_idx = {i: warns for i, _paper, warns in flagged}
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Input data quality"
+    headers = ["#", "Title", "Repo", "Venue", "DOI", "Data-quality warnings"]
+    widths = [5, 50, 45, 35, 24, 70]
+    for col, (header, width) in enumerate(zip(headers, widths), 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = Font(bold=True)
+        ws.column_dimensions[cell.column_letter].width = width
+    for i, paper in enumerate(items, 1):
+        pv = paper.get("publicationVenue") or {}
+        warns = flags_by_idx.get(i, [])
+        ws.cell(row=i + 1, column=1, value=i)
+        ws.cell(row=i + 1, column=2, value=paper.get("title") or "")
+        ws.cell(row=i + 1, column=3, value=paper.get("repo") or "")
+        ws.cell(row=i + 1, column=4, value=paper.get("venue") or pv.get("name") or "")
+        ws.cell(row=i + 1, column=5, value=(paper.get("externalIds") or {}).get("DOI") or "")
+        wcell = ws.cell(row=i + 1, column=6, value="OK" if not warns else "\n".join(warns))
+        wcell.alignment = Alignment(wrap_text=True, vertical="top")
+    ws.freeze_panes = "A2"
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
 
 
 def normalize_upload(parsed) -> list:
