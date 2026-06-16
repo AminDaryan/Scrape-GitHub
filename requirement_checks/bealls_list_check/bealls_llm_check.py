@@ -1,37 +1,34 @@
-"""Optional LLM second pass over the Beall's List check (recall booster).
+"""Optional LLM pass that helps you RESOLVE the 'review' papers.
 
-The deterministic matcher in ``match.py`` is precise but structurally misses
-cases it cannot see: a journal whose Semantic Scholar URL is on an *alias*
-domain (e.g. a paper in *WSEAS Transactions* whose S2 URL is ``worldses.org``
-while Beall lists the publisher under ``wseas.org``), or where the list records
-a *publisher* name but the paper carries the *journal* name.  An LLM with world
-knowledge closes that gap.
+The deterministic matcher in ``match.py`` flags some papers as ``review`` — a
+soft/contested match (fuzzy name, alternate URL, hijacked-name, …) that a human
+must judge.  Going through them by hand is slow, so this pass asks an LLM for a
+concrete recommendation on each one, grounded with world knowledge and the
+nearest Beall's List entries.
 
 What this module does
 ---------------------
 1. Run the deterministic check (``match.py``) over the whole corpus.
-2. Collect the DISTINCT venues (deduplicated by normalized name + domain +
-   ISSN), so the LLM is asked once per venue, not once per paper.
-3. For every distinct venue, ask the LLM — grounded with (a) the nearest
-   Beall's List entries, (b) Beall's "how to recognize predatory journals"
-   criteria, and (c) its own knowledge — whether the venue or its publisher is
-   on Beall's List / clearly predatory.
-4. Fold the verdict back in:
-     * a venue currently ``clean``/``no_venue`` that the LLM judges predatory
-       is promoted to ``review`` (a human still confirms — we never assert
-       ``on_list`` from the LLM, so recall rises without blind trust);
-     * every checked paper gets an "LLM assessment" column recording the
-       verdict + reason, clearly tagged as LLM-decided.
+2. Take ONLY the ``review`` papers and collect their DISTINCT venues
+   (deduplicated by normalized name + domain + ISSN), so the LLM is asked once
+   per venue, not once per paper.
+3. For every such venue, ask the LLM — grounded with (a) the nearest Beall's
+   List entries, (b) Beall's "how to recognize predatory journals" criteria, and
+   (c) its own knowledge — whether the venue or its publisher is predatory.
+4. Write that verdict into an "LLM review" column on the Flagged-only sheet, as
+   a recommendation a human can act on: Predatory (exclude) / Legitimate (keep)
+   / Uncertain (check), plus a one-line reason.  The LLM never changes a
+   deterministic verdict and never asserts ``on_list``.
 5. Write ``results/bealls_llm_results.xlsx`` (same layout as the deterministic
-   workbook, plus the LLM column and an "LLM second pass" token counter in the
-   Summary).
+   workbook, plus that one column and an "LLM review" section in the Summary).
 
-This is OPT-IN and costs LLM tokens.  It uses whatever provider/deployment your
-``.env`` configures (``LLM_PROVIDER`` / ``AZURE_OPENAI_DEPLOYMENT``).
+This is OPT-IN and costs LLM tokens (but only for the review backlog, which is
+small).  It uses whatever provider/deployment your ``.env`` configures
+(``LLM_PROVIDER`` / ``AZURE_OPENAI_DEPLOYMENT``).
 
 Usage:
-  python bealls_llm_check.py            # all distinct venues
-  python bealls_llm_check.py --limit 50 # first 50 distinct venues (cheap test)
+  python bealls_llm_check.py            # all 'review' venues
+  python bealls_llm_check.py --limit 50 # first 50 'review' venues (cheap test)
 """
 
 import argparse
@@ -188,34 +185,28 @@ def _venue_key(r):
 
 
 def run_llm_pass(results, index, *, client, deployment, token_usage, limit=None):
-    """Assess every distinct venue with the LLM and fold verdicts into *results*.
+    """Assess each distinct 'review' venue with the LLM and fold verdicts in.
 
-    Returns an ``llm_stats`` dict for the Summary sheet.
+    Only ``review`` papers are considered (those are the ones a human must
+    resolve).  Returns an ``llm_stats`` dict for the Summary sheet.
     """
-    # Group result rows by venue; skip venues with no identifying info at all.
+    # Group ONLY the 'review' rows by venue; skip any with no identifying info.
     groups = {}
     for r in results:
-        # Remember the DETERMINISTIC verdict before we possibly promote it, so
-        # the disagreement sheet can contrast deterministic vs LLM.
-        r["det_status"] = r["status"]
-        if r["status"] == "out_of_scope":
-            continue                       # whitelist excluded it — don't spend LLM on it
+        if r["status"] != "review":
+            continue
         key = _venue_key(r)
         if not any(key):
             continue
         groups.setdefault(key, []).append(r)
 
-    # Check the actionable venues (already on_list / review) FIRST, so that even
-    # a --limit run always annotates the flagged rows (the ones a human reviews).
-    def _flagged_first(key):
-        return 0 if groups[key][0]["status"] in ("on_list", "review") else 1
-    keys = sorted(groups, key=_flagged_first)
+    keys = list(groups)
     if limit is not None:
         keys = keys[:limit]
-    print(f"LLM pass: {len(keys)} distinct venues to check "
-          f"(of {len(groups)} total) using {deployment}")
+    print(f"LLM review pass: {len(keys)} distinct 'review' venue(s) to assess "
+          f"using {deployment}")
 
-    llm_yes = promoted = 0
+    counts = {"yes": 0, "no": 0, "uncertain": 0}
     for n, key in enumerate(keys, 1):
         rows = groups[key]
         rep = rows[0]
@@ -230,63 +221,46 @@ def run_llm_pass(results, index, *, client, deployment, token_usage, limit=None)
         verdict = assess_venue(venue_info, candidates, client=client,
                                deployment=deployment, token_usage=token_usage)
         print(verdict["on_bealls_list"])
-        if verdict["on_bealls_list"] == "yes":
-            llm_yes += 1
+        counts[verdict["on_bealls_list"]] = counts.get(verdict["on_bealls_list"], 0) + 1
 
         for r in rows:
             r["llm_verdict"] = verdict["on_bealls_list"]
             r["llm_matched"] = verdict["matched_entity"]
             r["llm_reason"] = verdict["reason"]
-            # Recall: promote a clean/no_venue venue the LLM flags to review.
-            if verdict["on_bealls_list"] == "yes" and r["status"] in ("clean", "no_venue"):
-                r["status"] = "review"
-                r["matched_name"] = r.get("matched_name") or verdict["matched_entity"] or "(LLM second pass)"
-                r["review_reason"] = ("Flagged by the LLM second pass — verify "
-                                      "(see the LLM assessment column).")
-                promoted += 1
         time.sleep(0.05)
 
     return {
         "model": deployment,
-        "venues_checked": len(keys),
-        "llm_yes": llm_yes,
-        "promoted": promoted,
+        "review_venues_checked": len(keys),
+        "llm_yes": counts["yes"],
+        "llm_no": counts["no"],
+        "llm_uncertain": counts["uncertain"],
     }
 
 
-# Verdict -> short label for the first LLM-column row.
+# LLM verdict -> the actionable recommendation shown in the 'LLM review' column.
 _VERDICT_LABEL = {
-    "yes": "LLM: likely predatory",
-    "no": "LLM: not predatory",
-    "uncertain": "LLM: uncertain",
+    "yes": "Predatory — recommend EXCLUDE",
+    "no": "Legitimate — recommend KEEP",
+    "uncertain": "Uncertain — check by hand",
 }
 
 
 def llm_subrows(r):
-    """Sub-rows for the 'LLM assessment' extra column (blank if not checked)."""
+    """Sub-rows for the 'LLM review' column (blank unless this is a review paper).
+
+    Verdict + (matched entity) + reason, so a reviewer can resolve the paper in
+    one glance.  Only 'review' rows carry an ``llm_verdict``.
+    """
     verdict = r.get("llm_verdict")
     if not verdict:
         return [("", None)]
-    rows = [(_VERDICT_LABEL.get(verdict, f"LLM: {verdict}"), None)]
+    rows = [(f"Verdict: {_VERDICT_LABEL.get(verdict, verdict)}", None)]
     if r.get("llm_matched"):
-        rows.append((f"LLM match: {r['llm_matched']}", None))
+        rows.append((f"Matched: {r['llm_matched']}", None))
     if r.get("llm_reason"):
-        rows.append((f"LLM reason: {r['llm_reason']}", None))
+        rows.append((f"Reason: {r['llm_reason']}", None))
     return rows
-
-
-def disagrees(r):
-    """True if the LLM and the deterministic pass reached opposite conclusions.
-
-    Only confident LLM verdicts count. Compares 'did the deterministic pass flag
-    it?' (det_status in on_list/review) with 'did the LLM flag it?' (verdict ==
-    yes).  These are the rows most worth a human's attention.
-    """
-    verdict = r.get("llm_verdict")
-    if verdict not in ("yes", "no"):
-        return False
-    det_flagged = r.get("det_status") in ("on_list", "review")
-    return det_flagged != (verdict == "yes")
 
 
 def main(argv=None):
@@ -321,24 +295,18 @@ def main(argv=None):
                              token_usage=token_usage, limit=args.limit)
     print_token_usage_report(token_usage, AZURE_OPENAI_DEPLOYMENT)
 
-    # Rows where the LLM and the deterministic pass disagree (LLM-found first).
-    disagreements = sorted(
-        (r for r in results if disagrees(r)),
-        key=lambda r: 0 if r.get("det_status") in ("clean", "no_venue") else 1,
-    )
-    llm_stats["disagreements"] = len(disagreements)
-
     out_path, n_flagged = det.save_workbook(
         results, snapshot["meta"], sorted(corpus_files),
-        extra_columns=[("LLM assessment", 64, llm_subrows)],
+        flagged_extra_columns=[("LLM review", 64, llm_subrows)],
         token_usage=token_usage,
         llm_stats=llm_stats,
-        disagreement_results=disagreements,
         results_filename="bealls_llm_results.xlsx",
     )
+    rv = llm_stats["review_venues_checked"]
     print(f"\nDone in {time.time() - started:.1f}s. "
-          f"LLM promoted {llm_stats['promoted']} paper(s) to review; "
-          f"{len(disagreements)} LLM/deterministic disagreement(s). "
+          f"Assessed {rv} 'review' venue(s): "
+          f"{llm_stats['llm_yes']} exclude / {llm_stats['llm_no']} keep / "
+          f"{llm_stats['llm_uncertain']} uncertain. "
           f"Flagged (on_list + review): {n_flagged}")
     print(f"Saved -> {out_path}")
 

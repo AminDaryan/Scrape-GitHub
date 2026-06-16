@@ -2,15 +2,19 @@
 
 Loads every Semantic Scholar dump in the corpus folder, matches each paper's
 publication venue against the vendored Beall's List snapshot, and writes one
-combined Excel workbook with three sheets:
+combined Excel workbook:
 
-  * Results      — one row per paper, colored by status, with full evidence
-                   (what matched, on which signal, at what confidence) so any
-                   flag can be audited by hand.
-  * Summary      — counts per status + per Beall list, and the run metadata
-                   (snapshot date, corpus files) needed to interpret them.
+  * Results      — one multi-row block per paper, colored by status, with full
+                   evidence (what matched, why) so any flag can be audited.
   * Flagged only — just the on_list + review rows, so you are not scrolling
                    tens of thousands of clean/preprint rows to find the hits.
+                   (The optional LLM pass adds an 'LLM review' column here.)
+  * Data quality — only the papers whose Semantic Scholar record looks suspect
+                   (missing/merged venue, malformed DOI/ISSN, …), each shown
+                   with the specific issue — so a verdict isn't trusted blindly.
+  * Summary      — counts per status + per Beall list, and the run metadata
+                   (snapshot date, corpus files) needed to interpret them.
+  * Legend       — a plain-language data dictionary for every column and value.
 
 Run the scraper first (scrape_bealls_list.py) to produce the snapshot, then:
   python bealls_list_check.py
@@ -127,26 +131,36 @@ def load_corpus():
 # =============================================================================
 
 # Per-paper layout: each paper occupies a BLOCK of ROWS_PER_PAPER rows.  The #
-# and Status cells are merged down the block; the Paper / Venue / Match columns
-# each show one labelled field per row (built by the _*_subrows helpers below),
-# so every field is its own selectable row instead of text crammed into one
-# cell.  Only the DOI row (-> article) and the Matched row (-> Beall entry) are
-# hyperlinks.
+# and Status cells are merged down the block; the Paper / Semantic Scholar venue
+# / Mentioned in / Match columns each show one labelled field per row (built by
+# the _*_subrows helpers below), so every field is its own selectable row instead
+# of text crammed into one cell.  Only the DOI row (-> article) and the 'Listed
+# as' row (-> Beall entry) are hyperlinks.  Paper / Semantic Scholar venue /
+# Mentioned in all describe the same paper, so they share a merged "Paper
+# specifications" header band (see _write_results_header).  Data quality is no
+# longer a column — it gets its own sheet.
 COLUMNS = [
-    ("#",            6),
-    ("Status",       12),
-    ("Paper",        60),
-    ("Venue",        44),
-    ("Match",        60),
-    ("Mentioned in", 50),
-    ("Data quality", 52),
+    ("#",                      6),
+    ("Status",                 12),
+    ("Paper",                  60),
+    ("Semantic Scholar venue", 44),
+    ("Mentioned in",           40),
+    ("Match",                  60),
 ]
 
 # 1-based column indices, named so the writer reads clearly.
 (_NUM_COL, _STATUS_COL, _PAPER_COL, _VENUE_COL,
- _MATCH_COL, _MENTIONS_COL, _DQ_COL) = 1, 2, 3, 4, 5, 6, 7
+ _MENTIONS_COL, _MATCH_COL) = 1, 2, 3, 4, 5, 6
 
-# Each paper block is this many rows tall (one labelled field per row).
+# These three columns sit under one merged "Paper specifications" header band on
+# header row 1; every other column's header spans both header rows.
+_PAPER_SPEC_COLS = (_PAPER_COL, _VENUE_COL, _MENTIONS_COL)
+_PAPER_SPEC_LABEL = "Paper specifications"
+HEADER_ROWS = 2
+
+# Each paper block is this many rows tall (one labelled field per row).  Only the
+# 'Mentioned in' column ever makes a block taller — it grows to list every name;
+# the other columns keep their fixed fields and pad the extra rows with blanks.
 ROWS_PER_PAPER = 4
 
 _HEADER_FILL = PatternFill("solid", fgColor="2F5496")
@@ -285,14 +299,15 @@ _NONMATCH_NOTES = {
 
 
 def _match_subrows(r):
-    """Four labelled rows for the Match column.
+    """Three labelled rows for the Match column.
 
     For a flagged paper:
       Listed as   — the Beall's List entry that matched (links to it)
       Beall list  — which Beall list it came from, in plain language
-      Matched by  — how it matched, in plain language (see the Legend)
-      Why flagged — a plain reason (a high-confidence note for on_list, or the
-                    verify-by-hand reason for review)
+      Why flagged — one plain-English line saying both HOW it matched and why
+                    that means what it does (high-confidence for on_list, or the
+                    verify-by-hand reason for review).  ('Matched by' and 'Why
+                    flagged' used to be separate rows saying the same thing.)
     For clean / no_venue / error rows the first row carries a short note and the
     rest are blank.
     """
@@ -302,27 +317,29 @@ def _match_subrows(r):
     elif status == "error":
         note = f"Error: {r.get('matched_on') or 'could not process record'}"
     else:
-        reason = (r.get("review_reason")
-                  or "Appears on Beall's List — a high-confidence match.")
+        if status == "on_list":
+            why = (f"{_signal_plain(r.get('matched_on'))} — so it appears on "
+                   "Beall's List (high-confidence match).")
+        else:
+            why = r.get("review_reason") or "Soft match — verify by hand."
         return [
             (f"Listed as: {r.get('matched_name') or '(matched)'}", r.get("matched_url") or None),
             (f"Beall list: {_list_plain(r.get('list_source'))}", None),
-            (f"Matched by: {_signal_plain(r.get('matched_on'))}", None),
-            (f"Why flagged: {reason}", None),
+            (f"Why flagged: {why}", None),
         ]
-    return [(note, None), ("", None), ("", None), ("", None)]
+    return [(note, None), ("", None), ("", None)]
 
 
 def _mentions_subrows(r):
-    """One row per venue name / URL the paper was mentioned under (URLs link).
+    """One row per journal / publisher / venue NAME the paper is recorded under.
 
-    Returns ALL mentions — the paper's block grows to fit them — so nothing is
-    hidden, however many there are.
+    Names only (no links).  Returns ALL of them — this is the one column whose
+    paper block grows to fit, so nothing is hidden however many names there are.
     """
     mentions = r.get("mentions") or []
     if not mentions:
         return [("—", None)]
-    return [(m, m if m.lower().startswith("http") else None) for m in mentions]
+    return [(m, None) for m in mentions]
 
 
 def _data_quality_subrows(r):
@@ -353,35 +370,63 @@ def _padded_subrows(subrows, n):
     return subrows
 
 
+def _write_results_header(ws, columns, border):
+    """Write the two-row header used by the Results / Flagged / Data-quality sheets.
+
+    Header row 1 carries a single merged "Paper specifications" band across the
+    Paper / Semantic Scholar venue / Mentioned in columns; row 2 carries those
+    three sub-headers.  Every other column's header (``#``, ``Status``, ``Match``
+    and any *extra_columns*) spans both rows via a vertical merge.  Cells are
+    styled before merging so borders render across the merged ranges.  Freezes
+    everything below the header (``A3``).
+    """
+    spec = set(_PAPER_SPEC_COLS)
+    for col, (header, width) in enumerate(columns, 1):
+        ws.column_dimensions[get_column_letter(col)].width = width
+        if col in spec:                                  # sub-header on row 2
+            c = ws.cell(row=2, column=col, value=header)
+            c.font, c.fill, c.alignment, c.border = _HEADER_FONT, _HEADER_FILL, _CENTER, border
+            band_cell = ws.cell(row=1, column=col)       # part of the band; style for borders
+            band_cell.fill, band_cell.border = _HEADER_FILL, border
+        else:                                            # header spans both rows
+            c = ws.cell(row=1, column=col, value=header)
+            c.font, c.fill, c.alignment, c.border = _HEADER_FONT, _HEADER_FILL, _CENTER, border
+            c2 = ws.cell(row=2, column=col)
+            c2.fill, c2.border = _HEADER_FILL, border
+            ws.merge_cells(start_row=1, start_column=col, end_row=2, end_column=col)
+
+    first, last = _PAPER_SPEC_COLS[0], _PAPER_SPEC_COLS[-1]
+    band = ws.cell(row=1, column=first, value=_PAPER_SPEC_LABEL)
+    band.font, band.fill, band.alignment, band.border = (
+        _HEADER_FONT, _HEADER_FILL, _CENTER, border)
+    ws.merge_cells(start_row=1, start_column=first, end_row=1, end_column=last)
+
+    ws.row_dimensions[1].height = 22
+    ws.row_dimensions[2].height = 22
+    ws.freeze_panes = "A3"
+
+
 def _write_results_sheet(ws, results, extra_columns=None, status_key="status"):
     """Write the Results sheet: one multi-row block per paper.
 
-    Each paper spans ROWS_PER_PAPER rows.  The # and Status cells are merged
-    down the block; the Paper / Venue / Match / Mentioned-in columns (and any
+    Each paper spans at least ROWS_PER_PAPER rows (more only when 'Mentioned in'
+    has more names than that).  The # and Status cells are merged down the block;
+    the Paper / Semantic Scholar venue / Mentioned in / Match columns (and any
     *extra_columns*) show one labelled field per row.  Cells are styled *before*
     the merge so borders render across the merged ranges.
 
     extra_columns: optional list of ``(header, width, subrows_fn)`` appended
     after the core columns.  ``subrows_fn(result)`` returns
-    ``[(text, url_or_None), ...]`` (padded/truncated to ROWS_PER_PAPER).  The LLM
-    pass uses this to add an 'LLM assessment' column without duplicating this
-    writer.
-    status_key: which result field drives the Status cell + row color.  The
-    'LLM vs deterministic' sheet passes ``"det_status"`` so it shows the
-    *deterministic* verdict next to the LLM one.
+    ``[(text, url_or_None), ...]``.  The LLM pass uses this to add an 'LLM review'
+    column to the Flagged-only sheet, and the Data-quality sheet uses it to add a
+    'Data-quality issue' column — without duplicating this writer.
+    status_key: which result field drives the Status cell + row color.
     """
     extra_columns = extra_columns or []
     columns = list(COLUMNS) + [(h, w) for (h, w, _fn) in extra_columns]
 
     border = _border()
-    for col, (header, width) in enumerate(columns, 1):
-        cell = ws.cell(row=1, column=col, value=header)
-        cell.font, cell.fill, cell.alignment, cell.border = (
-            _HEADER_FONT, _HEADER_FILL, _CENTER, border
-        )
-        ws.column_dimensions[get_column_letter(col)].width = width
-    ws.row_dimensions[1].height = 26
-    ws.freeze_panes = "A2"
+    _write_results_header(ws, columns, border)
 
     link_font = Font(name="Arial", size=9, color="0563C1", underline="single")
     status_font = Font(name="Arial", size=9, bold=True)
@@ -392,17 +437,16 @@ def _write_results_sheet(ws, results, extra_columns=None, status_key="status"):
                               top=Side(style="medium", color="7F9BC4"))
 
     n_core = len(COLUMNS)
-    row = 2
+    row = HEADER_ROWS + 1                                # data starts below the 2-row header
     for i, r in enumerate(results):
         # Build each column's sub-rows first, then size the block to the tallest
-        # one — so 'Mentioned in' can list EVERY mention (the block grows to fit),
-        # while Paper/Venue/Match keep their fixed fields and pad with blanks.
+        # one — so 'Mentioned in' can list EVERY name (the block grows to fit),
+        # while Paper / venue / Match keep their fixed fields and pad with blanks.
         raw_cols = [
             (_PAPER_COL, _paper_subrows(r)),
             (_VENUE_COL, _venue_subrows(r)),
             (_MATCH_COL, _match_subrows(r)),
             (_MENTIONS_COL, _mentions_subrows(r)),
-            (_DQ_COL, _data_quality_subrows(r)),
         ]
         for k, (_h, _w, fn) in enumerate(extra_columns):
             raw_cols.append((n_core + 1 + k, fn(r)))
@@ -502,9 +546,10 @@ def _write_summary_sheet(ws, results, snapshot_meta, corpus_files,
     kv(row, "Records with data-quality warnings",
        sum(1 for r in results if r.get("data_quality"))); row += 2
 
-    # Breakdown by HOW each flagged paper matched (the 'Matched by' signal),
-    # e.g. how many were 'an alternate web link points to a listed site'.
-    header(row, "Flagged papers by 'Matched by' signal", "Count"); row += 1
+    # Breakdown by HOW each flagged paper matched (the signal now folded into the
+    # 'Why flagged' line), e.g. how many were 'an alternate web link points to a
+    # listed site'.
+    header(row, "Flagged papers by how the venue matched", "Count"); row += 1
     for mo in sorted(signal_counts, key=lambda k: (-signal_counts[k], k)):
         kv(row, f"  {_signal_plain(mo)}  [{mo}]", signal_counts[mo]); row += 1
     if not signal_counts:
@@ -519,20 +564,22 @@ def _write_summary_sheet(ws, results, snapshot_meta, corpus_files,
         kv(row, "  (none)", 0); row += 1
     row += 1
 
-    # LLM second pass — only present when bealls_llm_check.py built the workbook.
+    # LLM review pass — only present when bealls_llm_check.py built the workbook.
+    # It assesses ONLY the 'review' papers and writes a recommendation into the
+    # Flagged-only sheet's 'LLM review' column.
     if token_usage is not None or llm_stats:
         llm_stats = llm_stats or {}
-        header(row, "LLM second pass", "Value"); row += 1
+        header(row, "LLM review (review papers only)", "Value"); row += 1
         if llm_stats.get("model"):
             kv(row, "Model / deployment", llm_stats["model"]); row += 1
-        if "venues_checked" in llm_stats:
-            kv(row, "Distinct venues checked", llm_stats["venues_checked"]); row += 1
+        if "review_venues_checked" in llm_stats:
+            kv(row, "Distinct 'review' venues assessed", llm_stats["review_venues_checked"]); row += 1
         if "llm_yes" in llm_stats:
-            kv(row, "Venues the LLM judged predatory", llm_stats["llm_yes"]); row += 1
-        if "promoted" in llm_stats:
-            kv(row, "Papers clean/no_venue -> review by LLM", llm_stats["promoted"]); row += 1
-        if "disagreements" in llm_stats:
-            kv(row, "LLM vs deterministic disagreements", llm_stats["disagreements"]); row += 1
+            kv(row, "  -> recommend EXCLUDE (predatory)", llm_stats["llm_yes"]); row += 1
+        if "llm_no" in llm_stats:
+            kv(row, "  -> recommend KEEP (legitimate)", llm_stats["llm_no"]); row += 1
+        if "llm_uncertain" in llm_stats:
+            kv(row, "  -> uncertain (check by hand)", llm_stats["llm_uncertain"]); row += 1
         if token_usage is not None:
             kv(row, "LLM requests", token_usage.request_count); row += 1
             kv(row, "Input tokens", f"{token_usage.prompt_tokens:,}"); row += 1
@@ -593,12 +640,12 @@ _LEGEND_SECTIONS = [
              "paper's venue is not in it, so the paper was skipped (not "
              "matched against the list at all)."),
             ("error", "—", "The record could not be processed; the Python "
-             "error is shown in the 'Matched On' column."),
+             "error is shown in the first row of the 'Match' column."),
         ],
     },
     {
-        "title": "'Matched by' — how the venue was matched to Beall's List",
-        "headers": ("How it matched (shown in the 'Match' column)",
+        "title": "How the venue matched (shown inside the 'Why flagged' line)",
+        "headers": ("How it matched (part of the 'Why flagged' text)",
                     "Result", "What it means — with a fixed real example"),
         # Rows are generated from SIGNAL_INFO so this table always matches the
         # phrases shown in the Match column.  Examples are constant (corpus-
@@ -634,47 +681,66 @@ _LEGEND_SECTIONS = [
         "title": "Layout of the Results / Flagged-only sheets",
         "headers": ("Column", "Rows (top -> bottom)", "Meaning"),
         "rows": [
-            ("(blocks)", "4 rows per paper", "Each paper occupies a 4-row "
-             "block; alternating blocks are lightly shaded so they are easy to "
-             "tell apart."),
+            ("(blocks)", "4 rows per paper", "Each paper occupies a block that "
+             "is 4 rows tall for every column EXCEPT 'Mentioned in', which grows "
+             "to fit all its names (so a paper with 10 names is 10 rows tall, and "
+             "the other columns simply leave the extra rows blank). Alternating "
+             "blocks are lightly shaded so they are easy to tell apart."),
             ("#", "(merged)", "Sequential paper number; the cell spans the "
              "paper's whole block."),
             ("Status", "(merged)", "Classification of the paper (see the Status "
              "section); spans the block and is colored by status."),
+            ("Paper specifications", "(header band)",
+             "A grouping header over the next three columns (Paper, Semantic "
+             "Scholar venue, Mentioned in) — everything describing the paper "
+             "itself, as opposed to why it was flagged ('Match')."),
             ("Paper", "Title / Year / Source / DOI",
              "Paper identity, one field per row. 'Source' is which corpus JSON "
              "the paper came from. The DOI row is a link to the article at its "
              "publisher."),
-            ("Venue", "Venue / Type / Domain / ISSN",
-             "The publication venue from Semantic Scholar, one field per row. "
-             "'Type' is journal/conference (conferences are out of scope); "
-             "'Domain' is the venue website host — the main match key."),
-            ("Match", "Listed as / Beall list / Matched by / Why flagged",
+            ("Semantic Scholar venue", "Venue / Type / Domain / ISSN",
+             "The publication venue exactly as Semantic Scholar reports it, one "
+             "field per row. 'Type' is journal/conference (conferences are out "
+             "of scope); 'Domain' is the venue website host — the main match "
+             "key. (Named 'Semantic Scholar venue' to distinguish it from the "
+             "'Mentioned in' names beside it.)"),
+            ("Mentioned in", "one row per name",
+             "All the journal / publisher / venue NAMES Semantic Scholar ties to "
+             "the paper (canonical name + any alternate names). Names only — no "
+             "web links. Useful for auditing a flag or untangling a merged-venue "
+             "record. Every name is listed — this is the one column whose block "
+             "grows to fit them all."),
+            ("Match", "Listed as / Beall list / Why flagged",
              "Why the paper was flagged, one field per row. 'Listed as' is the "
              "Beall's List entry that matched (a link to it); 'Beall list' is "
-             "which list it came from (see the 'Beall list' section); 'Matched "
-             "by' is how it matched (see the 'Matched by' section); 'Why "
-             "flagged' is a plain-English reason. For clean / no_venue / error "
-             "rows the first row shows a short note and the rest are blank."),
-            ("Mentioned in", "one row per name / URL",
-             "All venue names and URLs Semantic Scholar associates with the "
-             "paper (canonical + alternates + the open-access PDF host); URLs "
-             "are links. Useful for auditing a flag or untangling a merged "
-             "venue. Every mention is listed — the paper's block grows to as "
-             "many rows as it has mentions."),
-            ("Data quality", "warnings (or 'OK')",
-             "Pre-flight checks on the Semantic Scholar record so a wrong "
-             "verdict isn't trusted blindly: missing venue metadata, malformed "
-             "DOI/ISSN, encoding artifacts, 'merged venues' (URLs spanning "
-             "several publishers), and — when enabled — a Crossref cross-check "
-             "where the venue/ISSN disagrees with the publisher-deposited "
-             "metadata. Flagged records are also collected on the 'Data "
-             "quality' sheet. Empty/OK is not a guarantee of correctness."),
-            ("LLM assessment", "(LLM workbook only)",
-             "Present only in bealls_llm_results.xlsx: the LLM's verdict "
-             "(likely predatory / not / uncertain), the entity it matched, and "
-             "its reason. Clearly tagged 'LLM' — it never sets on_list on its "
-             "own; an LLM 'yes' on a clean/no_venue venue makes it 'review'."),
+             "which list it came from (see the 'Beall list' section); 'Why "
+             "flagged' is a single plain-English line saying both HOW it matched "
+             "(see the 'How the venue matched' section) and what that means. For "
+             "clean / no_venue / error rows the first row shows a short note and "
+             "the rest are blank."),
+            ("LLM review", "(Flagged-only, LLM workbook)",
+             "Present only on the Flagged-only sheet of bealls_llm_results.xlsx, "
+             "and only for 'review' papers: the LLM's recommendation — Predatory "
+             "(exclude) / Legitimate (keep) / Uncertain (check) — plus the entity "
+             "it matched and a one-line reason, to help you resolve each review "
+             "paper. The LLM never sets 'on_list' on its own."),
+        ],
+    },
+    {
+        "title": "The 'Data quality' sheet",
+        "headers": ("Column", "Rows (top -> bottom)", "Meaning"),
+        "rows": [
+            ("(which papers)", "one block per paper",
+             "Lists ONLY the papers whose Semantic Scholar record looks suspect "
+             "— so a verdict above isn't trusted blindly. Papers with clean "
+             "metadata do not appear here."),
+            ("Data-quality issue", "one row per issue",
+             "The specific problem(s) found: no venue info, a malformed "
+             "DOI/ISSN, leftover HTML codes in the name, a 'merged venue' (one "
+             "record pointing at several publishers' sites), and — when the "
+             "Crossref cross-check is enabled — a venue/ISSN that disagrees with "
+             "the publisher-deposited record. Appearing here is a 'check this by "
+             "hand' flag, not proof the verdict is wrong."),
         ],
     },
     {
@@ -689,8 +755,10 @@ _LEGEND_SECTIONS = [
              "on the list,\" not \"is predatory.\" (MDPI is in the site's "
              "'Excluded — decide after reading' section, so it is NOT flagged.)",),
             ("This check classifies the VENUE, not the paper's content/quality.",),
-            ("It uses NO LLM (0 tokens). Every result is deterministic and "
-             "auditable from the Matched On / Matched Entry columns.",),
+            ("The base check uses NO LLM (0 tokens). Every result is "
+             "deterministic and auditable from the 'Match' column. The optional "
+             "LLM pass only ADDS recommendations for the 'review' papers (the "
+             "'LLM review' column); it never changes a deterministic verdict.",),
             ("no_venue is mostly arXiv/preprints, which have no journal "
              "publisher and so cannot be on Beall's List.",),
         ],
@@ -745,37 +813,32 @@ def _write_legend_sheet(ws):
 
 
 def save_workbook(results, snapshot_meta, corpus_files, *,
-                  extra_columns=None, token_usage=None, llm_stats=None,
-                  disagreement_results=None, results_filename=None):
+                  flagged_extra_columns=None, token_usage=None, llm_stats=None,
+                  results_filename=None):
     """Build and save the combined workbook; return ``(path, n_flagged)``.
 
     The keyword-only args let the optional LLM pass (bealls_llm_check.py) reuse
-    this exact writer: *extra_columns* adds the 'LLM assessment' column,
-    *token_usage* / *llm_stats* feed the Summary's 'LLM second pass' section,
-    *disagreement_results* (if given) is written to an 'LLM vs deterministic'
-    sheet showing the deterministic verdict next to the LLM one, and
-    *results_filename* writes to a different file than the default.
+    this exact writer: *flagged_extra_columns* adds extra column(s) to the
+    Flagged-only sheet only (the LLM pass uses it for the 'LLM review' column, so
+    the verdict sits with the papers a human actually reviews); *token_usage* /
+    *llm_stats* feed the Summary's 'LLM review' section; *results_filename*
+    writes to a different file than the default.
     """
     wb = openpyxl.Workbook()
     ws_results = wb.active
     ws_results.title = "Results"
-    _write_results_sheet(ws_results, results, extra_columns=extra_columns)
+    _write_results_sheet(ws_results, results)
 
     ws_flagged = wb.create_sheet("Flagged only")
-    n_flagged = _write_flagged_sheet(ws_flagged, results, extra_columns=extra_columns)
+    n_flagged = _write_flagged_sheet(ws_flagged, results, extra_columns=flagged_extra_columns)
 
-    # Records with any data-quality warning (suspect S2 metadata) — for review.
+    # Its own sheet (not a column): only the papers whose Semantic Scholar record
+    # has a data-quality issue, each shown with the specific issue(s).
     dq_flagged = [r for r in results if r.get("data_quality")]
     if dq_flagged:
         ws_dq = wb.create_sheet("Data quality")
-        _write_results_sheet(ws_dq, dq_flagged, extra_columns=extra_columns)
-
-    if disagreement_results is not None:
-        ws_disagree = wb.create_sheet("LLM vs deterministic")
-        # Status column shows the DETERMINISTIC verdict; the LLM column shows the
-        # LLM's — so each row makes the disagreement explicit.
-        _write_results_sheet(ws_disagree, disagreement_results,
-                             extra_columns=extra_columns, status_key="det_status")
+        _write_results_sheet(ws_dq, dq_flagged,
+                             extra_columns=[("Data-quality issue", 60, _data_quality_subrows)])
 
     ws_summary = wb.create_sheet("Summary")
     _write_summary_sheet(ws_summary, results, snapshot_meta, corpus_files,

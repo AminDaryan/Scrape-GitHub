@@ -21,6 +21,7 @@ Design choices that keep results *truthful*:
     yields ``review``.
 """
 
+import re
 import sys
 from pathlib import Path
 
@@ -147,26 +148,33 @@ def _paper_url(paper, ext):
     return oa.get("url") or paper.get("url") or ""
 
 
-def _collect_mentions(paper, pv):
-    """Every venue name + URL this paper is mentioned under, deduped in order.
+# A mention should be a human-readable venue NAME, never a web address.  This
+# catches "http(s)://…", "www.…", and bare host strings like "scirp.org" or
+# "link.springer.com" (no spaces, dotted) so URLs never leak into the column.
+_URLISH_RE = re.compile(r"^(https?://|www\.)|^[\w-]+(\.[\w-]+)+(/|$)", re.IGNORECASE)
 
-    Surfaced as its own column so a reviewer can see *all* the names/links
-    Semantic Scholar associates with the paper (canonical + alternates + the
-    open-access PDF host), which is useful when auditing a flagged paper or
-    untangling a merged-venue record.
+
+def _looks_like_url(s):
+    return bool(_URLISH_RE.match(s.strip()))
+
+
+def _collect_mentions(paper, pv):
+    """Every journal / publisher / venue NAME this paper is recorded under.
+
+    Names only — the canonical venue name, the publication-venue name, and any
+    alternate names Semantic Scholar lists — deduped in order.  Web addresses are
+    deliberately excluded (a reviewer wants readable venue names here, not URLs),
+    and any URL-looking string is skipped.  Surfaced as its own column so a
+    reviewer can see all the venue names S2 ties to the paper, which helps when
+    auditing a flag or untangling a merged-venue record.
     """
-    oa = paper.get("openAccessPdf") or {}
-    candidates = (
-        [paper.get("venue"), pv.get("name")]
-        + list(pv.get("alternate_names") or [])
-        + [pv.get("url")]
-        + list(pv.get("alternate_urls") or [])
-        + [oa.get("url")]
-    )
+    candidates = [paper.get("venue"), pv.get("name")] + list(pv.get("alternate_names") or [])
     mentions, seen = [], set()
     for c in candidates:
         c = (c or "").strip()
-        if c and c.lower() not in seen:
+        if not c or _looks_like_url(c):
+            continue
+        if c.lower() not in seen:
             seen.add(c.lower())
             mentions.append(c)
     return mentions
