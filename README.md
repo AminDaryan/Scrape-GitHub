@@ -324,12 +324,37 @@ python requirement_checks/bealls_list_check/bealls_list_check.py \
   (`list_source="blacklist"`) and flagged exactly like a real entry, so a paper in
   one is `on_list`. Both flags work for `bealls_llm_check.py` too.
 
+### Data-quality checks (catching wrong Semantic Scholar metadata)
+
+S2's metadata is sometimes wrong (it merges same-named journals, stores
+old/alias domains, or omits the venue), and a wrong verdict is worse than a
+flagged one. Every paper therefore gets a **Data quality** column (and flagged
+records are collected on a **Data quality** sheet), so bad input is caught
+*alongside* the verdict rather than trusted blindly:
+
+- **Always on (offline, no network):** missing venue metadata, malformed
+  DOI/ISSN, encoding artifacts, and the **"merged venues"** red flag (a venue
+  whose URLs span more than one publisher — exactly the case that produces the
+  `domain_alternate_url` reviews).
+- **Optional Crossref cross-check** (`--crossref flagged|all`, or the UI
+  checkbox): for papers with a DOI, compare S2's venue/ISSN to **Crossref** (the
+  publisher-deposited registration metadata) and flag disagreements. `flagged`
+  checks only `on_list`/`review` rows (cheap on a big corpus); `all` checks every
+  DOI. Bounded by DOI coverage; an empty/"OK" result is *not* a guarantee of
+  correctness.
+
+```bash
+python requirement_checks/bealls_list_check/bealls_list_check.py --crossref flagged
+```
+
 **Output:** `requirement_checks/bealls_list_check/results/bealls_list_results.xlsx`
-(git-ignored) with four sheets — **Results**, **Flagged only** (the actionable
-`on_list` + `review` subset), **Summary** (counts, per-signal and per-list
-breakdowns, run metadata), and **Legend** (a full data dictionary). Every row also
-has a **Mentioned in** column listing all venue names/URLs the paper appears under
-(canonical + alternates + the open-access PDF host), for auditing. Matching tunables
+(git-ignored) with sheets — **Results**, **Flagged only** (the actionable
+`on_list` + `review` subset), **Data quality** (records with suspect S2 metadata,
+when any), **Summary** (counts, per-signal and per-list breakdowns, run metadata),
+and **Legend** (a full data dictionary). Every row also has a **Mentioned in**
+column listing all venue names/URLs the paper appears under (canonical +
+alternates + the open-access PDF host) and a **Data quality** column, for
+auditing. Matching tunables
 (fuzzy cutoff, preprint and generic-host lists) live in
 [bealls_list_check/config.py](requirement_checks/bealls_list_check/config.py).
 

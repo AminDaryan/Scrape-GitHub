@@ -157,6 +157,7 @@ def section_tab(section: str):
     items = get_papers(f"{section}_{checker.id}", corpus=checker.corpus_based)
 
     aux_lists = None
+    extra_args = None
     if section == "bealls":
         with st.expander("Whitelist / blacklist (optional)"):
             st.caption(
@@ -167,6 +168,11 @@ def section_tab(section: str):
             wl = venue_list_input("Whitelist venues (JSON)", f"wl_{checker.id}")
             bl = venue_list_input("Blacklist venues (JSON)", f"bl_{checker.id}")
         aux_lists = {"--whitelist": wl, "--blacklist": bl}
+        if st.checkbox("Cross-check DOIs against Crossref (catches wrong S2 venue/ISSN; slower)",
+                       key=f"cr_{checker.id}"):
+            extra_args = ["--crossref", "all"]
+        st.caption("Offline data-quality checks always run (a 'Data quality' column + sheet); "
+                   "Crossref adds an authoritative DOI cross-check.")
 
     run = st.button("▶ Run check", type="primary", key=f"run_{checker.id}",
                     disabled=items is None)
@@ -174,7 +180,7 @@ def section_tab(section: str):
         with st.spinner(f"Running {checker.label} on {len(items)} paper(s)… "
                         "this can take a while for large lists or LLM checks."):
             try:
-                res = runners.run_checker(checker, items, aux_lists=aux_lists)
+                res = runners.run_checker(checker, items, aux_lists=aux_lists, extra_args=extra_args)
             except Exception as e:                 # surface any launch failure
                 st.session_state[f"res_{checker.id}"] = None
                 st.exception(e)

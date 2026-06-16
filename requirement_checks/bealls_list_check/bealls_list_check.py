@@ -34,6 +34,7 @@ from config import (
 )
 from match import BeallIndex, match_paper, out_of_scope_result
 from user_lists import load_user_entries, WhitelistMatcher
+import data_quality
 
 
 # =============================================================================
@@ -68,22 +69,30 @@ def build_index(blacklist_path=None):
     return BeallIndex(entries), snapshot, n_black
 
 
-def classify_corpus(index, whitelist=None):
+def classify_corpus(index, whitelist=None, crossref="off"):
     """Classify every corpus paper, applying the optional whitelist scope filter.
 
     When a *whitelist* is active, papers whose venue is not in it are marked
-    ``out_of_scope`` and not matched.  Returns ``(results, sorted_corpus_files,
-    n_out_of_scope)``.
+    ``out_of_scope`` and not matched.  Each result also gets a ``data_quality``
+    list (see data_quality.py): offline structural/consistency checks always,
+    plus a Crossref cross-check when *crossref* is ``"all"`` (every DOI) or
+    ``"flagged"`` (only on_list/review rows — far cheaper on a big corpus).
+
+    Returns ``(results, sorted_corpus_files, n_out_of_scope)``.
     """
     results, corpus_files, n_scope = [], set(), 0
     for source_file, paper in load_corpus():
         corpus_files.add(source_file)
         if whitelist is not None and whitelist.active and not whitelist.in_scope(paper):
-            results.append(out_of_scope_result(paper, source_file))
+            r = out_of_scope_result(paper, source_file)
             n_scope += 1
         else:
             # match_paper never raises — a bad record returns an 'error' result.
-            results.append(match_paper(index, paper, source_file))
+            r = match_paper(index, paper, source_file)
+        use_cr = crossref == "all" or (crossref == "flagged"
+                                       and r["status"] in ("on_list", "review"))
+        r["data_quality"] = data_quality.validate(paper, use_crossref=use_cr)
+        results.append(r)
     return results, sorted(corpus_files), n_scope
 
 
@@ -128,10 +137,12 @@ COLUMNS = [
     ("Venue",        44),
     ("Match",        60),
     ("Mentioned in", 50),
+    ("Data quality", 52),
 ]
 
 # 1-based column indices, named so the writer reads clearly.
-_NUM_COL, _STATUS_COL, _PAPER_COL, _VENUE_COL, _MATCH_COL, _MENTIONS_COL = 1, 2, 3, 4, 5, 6
+(_NUM_COL, _STATUS_COL, _PAPER_COL, _VENUE_COL,
+ _MATCH_COL, _MENTIONS_COL, _DQ_COL) = 1, 2, 3, 4, 5, 6, 7
 
 # Each paper block is this many rows tall (one labelled field per row).
 ROWS_PER_PAPER = 4
@@ -312,6 +323,16 @@ def _mentions_subrows(r):
     return [(m, m if m.lower().startswith("http") else None) for m in mentions]
 
 
+def _data_quality_subrows(r):
+    """One row per data-quality warning (empty key -> 'not checked'; none -> OK)."""
+    flags = r.get("data_quality")
+    if flags is None:
+        return [("(not checked)", None)]
+    if not flags:
+        return [("OK — no issues found", None)]
+    return [(f, None) for f in flags]
+
+
 def _estimate_row_height(text, width):
     """Row height (px) tall enough for one cell's text to wrap without clipping.
 
@@ -379,6 +400,7 @@ def _write_results_sheet(ws, results, extra_columns=None, status_key="status"):
             (_VENUE_COL, _venue_subrows(r)),
             (_MATCH_COL, _match_subrows(r)),
             (_MENTIONS_COL, _mentions_subrows(r)),
+            (_DQ_COL, _data_quality_subrows(r)),
         ]
         for k, (_h, _w, fn) in enumerate(extra_columns):
             raw_cols.append((n_core + 1 + k, fn(r)))
@@ -474,7 +496,9 @@ def _write_summary_sheet(ws, results, snapshot_meta, corpus_files,
     kv(row, "Clean (venue identified, not listed)", status_counts.get("clean", 0)); row += 1
     kv(row, "No venue (preprint / no info)", status_counts.get("no_venue", 0)); row += 1
     kv(row, "Out of scope (not in whitelist)", status_counts.get("out_of_scope", 0)); row += 1
-    kv(row, "Errors", status_counts.get("error", 0)); row += 2
+    kv(row, "Errors", status_counts.get("error", 0)); row += 1
+    kv(row, "Records with data-quality warnings",
+       sum(1 for r in results if r.get("data_quality"))); row += 2
 
     # Breakdown by HOW each flagged paper matched (the 'Matched by' signal),
     # e.g. how many were 'an alternate web link points to a listed site'.
@@ -636,6 +660,14 @@ _LEGEND_SECTIONS = [
              "are links. Useful for auditing a flag or untangling a merged "
              "venue. Every mention is listed — the paper's block grows to as "
              "many rows as it has mentions."),
+            ("Data quality", "warnings (or 'OK')",
+             "Pre-flight checks on the Semantic Scholar record so a wrong "
+             "verdict isn't trusted blindly: missing venue metadata, malformed "
+             "DOI/ISSN, encoding artifacts, 'merged venues' (URLs spanning "
+             "several publishers), and — when enabled — a Crossref cross-check "
+             "where the venue/ISSN disagrees with the publisher-deposited "
+             "metadata. Flagged records are also collected on the 'Data "
+             "quality' sheet. Empty/OK is not a guarantee of correctness."),
             ("LLM assessment", "(LLM workbook only)",
              "Present only in bealls_llm_results.xlsx: the LLM's verdict "
              "(likely predatory / not / uncertain), the entity it matched, and "
@@ -730,6 +762,12 @@ def save_workbook(results, snapshot_meta, corpus_files, *,
     ws_flagged = wb.create_sheet("Flagged only")
     n_flagged = _write_flagged_sheet(ws_flagged, results, extra_columns=extra_columns)
 
+    # Records with any data-quality warning (suspect S2 metadata) — for review.
+    dq_flagged = [r for r in results if r.get("data_quality")]
+    if dq_flagged:
+        ws_dq = wb.create_sheet("Data quality")
+        _write_results_sheet(ws_dq, dq_flagged, extra_columns=extra_columns)
+
     if disagreement_results is not None:
         ws_disagree = wb.create_sheet("LLM vs deterministic")
         # Status column shows the DETERMINISTIC verdict; the LLM column shows the
@@ -769,6 +807,9 @@ def main(argv=None):
                                             "venue is in it are checked (others -> out_of_scope)")
     parser.add_argument("--blacklist", help="JSON list of venues to add to Beall's List "
                                             "as predatory before matching")
+    parser.add_argument("--crossref", choices=["off", "flagged", "all"], default="off",
+                        help="cross-check DOIs against Crossref to catch wrong S2 metadata: "
+                             "off (default), flagged (on_list/review only), or all (every DOI)")
     args = parser.parse_args(argv)
 
     print("=" * 70)
@@ -787,9 +828,12 @@ def main(argv=None):
         print(f"Whitelist active ({len(whitelist.domains)} domain(s) + "
               f"{len(whitelist.name_phrases)} name(s)) — papers outside it are skipped.")
 
+    if args.crossref != "off":
+        print(f"Crossref cross-check: {args.crossref} (verifying S2 venue/ISSN against Crossref).")
+
     print(f"Loading corpus from {CORPUS_DIR} ...")
     started = time.time()
-    results, corpus_files, n_scope = classify_corpus(index, whitelist)
+    results, corpus_files, n_scope = classify_corpus(index, whitelist, crossref=args.crossref)
 
     elapsed = time.time() - started
     out_path, n_flagged = save_workbook(results, snapshot["meta"], corpus_files)

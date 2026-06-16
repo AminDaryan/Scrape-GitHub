@@ -119,7 +119,7 @@ def _newest_xlsx_since(folder: Path, since_ts: float) -> Optional[Path]:
 
 
 def run_checker(checker: Checker, items: list, *, aux_lists: Optional[dict] = None,
-                timeout: Optional[int] = None) -> RunResult:
+                extra_args: Optional[list] = None, timeout: Optional[int] = None) -> RunResult:
     """Run one checker over *items* and return its produced Excel.
 
     *items* is a list of paper objects (GitHub-link papers for 5.1/5.2; Semantic
@@ -155,6 +155,7 @@ def run_checker(checker: Checker, items: list, *, aux_lists: Optional[dict] = No
             aux_file = tmp / (flag.lstrip("-") + ".json")   # in tmp, never the corpus dir
             aux_file.write_text(json.dumps(entries, ensure_ascii=False), encoding="utf-8")
             cmd += [flag, str(aux_file)]
+        cmd += list(extra_args or [])
 
         proc = subprocess.run(cmd, env=env, cwd=str(REPO_ROOT),
                               capture_output=True, text=True, timeout=timeout)

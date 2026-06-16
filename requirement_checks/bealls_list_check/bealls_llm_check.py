@@ -295,6 +295,8 @@ def main(argv=None):
                         help="check only the first N distinct venues (cheap test run)")
     parser.add_argument("--whitelist", help="JSON list of venues; only papers in it are checked")
     parser.add_argument("--blacklist", help="JSON list of venues to add to Beall's List as predatory")
+    parser.add_argument("--crossref", choices=["off", "flagged", "all"], default="off",
+                        help="cross-check DOIs against Crossref (off / flagged / all)")
     args = parser.parse_args(argv)
 
     print("=" * 70)
@@ -310,7 +312,7 @@ def main(argv=None):
         print(f"Whitelist active — papers outside it are skipped (out_of_scope).")
 
     print("Running the deterministic pass first ...")
-    results, corpus_files, _n_scope = det.classify_corpus(index, whitelist)
+    results, corpus_files, _n_scope = det.classify_corpus(index, whitelist, crossref=args.crossref)
 
     token_usage = TokenUsageTracker()
     started = time.time()
