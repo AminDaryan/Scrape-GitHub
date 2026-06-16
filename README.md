@@ -1,165 +1,40 @@
 # Scrape-GitHub
 
-**What it does.** Takes a list of academic-paper GitHub repositories and scores each one against reproducibility and maintainability criteria (e.g. "does it have install instructions?", "is it actively maintained?", "is it licensed?"). For most criteria it asks an LLM; for criteria with deterministic answers (license, stars, commit dates) it just calls the GitHub API. Output is one Excel file per criterion.
+## What is this, in one paragraph?
 
-**Who it's for.** Researchers auditing the code-availability quality of a corpus of papers — e.g. for a survey, a meta-study, or a reproducibility benchmark.
+Imagine you are writing a survey of, say, 500 research papers and you want to
+answer questions like: *How many of these papers actually published working
+code? Of those, how many repositories are still maintained today? And were any
+of the papers published in journals known for fake or missing peer review?*
+Checking 500 papers by hand would take weeks. **This tool does those checks
+automatically and hands you the answers as Excel spreadsheets** — one
+spreadsheet per question, one row (or block of rows) per paper.
 
-**Typical workflow.**
+It does two largely independent jobs:
 
-1. Run `setup.ps1` / `setup.sh` (creates `.venv`, installs deps, copies `.env`).
-2. Fill in `.env` (at minimum `GITHUB_TOKEN`; LLM keys if you want the LLM checkers).
-3. Activate the venv.
-4. Run a checker script — it iterates over every paper in [`papers_from_database.py`](requirement_checks/data/papers_from_database.py) and writes results to an `.xlsx` next to the script.
+1. **Code checks (the `5.1` and `5.2` questions).** Given a list of papers and
+   the GitHub link for each one, it inspects every repository and answers
+   questions such as *"does it have installation instructions?"*, *"does it have
+   a licence?"*, *"is it still being updated?"*, *"how many people use it?"*.
+2. **Predatory-venue check (the "Beall's List" check).** Given a list of papers
+   and the journal each one was published in, it flags papers whose journal
+   appears on **Beall's List** — a well-known (if unofficial and contested) list
+   of journals and publishers accused of poor or fake peer review.
 
----
+Some checks ask a large language model (LLM) to read the repository and judge;
+others are purely mechanical (they just call the GitHub API or apply rules). The
+tool tells you, for every check, which kind it is.
 
-## Glossary
-
-- **Paper repository / paper repo** — a GitHub repo cited as supplementary code for an academic paper. Each entry in `papers_from_database.py` has a title, [Semantic Scholar](https://www.semanticscholar.org/) ID, and `https://github.com/<owner>/<repo>` URL.
-- **Criterion / question** — one of the reproducibility/maintenance properties being measured. Numbered `5.1.x` (code availability & documentation) and `5.2.x` (practitioner usability & adoption). <!-- TODO: cite the framework these numbers come from, if any -->
-- **Checker** — a Python script that evaluates one criterion across the whole paper list and writes an Excel file. Each checker is either **LLM-based** (calls Azure OpenAI / OpenAI / Anthropic / etc. via LiteLLM) or **rule-based** (regex, AST, GitHub API only).
-- **Multi-model run** — for LLM checkers, set `AZURE_OPENAI_DEPLOYMENT` to a JSON array of model names; every model is run on every paper and a per-paper agreement sheet is added to the Excel output.
-
----
-
-## First-Time Setup
-
-```powershell
-# Windows PowerShell
-./setup.ps1
-```
-
-```bash
-# macOS / Linux
-bash ./setup.sh
-```
-
-Both scripts: create `.venv`, install [requirements.txt](requirements.txt), and copy [.env.example](.env.example) → `.env` if `.env` is missing.
-
-**Then activate the venv** (every new terminal — checker scripts will pick up the wrong Python otherwise):
-
-```powershell
-# Windows PowerShell
-.\.venv\Scripts\Activate.ps1
-```
-
-```bash
-# macOS / Linux
-source .venv/bin/activate
-```
-
-### Provide the paper list
-
-The `5.1.*` / `5.2.*` checkers read the corpus to evaluate from
-[`requirement_checks/data/papers_from_database.py`](requirement_checks/data/papers_from_database.py).
-**This file is git-ignored, so a fresh clone won't have it — you must create it.**
-It defines a single module-level `PAPERS` list:
-
-```python
-# requirement_checks/data/papers_from_database.py
-PAPERS = [
-    {
-        "title": "2OMe-LM: predicting 2'-O-methylation sites in human RNA ...",
-        "semanticscholarid": "949cab640f543f200ad1fbeed56cc1c9519b1251",
-        "repo": "https://github.com/CSUBioGroup/2OMe-LM",
-    },
-    # ... one dict per paper
-]
-```
-
-| Key | Required | Used for |
-|---|---|---|
-| `repo` | **yes** | The URL that gets checked. `github.com/<owner>/<repo>`, `*.github.io/<repo>`, and `…/blob/…` forms are all parsed; non-GitHub URLs are reported as *skipped*. |
-| `title` | **yes** | Human-readable label in the console logs and Excel output. |
-| `semanticscholarid` | optional | Carried through for traceability (only echoed into the 5.1.3 output); checkers don't depend on it. |
-
-> The Beall's List check (below) does **not** use this file — it reads a separate
-> corpus of Semantic Scholar dumps.
-
-### Setup troubleshooting
-
-- **`Activate.ps1` blocked by execution policy:** run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned` first.
-- **`pip` / `litellm.exe` fails with "Unable to create process" pointing at a path that doesn't exist:** the venv was moved/renamed since it was created. Windows venv launchers embed an absolute path; recreate the venv: `Remove-Item -Recurse -Force .venv; ./setup.ps1`.
-- **`ModuleNotFoundError: No module named 'litellm'`** (or similar) when running a script: the venv isn't activated, so `python` resolved to a system interpreter. Activate first, or invoke the venv explicitly: `& ".venv\Scripts\python.exe" <script>`.
+**Who it's for.** Researchers, students, or anyone auditing the code quality or
+publication quality of a batch of papers — for a survey, a meta-study, a
+reproducibility benchmark, or a literature review.
 
 ---
 
-## Environment Variables
+## The fastest way to try it: the web app
 
-Edit `.env`. The variables fall into three buckets:
-
-### GitHub (always recommended)
-
-| Variable | What it does |
-|---|---|
-| `GITHUB_TOKEN` | Personal access token. Raises the GitHub API rate limit from **60 → 5,000 requests/hour**. Large runs WILL exhaust the anonymous limit without it. |
-
-### LLM provider — pick one via `LLM_PROVIDER`
-
-| `LLM_PROVIDER=` | Required keys |
-|---|---|
-| `azure` (default) | `OPENAI_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_VERSION` |
-| `openai` | `OPENAI_API_KEY` |
-| `anthropic` | `ANTHROPIC_API_KEY` |
-| `mistral` | `MISTRAL_API_KEY` |
-| `gemini` | `GEMINI_API_KEY` |
-| `ollama` | `OLLAMA_API_BASE` (defaults to `http://localhost:11434`) |
-
-### Model selection (every provider)
-
-| Variable | What it does |
-|---|---|
-| `AZURE_OPENAI_DEPLOYMENT` | The model (or list of models) to call. **Despite the name, this is used for every provider** — kept as-is for backwards compatibility. Accepts: single name (`gpt-4o`), comma-separated (`gpt-5,gpt-5-mini`), or JSON array (`["gpt-5","gpt-5-mini"]`). A list triggers a multi-model run. |
-
-Rule-based checkers do **not** need any LLM keys — only `GITHUB_TOKEN`.
-
----
-
-## Quick Run
-
-> Activate the venv first. Run from the repo root.
-
-### LLM-based checkers
-
-```bash
-# Q 5.1.3 — preprocessing / pipeline code
-python "requirement_checks/5.1.code_availability/5.1.3.pre-processing_&_pipeline_code/check_paper_appendix_for_data_preprocessing_code.py"
-
-# Q 5.1.4 — documentation quality (four separate checkers)
-python "requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_inline_comments/check_github_repo_inline_comments.py"
-python "requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_installation_instructions/check_github_repo_installation_instructions.py"
-python "requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_usage_examples/check_github_repo_example_commands.py"
-python "requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_api_documentation/check_github_repo_api_documentation.py"
-```
-
-### Rule-based / no-LLM checkers
-
-```bash
-# Q 5.1.4 — API documentation (batch)
-python "requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_api_documentation/api_documentation_check_no_llm_used.py"
-
-# Q 5.1.4 — API documentation (single repo, prints JSON)
-python "requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_api_documentation/api_documentation_check_no_llm_used.py" pallets/flask
-
-# Q 5.1.5 — license detection
-python "requirement_checks/5.1.code_availability/5.1.5.code_license/5.1.5.code_license.py"
-
-# Q 5.2.2 — maintenance activity indicators
-python "requirement_checks/5.2.practitioner_usability_and_popularity/5.2.2.maintenance_activity_indicators/5.2.2.maintenance_activity_indicators.py"
-
-# Q 5.2.3 — adoption metrics (stars, forks, PyPI downloads)
-python "requirement_checks/5.2.practitioner_usability_and_popularity/5.2.3.adoption_metrics/5.2.3.adoption_metrics.py"
-
-# Q 5.2.4 — post-publication maintenance (last commit, total commits)
-python "requirement_checks/5.2.practitioner_usability_and_popularity/5.2.4.post_publication_maintenance/5.2.4.post_publication_maintenance.py"
-```
-
----
-
-## Web UI (Streamlit)
-
-Prefer clicking to typing? A local web UI wraps **every** check. The one-command
-launcher activates the venv and installs Streamlit on first run if needed:
+If you would rather click than type commands, there is a small local web app
+that wraps **every** check. It is the recommended starting point.
 
 ```powershell
 .\run_ui.ps1          # Windows PowerShell
@@ -168,43 +43,353 @@ launcher activates the venv and installs Streamlit on first run if needed:
 bash ./run_ui.sh      # macOS / Linux
 ```
 
-Or do it manually (with the venv active): `pip install streamlit` then
-`streamlit run ui/app.py`. Either way it opens at http://localhost:8501.
+This opens a page in your browser (at `http://localhost:8501`). You will see
+three tabs:
 
-Three tabs — **5.1**, **5.2**, and **Beall's** — each with a checker dropdown.
-Upload a papers JSON (a list, or a single paper object) or paste it, hit **Run**,
-preview the result, and download the Excel.
+- **5.1 — Code availability:** is the paper's code public and documented?
+- **5.2 — Usability & popularity:** is that code maintained and actually used?
+- **Beall's:** is the paper's journal on Beall's List of *potentially* predatory
+  venues?
 
-- **5.1 / 5.2 tabs** take papers with GitHub links: `{"title": ..., "repo": "https://github.com/owner/repo"}`.
-- **Beall's tab** takes Semantic Scholar paper records (with `publicationVenue`).
-- GitHub/LLM keys are read from `.env` exactly as the CLI does; LLM checks cost tokens.
-- As soon as papers load, an **Input data quality** panel shows the validation result
-  up front and offers it as a **downloadable `.xlsx`** (one row per paper, "OK" or the
-  warnings); during a run a **progress bar** tracks `[i/N]` and the live log line; and
-  status notifications appear as **toasts** (top-right) rather than permanent banners.
+In each tab you follow three steps: **(1)** choose a check from the dropdown
+(each check shows a one-line description and a badge saying whether it uses an
+LLM), **(2)** paste or upload your papers as JSON, **(3)** press **Run**. When it
+finishes you can preview the result in the page and download it as an Excel file.
 
-Under the hood the UI runs each checker as a subprocess with the upload injected
-via the `PAPERS_JSON` env var (Beall's uses `BEALLS_CORPUS_DIR`), so **the UI and
-the CLI produce identical output**. That hook lives in
-[data/papers_source.py](requirement_checks/data/papers_source.py): every checker
-now reads its papers through `load_papers()`, which returns the uploaded list
-when `PAPERS_JSON` is set and otherwise falls back to the vendored
-`papers_from_database.py`. The UI code is in [ui/](ui/) (`app.py` + `runners.py`).
+As soon as your papers load, an **Input data quality** panel appears and tells
+you up front if anything about your input looks wrong (a missing GitHub link, a
+malformed DOI, a duplicate, and so on) — and lets you download that report too.
+While a check runs, a progress bar shows which paper it is on.
 
-> The Beall's tab has optional **whitelist** (scope filter) and **blacklist**
-> (extend the list) inputs — see the expander after picking a check.
+> Behind the scenes the web app runs exactly the same code as the command line,
+> so the Excel file you download is identical to what you would get from the
+> scripts described below.
 
 ---
 
-## Criteria Reference
+## What you provide as input
 
-Each criterion lives in its own folder. Click the script name to open it.
+### For the code checks (`5.1` / `5.2`)
 
-### 5.1 — Code Availability & Documentation
+A list of papers, where each paper has at least a **title** and a **GitHub
+repository link**. From the command line this list lives in a Python file,
+[`requirement_checks/data/papers_from_database.py`](requirement_checks/data/papers_from_database.py):
+
+```python
+# requirement_checks/data/papers_from_database.py
+PAPERS = [
+    {
+        "title": "2OMe-LM: predicting 2'-O-methylation sites in human RNA ...",
+        "repo": "https://github.com/CSUBioGroup/2OMe-LM",
+        "semanticscholarid": "949cab640f543f200ad1fbeed56cc1c9519b1251",
+    },
+    # ... one dict per paper
+]
+```
+
+| Field | Required? | What it is used for |
+|---|---|---|
+| `repo` | **yes** | The repository that gets checked. `github.com/<owner>/<repo>`, `<owner>.github.io/<repo>`, and `.../blob/...` links are all understood; a non-GitHub link is simply reported as *skipped*. |
+| `title` | **yes** | A human-readable label shown in the logs and the Excel output. |
+| `semanticscholarid` | optional | Carried through for traceability; the checks do not depend on it. |
+
+> **This file is not included in a fresh download** (it is deliberately ignored
+> by Git, because every user's paper list is different). You create it yourself.
+> In the **web app** you do not need this file at all — you paste or upload your
+> papers directly.
+
+### For the Beall's List check
+
+A different kind of input: records exported from
+[Semantic Scholar](https://www.semanticscholar.org/) (a free academic search
+engine). Each record describes a paper and, crucially, the **journal it was
+published in** (the `publicationVenue` field). This check does **not** use the
+`papers_from_database.py` file. More on this in
+[its own section](#the-bealls-list-predatory-venue-check) below.
+
+---
+
+## First-time setup
+
+```powershell
+./setup.ps1           # Windows PowerShell
+```
+```bash
+bash ./setup.sh       # macOS / Linux
+```
+
+Either script does three things: creates a private Python environment in a
+`.venv` folder, installs the required libraries from
+[`requirements.txt`](requirements.txt), and creates your settings file by copying
+[`.env.example`](.env.example) to `.env` (if you don't already have one).
+
+**Then "activate" the environment** in every new terminal window (otherwise the
+scripts may use the wrong Python and fail to find the installed libraries):
+
+```powershell
+.\.venv\Scripts\Activate.ps1     # Windows PowerShell
+```
+```bash
+source .venv/bin/activate         # macOS / Linux
+```
+
+The web-app launchers (`run_ui.ps1` / `run_ui.sh`) use the venv's Python
+directly, so you don't need to activate anything to run the web app.
+
+### If setup goes wrong
+
+- **`Activate.ps1` is "blocked by execution policy" (Windows):** run
+  `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned` once, then
+  activate again.
+- **`pip` or a tool fails with "Unable to create process" pointing at a path
+  that doesn't exist:** the `.venv` folder was moved or renamed after it was
+  created (Windows bakes the original path into it). Recreate it:
+  `Remove-Item -Recurse -Force .venv; ./setup.ps1`.
+- **`ModuleNotFoundError: No module named 'litellm'` (or similar):** the
+  environment isn't activated, so a system Python is being used. Activate it, or
+  call the venv's Python directly: `& ".venv\Scripts\python.exe" <script>`.
+
+---
+
+## Settings (the `.env` file)
+
+Open `.env` in a text editor. There are three groups of settings.
+
+### GitHub access (strongly recommended)
+
+| Setting | What it does |
+|---|---|
+| `GITHUB_TOKEN` | A GitHub "personal access token". Without it, GitHub only allows **60 requests per hour**, which any real run will exhaust in seconds; with it you get **5,000 per hour**. A free token with no special scopes is enough. |
+
+### Which LLM to use (only needed for LLM-based checks)
+
+Pick a provider with `LLM_PROVIDER`, then fill in that provider's key(s):
+
+| `LLM_PROVIDER=` | Keys you must set |
+|---|---|
+| `azure` (default) | `OPENAI_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_VERSION` |
+| `openai` | `OPENAI_API_KEY` |
+| `anthropic` | `ANTHROPIC_API_KEY` |
+| `mistral` | `MISTRAL_API_KEY` |
+| `gemini` | `GEMINI_API_KEY` |
+| `ollama` | `OLLAMA_API_BASE` (defaults to `http://localhost:11434`) |
+
+### Which model to use
+
+| Setting | What it does |
+|---|---|
+| `AZURE_OPENAI_DEPLOYMENT` | The model name to call. **Despite the "AZURE" in the name, this is used for every provider** (the name is kept for backwards compatibility). One name (`gpt-4o`), a comma-separated list, or a JSON array (`["gpt-5","gpt-5-mini"]`). Giving a list runs **every model on every paper** and adds an agreement sheet — see [Multi-model runs](#multi-model-runs). |
+
+> **Rule-based checks need no LLM keys at all** — only `GITHUB_TOKEN`.
+
+---
+
+## Running the code checks from the command line
+
+> Activate the environment first, and run from the repository root. Each script
+> reads your paper list and writes an Excel file into a `results/` folder next to
+> the script.
+
+A few examples (the full list is in [Criteria reference](#criteria-reference)):
+
+```bash
+# 5.1.5 — does the repo have an open-source licence? (no LLM)
+python "requirement_checks/5.1.code_availability/5.1.5.code_license/5.1.5.code_license.py"
+
+# 5.2.3 — adoption: GitHub stars/forks + PyPI downloads (no LLM)
+python "requirement_checks/5.2.practitioner_usability_and_popularity/5.2.3.adoption_metrics/5.2.3.adoption_metrics.py"
+
+# 5.1.4 — does the repo have installation instructions? (LLM)
+python "requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_installation_instructions/check_github_repo_installation_instructions.py"
+```
+
+---
+
+## The Beall's List predatory-venue check
+
+This is a separate, self-contained tool in
+[`requirement_checks/bealls_list_check/`](requirement_checks/bealls_list_check/).
+It answers one question for every paper: **was it published in a journal or by a
+publisher that appears on Beall's List?**
+
+[Beall's List](https://beallslist.net) is a well-known catalogue of journals and
+publishers accused of being "predatory" — charging fees while providing little
+or no real peer review. It is **unofficial, frozen in time (around 2021), and
+contested** (some listed publishers are widely considered legitimate). So a
+match here means *"this journal appears on the list"*, **not** *"this paper is
+bad"*. The check looks only at the **venue**, never at the paper's content. It
+uses **no LLM** by default — every verdict is mechanical and can be traced back
+to exactly what matched.
+
+### How to run it (two steps)
+
+```bash
+# Step 1: download a local copy ("snapshot") of Beall's List, once.
+#         This writes data/bealls_snapshot.json. It is already included, so you
+#         can usually skip this step.
+python requirement_checks/bealls_list_check/scrape_bealls_list.py
+
+# Step 2: compare your papers against the snapshot and write the Excel report.
+python requirement_checks/bealls_list_check/bealls_list_check.py
+```
+
+By default your papers are read from `docs/Updated Abstract Papers/*.json` (these
+files are large, so they are not included); point it elsewhere with the
+`BEALLS_CORPUS_DIR` setting, or just use the **Beall's tab in the web app**.
+
+### What the verdicts mean
+
+Every paper gets one of these **statuses** (the rows are colour-coded by it):
+
+| Status | Meaning |
+|---|---|
+| `on_list` | A **strong** match: the journal's own website, its exact ISSN, or its exact name is on the list. Read as "appears on Beall's List." |
+| `review` | A **weak or uncertain** match that a human should double-check (e.g. the name is only *similar* to a listed one, or only a secondary web link points to a listed site). Not a confident accusation. |
+| `clean` | The journal was identified and is **not** on the list. |
+| `no_venue` | A preprint (e.g. arXiv) or a record with no journal at all — nothing to check. |
+| `out_of_scope` | Only appears if you used a *whitelist* (see below): the paper's journal wasn't in it, so it was skipped. |
+| `error` | The record couldn't be processed (the reason is shown in the row). |
+
+### How to read the Excel report
+
+The report (`results/bealls_list_results.xlsx`) has several sheets. The two you
+will look at most are **Results** (every paper) and **Flagged only** (just the
+`on_list` + `review` papers, so you aren't scrolling past thousands of clean
+ones).
+
+Each paper is shown as a **block of rows** so that every detail gets its own
+line instead of being crammed into one cell. The columns are:
+
+| Column | What's in it |
+|---|---|
+| **#** | The paper's number (this cell spans the whole block). |
+| **Status** | The verdict above, colour-coded (spans the whole block). |
+| **Paper specifications** | A header grouping the next three columns — everything that describes the paper itself: |
+| &nbsp;&nbsp;• Paper | Title / Year / Source file / DOI (the DOI is a clickable link to the article). |
+| &nbsp;&nbsp;• Semantic Scholar venue | The journal exactly as Semantic Scholar reports it: Venue name / Type / Website / ISSN. |
+| &nbsp;&nbsp;• Mentioned in | Every journal/publisher/venue **name** Semantic Scholar ties to this paper (just names — no web links). This is the one column that can grow: a paper recorded under 10 names produces a 10-row block, while the other columns simply leave the extra rows blank. |
+| **Match** | *Why* it was flagged: **Listed as** (the matching Beall entry, a clickable link), **Beall list** (which list it came from), and **Why flagged** (one plain sentence saying how it matched and what that means). |
+
+> Two further sheets: **Data quality** lists only the papers whose Semantic
+> Scholar record looks unreliable, each with the specific problem (see
+> [below](#data-quality-catching-unreliable-input)); **Summary** has the totals;
+> **Legend** is a full plain-language dictionary of every column and value.
+
+**A worked example.** Suppose a paper about plant ecology comes back as
+`review`. Reading its block:
+
+- **Semantic Scholar venue → Venue:** `Phyton`
+- **Mentioned in:** `Phyton`, `Annales Rei Botanicae`
+- **Match → Listed as:** `Phyton` (a *hijacked / cloned journal* entry)
+- **Match → Why flagged:** *"the journal/publisher name exactly matches the
+  list — but hijacked clones reuse the real journal's name, so this may be the
+  legitimate journal rather than the predatory clone; verify."*
+
+In other words: a predatory website once impersonated the real journal *Phyton*,
+so the **name** is on the list — but your paper is very likely in the genuine
+*Phyton* (a long-standing Austrian botany journal). That is exactly why it is
+`review` and not `on_list`: the tool is telling you "this needs a human's eyes,"
+not "this is predatory."
+
+### Whitelist and blacklist (optional)
+
+Two optional inputs let you tailor a run (command-line flags, also available in
+the web app). Each is a JSON list of `{"name": ..., "domain": ...}` entries (a
+plain string works as just a name):
+
+```bash
+python requirement_checks/bealls_list_check/bealls_list_check.py \
+    --whitelist whitelist.json --blacklist blacklist.json
+```
+
+- **`--whitelist` narrows the scope.** When provided, *only* papers whose journal
+  matches a whitelisted entry are checked; all others are marked `out_of_scope`
+  and skipped. Useful when you care about one publisher or a short list of them.
+- **`--blacklist` extends the list.** Its entries are added to Beall's List for
+  this run and flagged just like real entries, so a paper in one comes back
+  `on_list`. Useful for adding venues you already know are bad.
+
+### Data quality (catching unreliable input)
+
+Semantic Scholar's data is sometimes wrong — it occasionally merges two
+different journals that share a name, stores an out-of-date web address, or
+omits the journal entirely. A verdict based on bad input is worse than no
+verdict, so the report includes a separate **Data quality** sheet listing **only
+the papers whose record looks suspect**, each with the specific issue spelled
+out, for example:
+
+- *"No journal/venue information at all (so the venue can't be checked)."*
+- *"The DOI doesn't look like a valid DOI."*
+- *"Semantic Scholar lists web addresses from 2 different publishers for this one
+  journal (…). That usually means it has merged two different journals that
+  share a name, so the venue shown for this paper may be the wrong one — worth
+  checking by hand."*
+
+Optionally, you can also cross-check against **Crossref** (the official registry
+that publishers themselves submit their articles to). When enabled, the journal
+name and ISSN that Semantic Scholar reports are compared with Crossref's official
+record, and any disagreement is flagged:
+
+```bash
+# 'flagged' = only check the on_list/review papers (cheap); 'all' = every DOI.
+python requirement_checks/bealls_list_check/bealls_list_check.py --crossref flagged
+```
+
+> Appearing on the Data quality sheet means *"double-check this by hand"* — it is
+> not proof the verdict is wrong, and an empty result is not a guarantee that
+> everything is right.
+
+This same input validation runs before the `5.1`/`5.2` checks too (there it
+checks the GitHub links instead — missing, unparseable, duplicate, or, if you
+opt in with `CHECK_REPO_LIVENESS=1`, dead links), and the result shows up in the
+web app's **Input data quality** panel.
+
+### Optional: an LLM to help resolve the `review` papers
+
+The mechanical check is precise, but the `review` papers are by definition the
+uncertain ones, and going through them by hand is slow. So there is an **opt-in**
+extra pass that asks an LLM for a concrete recommendation on **each `review`
+paper** (and only those — it does not touch the rest):
+
+```bash
+python requirement_checks/bealls_list_check/bealls_llm_check.py            # all review papers
+python requirement_checks/bealls_list_check/bealls_llm_check.py --limit 50 # cheap test on 50
+```
+
+It runs the normal check first, then for every distinct `review` journal it asks
+the LLM — given the nearest Beall's List entries, Beall's predatory-journal
+criteria, and the model's own knowledge — whether the journal or its publisher is
+predatory. The answer is written into an extra **"LLM review"** column on the
+**Flagged only** sheet, as an actionable recommendation:
+
+- **Verdict:** *Predatory — recommend EXCLUDE* / *Legitimate — recommend KEEP* /
+  *Uncertain — check by hand*
+- **Reason:** one sentence explaining why.
+
+For the *Phyton* example above, the LLM review column would say something like
+*"Verdict: Legitimate — keep. Reason: 'Phyton' is the long-standing Austrian
+botany journal; it only shares a name with the hijacked clone on the list."* —
+turning a vague `review` into a decision you can act on.
+
+This pass costs LLM tokens (but only for the small review backlog). It **never**
+overrides the mechanical verdict and never declares a paper `on_list` on its
+own; it only adds a recommendation. Output goes to
+`results/bealls_llm_results.xlsx`, and the Summary sheet gains an "LLM review"
+section with the counts and token usage.
+
+---
+
+## Criteria reference
+
+Each check lives in its own folder; click a script name to open it. "LLM" means
+it asks a language model; "no LLM" means it is purely mechanical.
+
+### 5.1 — Code availability & documentation
 
 #### 5.1.3 — Preprocessing / pipeline code
 
-Does the repo contain real data-preprocessing or pipeline code (vs. just inference / demo notebooks)?
+Does the repo contain real data-preprocessing or pipeline code (rather than just
+an inference demo)?
 
 - **Script:** [check_paper_appendix_for_data_preprocessing_code.py](requirement_checks/5.1.code_availability/5.1.3.pre-processing_&_pipeline_code/check_paper_appendix_for_data_preprocessing_code.py) — LLM
 - **Output:** [preprocessing_code_results.xlsx](requirement_checks/5.1.code_availability/5.1.3.pre-processing_&_pipeline_code/results/preprocessing_code_results.xlsx)
@@ -217,27 +402,27 @@ Four independent sub-checks; each writes its own Excel file.
 |---|---|---|---|
 | Inline comments | [check_github_repo_inline_comments.py](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_inline_comments/check_github_repo_inline_comments.py) | LLM | [inline_comments_results.xlsx](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_inline_comments/results/inline_comments_results.xlsx) |
 | Installation instructions | [check_github_repo_installation_instructions.py](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_installation_instructions/check_github_repo_installation_instructions.py) | LLM | [installation_instructions_results.xlsx](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_installation_instructions/results/installation_instructions_results.xlsx) |
-| Installation instructions (rule-based) | [environment_instructions_existance_check_no_llm_used.py](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_installation_instructions/environment_instructions_existance_check_no_llm_used.py) | Regex + 4-tier heuristic, NLP fallback | **Library only** — no CLI. Import `check_setup_with_nlp(owner, repo)`. |
+| Installation instructions (rule-based) | [environment_instructions_existance_check_no_llm_used.py](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_installation_instructions/environment_instructions_existance_check_no_llm_used.py) | Regex + heuristic, NLP fallback | **Library only** — import `check_setup_with_nlp(owner, repo)`. |
 | Usage / example commands | [check_github_repo_example_commands.py](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_usage_examples/check_github_repo_example_commands.py) | LLM | [usage_examples_results.xlsx](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_usage_examples/results/usage_examples_results.xlsx) |
 | API documentation | [check_github_repo_api_documentation.py](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_api_documentation/check_github_repo_api_documentation.py) | LLM | [api_documentation_results.xlsx](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_api_documentation/results/api_documentation_results.xlsx) |
 | API documentation (rule-based) | [api_documentation_check_no_llm_used.py](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_api_documentation/api_documentation_check_no_llm_used.py) | Regex + Python AST | [api_documentation_no_llm.xlsx](requirement_checks/5.1.code_availability/5.1.4.code_documentation_quality/check_github_repo_api_documentation/results/api_documentation_no_llm.xlsx) |
 
-The rule-based API doc checker also accepts a single repo as a CLI argument:
+The rule-based API-doc checker also accepts a single repo on the command line:
 
 ```bash
 python "...check_github_repo_api_documentation/api_documentation_check_no_llm_used.py" pallets/flask
 ```
 
-#### 5.1.5 — License
+#### 5.1.5 — Licence
 
-Is the code released under an explicit OSS license?
+Is the code released under an explicit open-source licence?
 
-- **Script:** [5.1.5.code_license.py](requirement_checks/5.1.code_availability/5.1.5.code_license/5.1.5.code_license.py) — GitHub licensee API + LICENSE-file scan (no LLM)
+- **Script:** [5.1.5.code_license.py](requirement_checks/5.1.code_availability/5.1.5.code_license/5.1.5.code_license.py) — GitHub licence API + LICENSE-file scan (no LLM)
 - **Output:** [code_license.xlsx](requirement_checks/5.1.code_availability/5.1.5.code_license/code_license.xlsx)
 
-### 5.2 — Practitioner Usability & Popularity
+### 5.2 — Practitioner usability & popularity
 
-#### 5.2.2 — Maintenance activity indicators
+#### 5.2.2 — Maintenance activity
 
 Recent commits, contributor count, releases, staleness, archived status.
 
@@ -253,181 +438,26 @@ GitHub stars/forks + PyPI monthly downloads (where the repo publishes a package)
 
 #### 5.2.4 — Post-publication maintenance
 
-Date of last commit + total commit count, as a measure of ongoing care after the paper was published.
+Date of the last commit + total commit count — a measure of ongoing care after
+the paper was published.
 
 - **Script:** [5.2.4.post_publication_maintenance.py](requirement_checks/5.2.practitioner_usability_and_popularity/5.2.4.post_publication_maintenance/5.2.4.post_publication_maintenance.py) — GitHub API only
 - **Output:** [post_publication_maintenance.xlsx](requirement_checks/5.2.practitioner_usability_and_popularity/5.2.4.post_publication_maintenance/post_publication_maintenance.xlsx)
 
 ---
 
-## Beall's List Predatory-Venue Check
+## Multi-model runs
 
-A separate, self-contained check ([`requirement_checks/bealls_list_check/`](requirement_checks/bealls_list_check/))
-that flags papers published in venues appearing on [Beall's List](https://beallslist.net)
-— an unofficial, archived, contested list of potentially predatory publishers and
-journals. Unlike the `5.x` checkers it does **not** read `papers_from_database.py`,
-and it uses **no LLM** (0 tokens): every verdict is deterministic and auditable.
-
-**Its input is different from the other checks:** it classifies a corpus of
-[Semantic Scholar](https://www.semanticscholar.org/) record dumps (`*.json`, one
-list of records per file) against a *vendored snapshot* of Beall's List.
-
-**Two-step workflow:**
-
-```bash
-# 1. Vendor a local snapshot of Beall's List (scrapes beallslist.net once).
-#    Writes data/bealls_snapshot.json — already committed, so skip this if present.
-python requirement_checks/bealls_list_check/scrape_bealls_list.py
-
-# 2. Match the corpus against the snapshot and write the Excel report.
-python requirement_checks/bealls_list_check/bealls_list_check.py
-```
-
-By default the corpus is read from `docs/Updated Abstract Papers/*.json`
-(git-ignored — it's large); override the location with the `BEALLS_CORPUS_DIR`
-environment variable.
-
-The scraper covers all five list pages (publishers, standalone journals,
-hijacked journals, misleading metrics, vanity press) and is careful about what
-it captures: it **skips the site's "Excluded — decide after reading" section**
-(e.g. MDPI, which Beall explicitly chose *not* to list), captures both linked
-and **plain-text (name-only) entries**, **decodes HTML entities** so names like
-`Research & Development Organization` match, and **retries transient `503`s** so
-a blip never yields a half-built snapshot.
-
-**How a venue is classified** — signals are tried strongest-first and the first
-hit is recorded, so every row says exactly *why* it was flagged:
-
-| Status | Meaning |
-|---|---|
-| `on_list` | Matched a core Beall list by a high-confidence signal: exact domain, subdomain of a listed domain, exact ISSN, or exact name. |
-| `review` | Only a softer or ambiguous signal matched (alternate-URL domain, open-access-PDF host, fuzzy name ≥ 93%, a name match against a hijacked-journal clone, or a "weak" vanity-press / fake-metrics list). Verify by hand. |
-| `clean` | Venue identified and not on the list. |
-| `no_venue` | Preprint server (e.g. arXiv) or no venue metadata — nothing to classify. |
-| `out_of_scope` | Only when a **whitelist** is supplied: the paper's venue isn't in it, so it was skipped. |
-| `error` | The record could not be processed. |
-
-### Whitelist / blacklist (scoping & extending)
-
-Two optional inputs let you tailor the run (CLI flags, also editable in the UI's
-Beall's tab). Each is a JSON list of `{"name": ..., "domain": ...}` (a plain
-string works as a name):
-
-```bash
-python requirement_checks/bealls_list_check/bealls_list_check.py \
-    --whitelist whitelist.json --blacklist blacklist.json
-```
-
-- **`--whitelist`** is a **scope filter**: when non-empty, only papers whose venue
-  matches a whitelisted entry are checked; every other paper is marked
-  `out_of_scope` and skipped. Matching is by domain (exact or subdomain — so a
-  publisher domain covers all its journals) or by the whitelisted name appearing
-  as a whole-word phrase in the venue name. An empty/absent whitelist means
-  "check everything".
-- **`--blacklist`** **extends** Beall's List: its venues are added to the snapshot
-  (`list_source="blacklist"`) and flagged exactly like a real entry, so a paper in
-  one is `on_list`. Both flags work for `bealls_llm_check.py` too.
-
-### Data-quality checks (catching wrong Semantic Scholar metadata)
-
-Input validation runs as a preprocessor before **every** check, through one
-shared, field-aware function —
-[`common/input_quality.py`](requirement_checks/common/input_quality.py) →
-`validate_input(paper)`. It dispatches on what the record contains: a GitHub
-`repo` → repo checks (present / parseable / duplicate / optional liveness); venue
-fields (`publicationVenue` / `venue` / DOI / ISSN) → the venue checks below. So
-the 5.1/5.2 checks (via `data/papers_source.load_papers`) and the Beall's check
-(via `classify_corpus`) call the *same* validator; a record with both gets both.
-
-S2's metadata is sometimes wrong (it merges same-named journals, stores
-old/alias domains, or omits the venue), and a wrong verdict is worse than a
-flagged one. In the Beall's workbook every paper gets a **Data quality** column
-(and flagged records are collected on a **Data quality** sheet), so bad input is
-caught *alongside* the verdict rather than trusted blindly:
-
-- **Always on (offline, no network):** missing venue metadata, malformed
-  DOI/ISSN, encoding artifacts, and the **"merged venues"** red flag (a venue
-  whose URLs span more than one publisher — exactly the case that produces the
-  `domain_alternate_url` reviews).
-- **Optional Crossref cross-check** (`--crossref flagged|all`, or the UI
-  checkbox): for papers with a DOI, compare S2's venue/ISSN to **Crossref** (the
-  publisher-deposited registration metadata) and flag disagreements. `flagged`
-  checks only `on_list`/`review` rows (cheap on a big corpus); `all` checks every
-  DOI. Bounded by DOI coverage; an empty/"OK" result is *not* a guarantee of
-  correctness.
-
-```bash
-python requirement_checks/bealls_list_check/bealls_list_check.py --crossref flagged
-```
-
-> For the **5.1 / 5.2 checks** (whose papers carry GitHub links) the same
-> `validate_input` runs the repo-side checks and prints a report before
-> evaluating (optional repo-liveness via `CHECK_REPO_LIVENESS=1` or the UI
-> checkbox) — surfaced in the UI's run log and the up-front "Input data quality"
-> panel.
-
-**Output:** `requirement_checks/bealls_list_check/results/bealls_list_results.xlsx`
-(git-ignored) with sheets — **Results**, **Flagged only** (the actionable
-`on_list` + `review` subset), **Data quality** (records with suspect S2 metadata,
-when any), **Summary** (counts, per-signal and per-list breakdowns, run metadata),
-and **Legend** (a full data dictionary). Every row also has a **Mentioned in**
-column listing all venue names/URLs the paper appears under (canonical +
-alternates + the open-access PDF host) and a **Data quality** column, for
-auditing. Matching tunables
-(fuzzy cutoff, preprint and generic-host lists) live in
-[bealls_list_check/config.py](requirement_checks/bealls_list_check/config.py).
-
-> **Caveat:** appearance on Beall's List is an *allegation as of the snapshot date*,
-> not proof a venue is predatory. Some listed publishers are contested — Frontiers,
-> for example, is on the list but widely considered legitimate. (MDPI sits in the
-> site's "Excluded — decide after reading" section, so it is **not** flagged.) The
-> check classifies the *venue*, never the paper's quality.
-
-### Optional LLM second pass (recall booster)
-
-The deterministic matcher is precise but structurally misses some real cases —
-e.g. a journal whose Semantic Scholar URL is on an *alias* domain, or where the
-list records a *publisher* name while the paper carries the *journal* name (the
-[WSEAS](https://wseas.org) case). [`bealls_llm_check.py`](requirement_checks/bealls_list_check/bealls_llm_check.py)
-adds an **opt-in** LLM pass to catch those:
-
-```bash
-python requirement_checks/bealls_list_check/bealls_llm_check.py            # all venues (costs tokens)
-python requirement_checks/bealls_list_check/bealls_llm_check.py --limit 50 # cheap test on 50 venues
-```
-
-It runs the deterministic check first, then asks the LLM **once per distinct
-venue** (deduplicated, so far fewer calls than papers) — grounded with the
-nearest Beall's List entries, Beall's predatory-journal criteria, and the
-model's own knowledge — whether the venue or its publisher is predatory. It
-checks the **already-flagged (`on_list`/`review`) venues first**, so even a
-`--limit` run annotates the actionable rows. A venue the LLM flags that was
-`clean`/`no_venue` is **promoted to `review`** (a human still confirms — the LLM
-never asserts `on_list` on its own).
-
-Output is `results/bealls_llm_results.xlsx`. Every sheet (including **Flagged
-only**) carries an **"LLM assessment"** column — verdict + matched entity +
-reason, tagged as LLM-decided. It adds an **"LLM vs deterministic"** sheet
-listing every paper where the two disagree (LLM flagged it but the rules didn't,
-or vice-versa), and the Summary gains an **"LLM second pass"** section with the
-token counter and the disagreement count. Uses your configured `LLM_PROVIDER` /
-`AZURE_OPENAI_DEPLOYMENT`.
-
----
-
-## Multi-Model Runs
-
-For LLM-based checkers, set `AZURE_OPENAI_DEPLOYMENT` to a JSON array:
+For the LLM-based code checks, you can ask several models the same question and
+compare them. Set `AZURE_OPENAI_DEPLOYMENT` to a JSON array:
 
 ```env
 AZURE_OPENAI_DEPLOYMENT=["gpt-5","gpt-5-mini","claude-3-5-sonnet-20241022"]
 ```
 
-The resulting Excel file gets:
-
-- one `Results` sheet **per model** (one row per paper),
-- one `Summary` sheet per model (totals + token usage),
-- one `Model Comparison` sheet showing per-paper agreement across models.
+The Excel file then gets one `Results` sheet **per model**, one `Summary` sheet
+per model, and a `Model Comparison` sheet showing where the models agree and
+disagree for each paper.
 
 ---
 
@@ -437,14 +467,16 @@ The resulting Excel file gets:
 
 ```
 requirement_checks/
-├── common/                                # Shared helpers — imported by every checker
-│   ├── github_helpers.py                  # GitHub URL parsing, file listing/fetch, paginated GET, README-prioritised content assembly
-│   ├── llm_helpers.py                     # llm_call_parse_retry, JSON parsing, TokenUsageTracker
-│   ├── checker_pipeline.py                # run_pipeline orchestrator: papers × models → Excel
-│   └── excel_output.py                    # Borders, headers, status-coloured rows, summary/comparison sheets
+├── common/                                # Shared helpers used by every checker
+│   ├── github_helpers.py                  # GitHub URL parsing, file listing/fetch, paginated GET
+│   ├── llm_helpers.py                     # LLM call + JSON parsing + token counter
+│   ├── checker_pipeline.py                # Orchestrator: papers × models → Excel
+│   ├── excel_output.py                    # Borders, headers, status-coloured rows, summary sheets
+│   └── input_quality.py                   # The one shared input-validation function
 ├── data/
-│   └── papers_from_database.py            # PAPERS list (title, semanticscholarid, repo URL) — consumed by every 5.x checker (git-ignored; you create it)
-├── openai_client.py                       # LiteLLM-backed client; preserves the client.chat.completions.create() interface
+│   ├── papers_from_database.py            # Your PAPERS list (git-ignored; you create it)
+│   └── papers_source.py                   # load_papers(): the hook the web app uses to inject uploads
+├── openai_client.py                       # LiteLLM-backed client (one interface, many providers)
 ├── 5.1.code_availability/
 │   ├── 5.1.3.pre-processing_&_pipeline_code/
 │   ├── 5.1.4.code_documentation_quality/
@@ -452,47 +484,57 @@ requirement_checks/
 │   │   ├── check_github_repo_installation_instructions/
 │   │   ├── check_github_repo_usage_examples/
 │   │   ├── check_github_repo_api_documentation/
-│   │   └── shared/                        # check_paper_common.py — helpers shared by the 5.1.4 sub-checkers
+│   │   └── shared/                        # helpers shared by the 5.1.4 sub-checkers
 │   └── 5.1.5.code_license/
 ├── 5.2.practitioner_usability_and_popularity/
 │   ├── 5.2.2.maintenance_activity_indicators/
 │   ├── 5.2.3.adoption_metrics/
 │   └── 5.2.4.post_publication_maintenance/
-└── bealls_list_check/                      # Standalone Beall's List check (no PAPERS list)
-    ├── scrape_bealls_list.py              # Step 1: vendor data/bealls_snapshot.json from beallslist.net
-    ├── bealls_list_check.py               # Step 2: match the Semantic Scholar corpus → Excel (no LLM)
-    ├── bealls_llm_check.py                # Optional LLM second pass (recall booster; see below)
-    ├── match.py                           # Matching tiers (domain / ISSN / name / fuzzy)
-    ├── normalize.py                       # Name / host / ISSN normalization shared by scraper + matcher
-    ├── config.py                          # Paths + matching tunables (fuzzy cutoff, preprint/generic hosts)
-    └── data/bealls_snapshot.json          # Vendored snapshot (committed)
+└── bealls_list_check/                     # Standalone Beall's List check (separate input)
+    ├── scrape_bealls_list.py              # Step 1: vendor data/bealls_snapshot.json
+    ├── bealls_list_check.py               # Step 2: match the corpus → Excel (no LLM)
+    ├── bealls_llm_check.py                # Optional LLM pass over the 'review' papers
+    ├── match.py                           # The matching logic (domain / ISSN / name / fuzzy)
+    ├── data_quality.py                    # The Semantic-Scholar data-quality checks
+    ├── normalize.py                       # Name / host / ISSN normalisation
+    ├── config.py                          # Paths + matching tunables
+    └── data/bealls_snapshot.json          # The vendored snapshot (included)
+
+ui/                                        # The Streamlit web app (app.py + runners.py)
 ```
 
-Each checker folder follows the same convention: `<checker_name>.py` is the entry point, with `config.py` (limits, thresholds) and `prompts.py` (LLM prompts) alongside it. Results land in a sibling `results/` directory.
+Each code-check folder follows the same convention: `<checker_name>.py` is the
+entry point, with `config.py` (limits/thresholds) and `prompts.py` (LLM prompts)
+alongside it, and results in a sibling `results/` directory. Every checker reads
+its papers through `load_papers()` in
+[`data/papers_source.py`](requirement_checks/data/papers_source.py), which is why
+the web app (which sets the `PAPERS_JSON` environment variable) and the command
+line produce identical output.
 
-### Project map (Mermaid)
+### Project map
 
 ```mermaid
 flowchart TD
   root["Repo Root"]
   root --> rc["requirement_checks/"]
-  rc --> common["common/<br/>github_helpers, llm_helpers,<br/>checker_pipeline, excel_output"]
-  rc --> data["data/<br/>papers_from_database.py"]
+  root --> ui["ui/<br/>Streamlit web app"]
+  rc --> common["common/<br/>github + llm + excel + input_quality"]
+  rc --> data["data/<br/>papers_from_database.py + papers_source.py"]
   rc --> client["openai_client.py"]
   rc --> q51["5.1.code_availability/"]
   q51 --> q513["5.1.3 preprocessing pipeline"]
   q51 --> q514["5.1.4 documentation quality"]
-  q51 --> q515["5.1.5 code license"]
+  q51 --> q515["5.1.5 code licence"]
   q514 --> apidoc["api documentation<br/>(LLM + rule-based)"]
   q514 --> inline["inline comments"]
   q514 --> install["installation instructions<br/>(LLM + rule-based)"]
   q514 --> usage["usage examples"]
-  q514 --> shared["shared/<br/>check_paper_common.py"]
   rc --> q52["5.2.practitioner_usability_and_popularity/"]
   q52 --> q522["5.2.2 maintenance indicators"]
   q52 --> q523["5.2.3 adoption metrics"]
   q52 --> q524["5.2.4 post-publication maintenance"]
-  rc --> bealls["bealls_list_check/<br/>scrape + match venues vs Beall's List<br/>(no LLM, separate corpus)"]
+  rc --> bealls["bealls_list_check/<br/>match venues vs Beall's List<br/>(separate corpus; optional LLM pass)"]
 ```
 
-> Open Markdown Preview (`Ctrl+Shift+V` in VS Code) or view this file on GitHub to render the diagram.
+> To see the diagram, open this file on GitHub or in a Markdown preview
+> (`Ctrl+Shift+V` in VS Code).
