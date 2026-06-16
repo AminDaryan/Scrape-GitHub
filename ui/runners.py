@@ -174,7 +174,11 @@ def run_checker(checker: Checker, items: list, *, aux_lists: Optional[dict] = No
             papers_file.write_text(json.dumps(items, ensure_ascii=False), encoding="utf-8")
             env["PAPERS_JSON"] = str(papers_file)
 
-        cmd = [sys.executable, str(checker.script)]
+        # ``-u`` (unbuffered) so the child's print()s reach us line-by-line even
+        # though stdout is a pipe, not a terminal — otherwise block buffering
+        # hides all progress until the process exits (very visible on Beall's,
+        # which prints few lines).
+        cmd = [sys.executable, "-u", str(checker.script)]
         for flag, entries in (aux_lists or {}).items():
             if not entries:
                 continue

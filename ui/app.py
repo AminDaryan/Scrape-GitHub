@@ -127,6 +127,7 @@ def venue_list_input(label: str, key: str):
 
 def render_result(res: runners.RunResult, checker: runners.Checker):
     if res.ok:
+        st.success(f'✅ Done — "{checker.label}" finished. Your Excel is ready below.')
         st.download_button(f"⬇️ Download {res.output_path.name}", data=res.output_bytes,
                            file_name=res.output_path.name, key=f"dl_{checker.id}",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -227,6 +228,7 @@ def section_tab(section: str):
     st.markdown("**Step 2 · Provide the papers**")
     items = get_papers(f"{section}_{checker.id}", corpus=checker.corpus_based)
     if items is not None:
+        st.success(f"✅ Loaded {len(items)} paper(s) — ready to run.")
         show_input_quality(items, checker.corpus_based, key=checker.id)
 
     # 3 — options
@@ -274,26 +276,38 @@ def section_tab(section: str):
         st.caption("Add papers above to enable the button.")
     if run and items is not None:
         progress = st.progress(0.0, text="Starting…")
-        status = st.empty()
+        log_line = st.empty()
         step = re.compile(r"\[\s*(\d+)\s*/\s*(\d+)\s*\]")   # checkers print "[i/N]"
+        pulse = {"v": 0.0}
 
         def on_line(line):
             m = step.search(line)
-            if m and int(m.group(2)):
+            if m and int(m.group(2)):                # checks that report "[i/N]"
                 progress.progress(min(int(m.group(1)) / int(m.group(2)), 1.0),
                                   text=f"{m.group(1)}/{m.group(2)} papers…")
-            status.caption(line[-140:])             # latest activity, so it's never silent
+            else:                                    # Beall's has no per-paper counter —
+                pulse["v"] = (pulse["v"] + 0.05) % 0.9   # nudge so the bar looks alive
+                progress.progress(pulse["v"], text="Working…")
+            if line.strip():
+                log_line.caption("⏳ " + line[-140:])    # latest activity from the checker
 
         try:
-            res = runners.run_checker(checker, items, aux_lists=aux_lists, extra_args=extra_args,
-                                      env_overrides=env_overrides, on_line=on_line)
+            # st.spinner shows an animated indicator the whole time, so the user
+            # always sees that work is happening even during silent stretches
+            # (e.g. while Beall's loads its snapshot/corpus).
+            with st.spinner(f'Running "{checker.label}"… '
+                            "large lists and LLM checks can take a while."):
+                res = runners.run_checker(checker, items, aux_lists=aux_lists,
+                                          extra_args=extra_args,
+                                          env_overrides=env_overrides, on_line=on_line)
         except Exception as e:                       # surface any launch failure
-            progress.empty(); status.empty()
+            progress.empty(); log_line.empty()
             st.session_state[f"res_{checker.id}"] = None
+            st.error("Could not start the check:")
             st.exception(e)
             return
         progress.progress(1.0, text="Done")
-        status.empty()
+        log_line.empty()
         st.session_state[f"res_{checker.id}"] = res
         notify("Check complete ✅" if res.ok else "Check failed 🛑",
                icon="✅" if res.ok else "🛑")
