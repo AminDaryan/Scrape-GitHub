@@ -119,9 +119,5 @@ def crossref_flags(paper, *, timeout=10):
     return flags
 
 
-def validate(paper, *, use_crossref=False):
-    """All data-quality warnings for one record (offline + optional Crossref)."""
-    flags = offline_flags(paper)
-    if use_crossref:
-        flags += crossref_flags(paper)
-    return flags
+# Note: these venue checks are invoked through the single shared validator,
+# common.input_quality.validate_input(), which all checks use.

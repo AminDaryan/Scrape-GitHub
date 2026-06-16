@@ -27,14 +27,16 @@ import openpyxl
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+_HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(_HERE))
+sys.path.insert(0, str(_HERE.parent))          # requirement_checks/ -> common
 from config import (
     CORPUS_DIR, CORPUS_GLOB, SNAPSHOT_PATH, RESULTS_DIR, RESULTS_FILENAME,
     STATUS_FILL_COLORS,
 )
 from match import BeallIndex, match_paper, out_of_scope_result
 from user_lists import load_user_entries, WhitelistMatcher
-import data_quality
+from common import input_quality          # the one shared input data-quality validator
 
 
 # =============================================================================
@@ -91,7 +93,7 @@ def classify_corpus(index, whitelist=None, crossref="off"):
             r = match_paper(index, paper, source_file)
         use_cr = crossref == "all" or (crossref == "flagged"
                                        and r["status"] in ("on_list", "review"))
-        r["data_quality"] = data_quality.validate(paper, use_crossref=use_cr)
+        r["data_quality"] = input_quality.validate_input(paper, use_crossref=use_cr)
         results.append(r)
     return results, sorted(corpus_files), n_scope
 

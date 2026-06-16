@@ -329,11 +329,20 @@ python requirement_checks/bealls_list_check/bealls_list_check.py \
 
 ### Data-quality checks (catching wrong Semantic Scholar metadata)
 
+Input validation runs as a preprocessor before **every** check, through one
+shared, field-aware function —
+[`common/input_quality.py`](requirement_checks/common/input_quality.py) →
+`validate_input(paper)`. It dispatches on what the record contains: a GitHub
+`repo` → repo checks (present / parseable / duplicate / optional liveness); venue
+fields (`publicationVenue` / `venue` / DOI / ISSN) → the venue checks below. So
+the 5.1/5.2 checks (via `data/papers_source.load_papers`) and the Beall's check
+(via `classify_corpus`) call the *same* validator; a record with both gets both.
+
 S2's metadata is sometimes wrong (it merges same-named journals, stores
 old/alias domains, or omits the venue), and a wrong verdict is worse than a
-flagged one. Every paper therefore gets a **Data quality** column (and flagged
-records are collected on a **Data quality** sheet), so bad input is caught
-*alongside* the verdict rather than trusted blindly:
+flagged one. In the Beall's workbook every paper gets a **Data quality** column
+(and flagged records are collected on a **Data quality** sheet), so bad input is
+caught *alongside* the verdict rather than trusted blindly:
 
 - **Always on (offline, no network):** missing venue metadata, malformed
   DOI/ISSN, encoding artifacts, and the **"merged venues"** red flag (a venue
@@ -350,13 +359,11 @@ records are collected on a **Data quality** sheet), so bad input is caught
 python requirement_checks/bealls_list_check/bealls_list_check.py --crossref flagged
 ```
 
-> The **5.1 / 5.2 checks** run an analogous input pre-flight on *their* papers
-> (which carry GitHub links): every run validates the input through
-> [`data/papers_source.py`](requirement_checks/data/papers_source.py) →
-> [`common/input_quality.py`](requirement_checks/common/input_quality.py) and
-> prints a data-quality report (missing/duplicate/non-GitHub/unparseable repo
-> links; optional repo-liveness via `CHECK_REPO_LIVENESS=1` or the UI checkbox)
-> before evaluating. It's surfaced in the UI's run log.
+> For the **5.1 / 5.2 checks** (whose papers carry GitHub links) the same
+> `validate_input` runs the repo-side checks and prints a report before
+> evaluating (optional repo-liveness via `CHECK_REPO_LIVENESS=1` or the UI
+> checkbox) — surfaced in the UI's run log and the up-front "Input data quality"
+> panel.
 
 **Output:** `requirement_checks/bealls_list_check/results/bealls_list_results.xlsx`
 (git-ignored) with sheets — **Results**, **Flagged only** (the actionable

@@ -29,10 +29,9 @@ load_dotenv(runners.REPO_ROOT / ".env")
 # In-process validators, for the live "Input data quality" panel (these modules
 # are import-safe — no config/prompts name collisions).
 sys.path.insert(0, str(runners.RC))           # requirement_checks/
-sys.path.insert(0, str(runners._BEALLS))      # bealls_list_check/
+sys.path.insert(0, str(runners._BEALLS))      # bealls_list_check/ (for the venue checks)
 try:
-    from common import input_quality
-    import data_quality
+    from common import input_quality           # the one shared, field-aware validator
     _VALIDATORS_OK = True
 except Exception:
     _VALIDATORS_OK = False
@@ -174,16 +173,11 @@ def show_input_quality(items, corpus):
     if not _VALIDATORS_OK:
         return
     try:
-        if corpus:                                  # Beall's: S2 venue records
-            flagged = [(i, p, data_quality.offline_flags(p)) for i, p in enumerate(items, 1)]
-            flagged = [t for t in flagged if t[2]]
-            what = "Semantic Scholar venue metadata"
-        else:                                        # 5.1/5.2: GitHub-link papers
-            flagged = input_quality.validate_papers(items)
-            what = "GitHub-link papers"
+        flagged = input_quality.validate_papers(items)   # one shared validator (offline)
     except Exception as exc:
         st.caption(f"(input validation unavailable: {exc})")
         return
+    what = "Semantic Scholar venue metadata" if corpus else "GitHub-link papers"
     icon = "⚠️" if flagged else "✅"
     with st.expander(f"{icon} Input data quality ({what}) — {len(flagged)} of {len(items)} "
                      f"paper(s) flagged", expanded=bool(flagged)):
