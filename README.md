@@ -347,6 +347,14 @@ records are collected on a **Data quality** sheet), so bad input is caught
 python requirement_checks/bealls_list_check/bealls_list_check.py --crossref flagged
 ```
 
+> The **5.1 / 5.2 checks** run an analogous input pre-flight on *their* papers
+> (which carry GitHub links): every run validates the input through
+> [`data/papers_source.py`](requirement_checks/data/papers_source.py) →
+> [`common/input_quality.py`](requirement_checks/common/input_quality.py) and
+> prints a data-quality report (missing/duplicate/non-GitHub/unparseable repo
+> links; optional repo-liveness via `CHECK_REPO_LIVENESS=1` or the UI checkbox)
+> before evaluating. It's surfaced in the UI's run log.
+
 **Output:** `requirement_checks/bealls_list_check/results/bealls_list_results.xlsx`
 (git-ignored) with sheets — **Results**, **Flagged only** (the actionable
 `on_list` + `review` subset), **Data quality** (records with suspect S2 metadata,

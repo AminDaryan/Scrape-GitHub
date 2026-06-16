@@ -56,6 +56,8 @@ def get_papers(section_key: str, corpus: bool):
     fmt = ("Semantic Scholar **paper records** (with `publicationVenue`)"
            if corpus else "papers with **GitHub links** (`title` + `repo`)")
     st.caption(f"Input format: {fmt}. Upload a JSON **list**, or a **single** paper object.")
+    with st.expander("See expected format"):
+        st.code(example, language="json")
     mode = st.radio("Provide papers via", ["Upload file", "Paste JSON"],
                     horizontal=True, key=f"mode_{section_key}")
     raw = None
@@ -66,8 +68,6 @@ def get_papers(section_key: str, corpus: bool):
     else:
         raw = st.text_area("Paste JSON here", height=160, key=f"paste_{section_key}",
                            placeholder=example)
-    with st.expander("See expected format"):
-        st.code(example, language="json")
 
     if not raw or not raw.strip():
         return None
@@ -158,6 +158,13 @@ def section_tab(section: str):
 
     aux_lists = None
     extra_args = None
+    env_overrides = None
+    if section in ("5.1", "5.2"):
+        st.caption("Every run validates the input first (a data-quality report appears in the "
+                   "run log): missing/duplicate/non-GitHub repo links, etc.")
+        if st.checkbox("Also check each repo link is live (HEAD request; slower)",
+                       key=f"live_{checker.id}"):
+            env_overrides = {"CHECK_REPO_LIVENESS": "1"}
     if section == "bealls":
         with st.expander("Whitelist / blacklist (optional)"):
             st.caption(
@@ -180,7 +187,8 @@ def section_tab(section: str):
         with st.spinner(f"Running {checker.label} on {len(items)} paper(s)… "
                         "this can take a while for large lists or LLM checks."):
             try:
-                res = runners.run_checker(checker, items, aux_lists=aux_lists, extra_args=extra_args)
+                res = runners.run_checker(checker, items, aux_lists=aux_lists,
+                                          extra_args=extra_args, env_overrides=env_overrides)
             except Exception as e:                 # surface any launch failure
                 st.session_state[f"res_{checker.id}"] = None
                 st.exception(e)

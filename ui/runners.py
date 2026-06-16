@@ -119,7 +119,8 @@ def _newest_xlsx_since(folder: Path, since_ts: float) -> Optional[Path]:
 
 
 def run_checker(checker: Checker, items: list, *, aux_lists: Optional[dict] = None,
-                extra_args: Optional[list] = None, timeout: Optional[int] = None) -> RunResult:
+                extra_args: Optional[list] = None, env_overrides: Optional[dict] = None,
+                timeout: Optional[int] = None) -> RunResult:
     """Run one checker over *items* and return its produced Excel.
 
     *items* is a list of paper objects (GitHub-link papers for 5.1/5.2; Semantic
@@ -135,6 +136,7 @@ def run_checker(checker: Checker, items: list, *, aux_lists: Optional[dict] = No
     with tempfile.TemporaryDirectory(prefix="bealls_ui_") as tmp:
         tmp = Path(tmp)
         env = os.environ.copy()
+        env.update(env_overrides or {})
         if checker.corpus_based:
             # The corpus dir is globbed for *.json, so it must contain ONLY the
             # uploaded corpus — keep it in its own subdir away from the aux files.

@@ -22,7 +22,11 @@ import os
 
 
 def load_papers():
-    """Return the papers to check: the ``PAPERS_JSON`` override, or the vendored list."""
+    """Return the papers to check: the ``PAPERS_JSON`` override, or the vendored list.
+
+    A data-quality report is printed first (see _validate_input) so every checker
+    that calls this validates its input as a preprocessing step.
+    """
     path = os.environ.get("PAPERS_JSON", "").strip()
     if path:
         with open(path, encoding="utf-8") as fh:
@@ -34,9 +38,21 @@ def load_papers():
                 f"PAPERS_JSON ({path}) must contain a JSON list of papers or a "
                 f"single paper object, got {type(data).__name__}."
             )
-        return data
+        papers = data
+    else:
+        # Fall back to the hand-curated vendored list (may be absent on a fresh
+        # clone — same behaviour as before this hook existed).
+        from data.papers_from_database import PAPERS
+        papers = PAPERS
 
-    # Fall back to the hand-curated vendored list (may be absent on a fresh
-    # clone — same behaviour as before this hook existed).
-    from data.papers_from_database import PAPERS
-    return PAPERS
+    _validate_input(papers)
+    return papers
+
+
+def _validate_input(papers):
+    """Pre-flight data-quality report on the input (never blocks loading)."""
+    try:
+        from common.input_quality import log_report
+        log_report(papers, check_liveness=os.environ.get("CHECK_REPO_LIVENESS") == "1")
+    except Exception as exc:                       # validation must never break a run
+        print(f"[input data quality] validation skipped: {exc}")
