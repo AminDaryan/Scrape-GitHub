@@ -187,59 +187,91 @@ def show_input_quality(items, corpus, key):
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         if not flagged:
             st.caption("No issues found by the offline checks. (Not a guarantee of correctness; "
-                       "Crossref / repo-liveness run during the check and show in the run log.)")
-        for i, p, flags in flagged[:100]:
+                       "deeper checks run during the check itself and show in the run log.)")
+        for i, p, flags in flagged[:5]:
             st.markdown(f"**#{i}** {(p.get('title') or '?')[:90]} — " + "; ".join(flags))
-        if len(flagged) > 100:
-            st.caption(f"…and {len(flagged) - 100} more")
+        if len(flagged) > 5:
+            st.caption(f"…and {len(flagged) - 5} more — download the report above for the full list.")
+
+
+SECTION_INTRO = {
+    "5.1": "Is the paper's **code available and documented**?",
+    "5.2": "Is the code **maintained and actually used**?",
+    "bealls": "Is the paper's **journal/publisher on Beall's List** of potentially predatory venues?",
+}
+
+
+def _checker_badge(checker, section):
+    if checker.needs_llm:
+        return "🔑 Uses an LLM — needs API keys in `.env`, and costs tokens."
+    if section == "bealls":
+        return "⚡ No LLM — matched offline against the vendored Beall's List snapshot."
+    return "⚡ No LLM — uses the GitHub API (a `GITHUB_TOKEN` in `.env` is recommended)."
 
 
 def section_tab(section: str):
+    st.caption(SECTION_INTRO[section])
     checkers = runners.checkers_for(section)
+
+    # 1 — choose a check
+    st.markdown("**Step 1 · Choose a check**")
     labels = [c.label for c in checkers]
-    label = st.selectbox("Check to run", labels, key=f"sel_{section}")
+    label = st.selectbox("Check", labels, key=f"sel_{section}", label_visibility="collapsed")
     checker = checkers[labels.index(label)]
-
-    badges = []
-    if checker.needs_llm:
-        badges.append("needs LLM keys (costs tokens)")
-    if not checker.needs_llm:
-        badges.append("no LLM — GitHub API only")
-    st.caption(" · ".join(badges))
+    st.markdown(f"➡️ {checker.description}")
+    st.caption(_checker_badge(checker, section))
     if checker.note:
-        st.info(checker.note)
+        st.info("ℹ️ " + checker.note)
 
+    # 2 — provide the papers
+    st.markdown("**Step 2 · Provide the papers**")
     items = get_papers(f"{section}_{checker.id}", corpus=checker.corpus_based)
     if items is not None:
         show_input_quality(items, checker.corpus_based, key=checker.id)
 
+    # 3 — options
     aux_lists = None
     extra_args = None
     env_overrides = None
-    if section in ("5.1", "5.2"):
-        st.caption("Every run validates the input first (a data-quality report appears in the "
-                   "run log): missing/duplicate/non-GitHub repo links, etc.")
-        if st.checkbox("Also check each repo link is live (HEAD request; slower)",
-                       key=f"live_{checker.id}"):
-            env_overrides = {"CHECK_REPO_LIVENESS": "1"}
-    if section == "bealls":
-        with st.expander("Whitelist / blacklist (optional)"):
-            st.caption(
-                "**Whitelist** — only papers whose venue is in this list are checked; "
-                "the rest are marked *out_of_scope*. Empty = check everything.  "
-                "**Blacklist** — these venues are added to Beall's List as predatory.  "
-                'Format: a JSON list of `{"name": …, "domain": …}` (a plain string works as a name).')
-            wl = venue_list_input("Whitelist venues (JSON)", f"wl_{checker.id}")
-            bl = venue_list_input("Blacklist venues (JSON)", f"bl_{checker.id}")
-        aux_lists = {"--whitelist": wl, "--blacklist": bl}
-        if st.checkbox("Cross-check DOIs against Crossref (catches wrong S2 venue/ISSN; slower)",
-                       key=f"cr_{checker.id}"):
-            extra_args = ["--crossref", "all"]
-        st.caption("Offline data-quality checks always run (a 'Data quality' column + sheet); "
-                   "Crossref adds an authoritative DOI cross-check.")
+    with st.expander("⚙️ Options (optional)"):
+        if section in ("5.1", "5.2"):
+            if st.checkbox(
+                    "Check that each GitHub link still works", key=f"live_{checker.id}",
+                    help="Before running, sends a quick request to every repository URL and flags "
+                         "links that are dead (404) or moved. Slower — it contacts GitHub once per "
+                         "paper. (Input is always validated for missing/duplicate/non-GitHub links "
+                         "regardless; see the panel above.)"):
+                env_overrides = {"CHECK_REPO_LIVENESS": "1"}
+            else:
+                st.caption("Nothing to configure — input is always validated (see the panel above).")
+        if section == "bealls":
+            st.markdown("**Scope — whitelist** (optional)")
+            wl = venue_list_input("Only check papers from these venues — leave empty to check all",
+                                  f"wl_{checker.id}")
+            st.markdown("**Extend the list — blacklist** (optional)")
+            bl = venue_list_input("Also treat papers from these venues as predatory",
+                                  f"bl_{checker.id}")
+            aux_lists = {"--whitelist": wl, "--blacklist": bl}
+            st.caption('Format for both boxes: a JSON list like '
+                       '`[{"name": "IEEE", "domain": "ieee.org"}]` (a plain `"name"` string works too).')
+            if st.checkbox(
+                    "Double-check each venue against Crossref (more reliable, slower)",
+                    key=f"cr_{checker.id}",
+                    help="Crossref is the official registry of published articles (looked up by "
+                         "each paper's DOI). When on, the journal name and ISSN that Semantic "
+                         "Scholar reports are compared against Crossref's official record, and any "
+                         "that disagree are flagged in the Data-quality column — catching papers "
+                         "where Semantic Scholar has the wrong venue. Off is faster; on contacts "
+                         "Crossref once per paper."):
+                extra_args = ["--crossref", "all"]
 
+    # run
+    st.markdown("**Step 3 · Run**")
     run = st.button("▶ Run check", type="primary", key=f"run_{checker.id}",
-                    disabled=items is None)
+                    disabled=items is None,
+                    help=None if items is not None else "Add papers in Step 2 first.")
+    if not items:
+        st.caption("Add papers above to enable the button.")
     if run and items is not None:
         progress = st.progress(0.0, text="Starting…")
         status = st.empty()
@@ -272,19 +304,23 @@ def section_tab(section: str):
 
 
 st.title("📄 Paper reproducibility & venue checks")
-st.caption("Upload a list of papers (or one paper) and run any check. Output matches the CLI scripts exactly.")
+st.caption("Pick a tab, choose a check, add your papers as JSON, and run — each check "
+           "produces a downloadable Excel.")
 env_sidebar()
+with st.sidebar.expander("ℹ️ What the tabs mean"):
+    st.markdown(
+        "- **5.1 — Code availability:** is the paper's code public and documented?\n"
+        "- **5.2 — Usability & popularity:** is that code maintained and actually used?\n"
+        "- **Beall's:** is the paper's journal/publisher on Beall's List of *potentially* "
+        "predatory venues?\n\n"
+        "In each tab: **(1)** choose a check, **(2)** add papers (a JSON list, or a single "
+        "paper object), **(3)** Run. The result downloads as an Excel file.")
 
-tab51, tab52, tab_b = st.tabs(["5.1 — Code availability", "5.2 — Usability & popularity",
-                               "Beall's predatory-venue"])
+tab51, tab52, tab_b = st.tabs(["5.1 · Code availability", "5.2 · Usability & popularity",
+                               "Beall's · predatory venues"])
 with tab51:
-    st.subheader("Code availability & documentation")
     section_tab("5.1")
 with tab52:
-    st.subheader("Practitioner usability & popularity")
     section_tab("5.2")
 with tab_b:
-    st.subheader("Beall's List predatory-venue check")
-    st.caption("Optionally scope with a whitelist or extend the list with a blacklist "
-               "(see the expander after choosing a check).")
     section_tab("bealls")

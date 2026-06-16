@@ -52,22 +52,26 @@ def offline_flags(paper):
     doi = (ext.get("DOI") or "").strip()
 
     if not (venue or pv_name or pv.get("url") or issn_raw):
-        flags.append("No venue metadata (no venue, publicationVenue, or ISSN).")
+        flags.append("No journal/venue information at all (so the venue can't be checked).")
     if doi and not _DOI_RE.match(doi):
-        flags.append(f"DOI looks malformed: {doi!r}.")
+        flags.append(f"The DOI doesn't look like a valid DOI: {doi!r}.")
     if issn_raw and not normalize_issn(issn_raw):
-        flags.append(f"ISSN looks malformed: {issn_raw!r}.")
-    for label, val in (("venue", venue), ("publicationVenue.name", pv_name)):
+        flags.append(f"The ISSN isn't in the standard NNNN-NNNX form: {issn_raw!r}.")
+    for label, val in (("venue name", venue), ("publication-venue name", pv_name)):
         if val and _ENTITY_RE.search(val):
-            flags.append(f"Encoding artifacts in {label}: {val!r}.")
+            flags.append(f"The {label} contains leftover HTML codes (e.g. &amp;): {val!r}.")
 
-    # Merged-venue red flag: canonical + alternate venue URLs span >1 publisher.
+    # Merged-venue red flag: the one venue record points at >1 publisher's website,
+    # which usually means Semantic Scholar fused two same-named journals into one.
     hosts = [normalize_host(pv["url"])] if pv.get("url") else []
     hosts += [normalize_host(u) for u in (pv.get("alternate_urls") or []) if u]
     regs = {_registrable(h) for h in hosts if h}
     if len(regs) >= 2:
-        flags.append("S2 may have merged different journals — venue URLs span "
-                     f"{len(regs)} publishers ({', '.join(sorted(regs))}).")
+        flags.append(
+            f"Semantic Scholar lists web addresses from {len(regs)} different publishers "
+            f"for this one journal ({', '.join(sorted(regs))}). That usually means it has "
+            "merged two different journals that share a name, so the venue shown for this "
+            "paper may be the wrong one — worth checking by hand.")
     return flags
 
 

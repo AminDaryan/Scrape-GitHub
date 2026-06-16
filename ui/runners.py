@@ -42,6 +42,7 @@ class Checker:
     needs_llm: bool = False
     corpus_based: bool = False   # Beall's: input is Semantic Scholar records, fed via BEALLS_CORPUS_DIR
     note: str = ""
+    description: str = ""        # plain-language "what this check answers", shown in the UI
 
 
 CHECKERS: List[Checker] = [
@@ -49,50 +50,67 @@ CHECKERS: List[Checker] = [
     Checker("5.1.3.preprocessing", "5.1", "5.1.3 — Preprocessing / pipeline code (LLM)",
             _Q1 / "5.1.3.pre-processing_&_pipeline_code" / "check_paper_appendix_for_data_preprocessing_code.py",
             _Q1 / "5.1.3.pre-processing_&_pipeline_code" / "results" / "preprocessing_code_results.xlsx",
-            needs_llm=True),
+            needs_llm=True,
+            description="Does the repository contain real data-preprocessing / pipeline code "
+                        "(not just an inference demo)?"),
     Checker("5.1.4.inline", "5.1", "5.1.4 — Inline comments (LLM)",
             _DOC / "check_github_repo_inline_comments" / "check_github_repo_inline_comments.py",
             _DOC / "check_github_repo_inline_comments" / "results" / "inline_comments_results.xlsx",
-            needs_llm=True),
+            needs_llm=True,
+            description="Does the code contain meaningful inline comments?"),
     Checker("5.1.4.installation", "5.1", "5.1.4 — Installation instructions (LLM)",
             _DOC / "check_github_repo_installation_instructions" / "check_github_repo_installation_instructions.py",
             _DOC / "check_github_repo_installation_instructions" / "results" / "installation_instructions_results.xlsx",
-            needs_llm=True),
+            needs_llm=True,
+            description="Does the repo explain how to install / set it up?"),
     Checker("5.1.4.usage", "5.1", "5.1.4 — Usage / example commands (LLM)",
             _DOC / "check_github_repo_usage_examples" / "check_github_repo_example_commands.py",
             _DOC / "check_github_repo_usage_examples" / "results" / "usage_examples_results.xlsx",
-            needs_llm=True),
+            needs_llm=True,
+            description="Does the repo show example commands / how to run it?"),
     Checker("5.1.4.apidoc", "5.1", "5.1.4 — API documentation (LLM)",
             _DOC / "check_github_repo_api_documentation" / "check_github_repo_api_documentation.py",
             _DOC / "check_github_repo_api_documentation" / "results" / "api_documentation_results.xlsx",
-            needs_llm=True),
+            needs_llm=True,
+            description="Does the repo document its functions / classes (API docs)?"),
     Checker("5.1.4.apidoc_norule", "5.1", "5.1.4 — API documentation (rule-based, no LLM)",
             _DOC / "check_github_repo_api_documentation" / "api_documentation_check_no_llm_used.py",
-            _DOC / "check_github_repo_api_documentation" / "results" / "api_documentation_no_llm.xlsx"),
+            _DOC / "check_github_repo_api_documentation" / "results" / "api_documentation_no_llm.xlsx",
+            description="Same question as above, but answered by scanning for docstrings / API "
+                        "docs with rules (no LLM, no tokens)."),
     Checker("5.1.5.license", "5.1", "5.1.5 — Code license (no LLM)",
             _Q1 / "5.1.5.code_license" / "5.1.5.code_license.py",
-            _Q1 / "5.1.5.code_license" / "code_license.xlsx"),
+            _Q1 / "5.1.5.code_license" / "code_license.xlsx",
+            description="Does the repo have an open-source license, and which one?"),
     # ── 5.2 Practitioner usability & popularity ─────────────────────────────
     Checker("5.2.2.maintenance", "5.2", "5.2.2 — Maintenance activity indicators (no LLM)",
             _Q2 / "5.2.2.maintenance_activity_indicators" / "5.2.2.maintenance_activity_indicators.py",
-            _Q2 / "5.2.2.maintenance_activity_indicators" / "maintenance_indicators.xlsx"),
+            _Q2 / "5.2.2.maintenance_activity_indicators" / "maintenance_indicators.xlsx",
+            description="Is the repo actively maintained? (recent commits, contributors, "
+                        "releases, archived/stale flags)"),
     Checker("5.2.3.adoption", "5.2", "5.2.3 — Adoption metrics: stars/forks/PyPI (no LLM)",
             _Q2 / "5.2.3.adoption_metrics" / "5.2.3.adoption_metrics.py",
-            _Q2 / "5.2.3.adoption_metrics" / "adoption_metrics.xlsx"),
+            _Q2 / "5.2.3.adoption_metrics" / "adoption_metrics.xlsx",
+            description="How adopted is it? GitHub stars/forks and PyPI monthly downloads."),
     Checker("5.2.4.postpub", "5.2", "5.2.4 — Post-publication maintenance (no LLM)",
             _Q2 / "5.2.4.post_publication_maintenance" / "5.2.4.post_publication_maintenance.py",
-            _Q2 / "5.2.4.post_publication_maintenance" / "post_publication_maintenance.xlsx"),
+            _Q2 / "5.2.4.post_publication_maintenance" / "post_publication_maintenance.xlsx",
+            description="Has it been maintained since the paper? (date of last commit, total commits)"),
     # ── Beall's predatory-venue check (corpus = Semantic Scholar records) ────
-    Checker("bealls.deterministic", "bealls", "Beall's check — deterministic (no LLM)",
+    Checker("bealls.deterministic", "bealls", "Beall's check — fast (rules only, no LLM)",
             _BEALLS / "bealls_list_check.py",
             _BEALLS / "results" / "bealls_list_results.xlsx",
             corpus_based=True,
+            description="Is the paper's journal/publisher on Beall's List of potentially "
+                        "predatory venues? Fast, deterministic, no tokens.",
             note="Input is Semantic Scholar paper records (with publicationVenue), not GitHub links."),
-    Checker("bealls.llm", "bealls", "Beall's check — with LLM second pass",
+    Checker("bealls.llm", "bealls", "Beall's check — thorough (rules + LLM second pass)",
             _BEALLS / "bealls_llm_check.py",
             _BEALLS / "results" / "bealls_llm_results.xlsx",
             needs_llm=True, corpus_based=True,
-            note="Input is Semantic Scholar paper records. Runs the deterministic pass, then the LLM pass."),
+            description="Same as the fast check, then an LLM re-examines each venue to catch "
+                        "ones the rules miss (e.g. alias domains). Uses tokens.",
+            note="Input is Semantic Scholar paper records (with publicationVenue), not GitHub links."),
 ]
 
 CHECKERS_BY_ID = {c.id: c for c in CHECKERS}
