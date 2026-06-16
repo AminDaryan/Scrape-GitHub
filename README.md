@@ -4,30 +4,28 @@
 
 Imagine you are writing a survey of, say, 500 research papers and you want to
 answer questions like: *How many of these papers actually published working
-code? Of those, how many repositories are still maintained today? And were any
-of the papers published in journals known for fake or missing peer review?*
-Checking 500 papers by hand would take weeks. **This tool does those checks
-automatically and hands you the answers as Excel spreadsheets** — one
-spreadsheet per question, one row (or block of rows) per paper.
+code? Of those, how many repositories are still maintained today? How many are
+properly licensed and documented?* Checking 500 papers by hand would take weeks.
+**This tool does those checks automatically and hands you the answers as Excel
+spreadsheets** — one spreadsheet per question, one row per paper.
 
-It does two largely independent jobs:
-
-1. **Code checks (the `5.1` and `5.2` questions).** Given a list of papers and
-   the GitHub link for each one, it inspects every repository and answers
-   questions such as *"does it have installation instructions?"*, *"does it have
-   a licence?"*, *"is it still being updated?"*, *"how many people use it?"*.
-2. **Predatory-venue check (the "Beall's List" check).** Given a list of papers
-   and the journal each one was published in, it flags papers whose journal
-   appears on **Beall's List** — a well-known (if unofficial and contested) list
-   of journals and publishers accused of poor or fake peer review.
+Given a list of papers and the GitHub link for each one, it inspects every
+repository and answers questions such as *"does it have installation
+instructions?"*, *"does it have a licence?"*, *"is it still being updated?"*,
+*"how many people use it?"* — grouped as the **`5.1`** (code availability &
+documentation) and **`5.2`** (usability & popularity) questions.
 
 Some checks ask a large language model (LLM) to read the repository and judge;
 others are purely mechanical (they just call the GitHub API or apply rules). The
 tool tells you, for every check, which kind it is.
 
-**Who it's for.** Researchers, students, or anyone auditing the code quality or
-publication quality of a batch of papers — for a survey, a meta-study, a
-reproducibility benchmark, or a literature review.
+**Who it's for.** Researchers, students, or anyone auditing the code quality of a
+batch of papers — for a survey, a meta-study, a reproducibility benchmark, or a
+literature review.
+
+> **Looking for the predatory-journal (Beall's List) check?** It used to live
+> here, but it now has its own repository:
+> [**Beall-s-List-check**](https://github.com/AminDaryan/Beall-s-List-check).
 
 ---
 
@@ -43,13 +41,11 @@ that wraps **every** check. It is the recommended starting point.
 bash ./run_ui.sh      # macOS / Linux
 ```
 
-This opens a page in your browser (at `http://localhost:8501`). You will see
-three tabs:
+This opens a page in your browser (at `http://localhost:8501`). You will see two
+tabs:
 
 - **5.1 — Code availability:** is the paper's code public and documented?
 - **5.2 — Usability & popularity:** is that code maintained and actually used?
-- **Beall's:** is the paper's journal on Beall's List of *potentially* predatory
-  venues?
 
 In each tab you follow three steps: **(1)** choose a check from the dropdown
 (each check shows a one-line description and a badge saying whether it uses an
@@ -57,9 +53,9 @@ LLM), **(2)** paste or upload your papers as JSON, **(3)** press **Run**. When i
 finishes you can preview the result in the page and download it as an Excel file.
 
 As soon as your papers load, an **Input data quality** panel appears and tells
-you up front if anything about your input looks wrong (a missing GitHub link, a
-malformed DOI, a duplicate, and so on) — and lets you download that report too.
-While a check runs, a progress bar shows which paper it is on.
+you up front if anything about your input looks wrong (a missing or non-GitHub
+link, an unparseable URL, a duplicate, and so on) — and lets you download that
+report too. While a check runs, a progress bar shows which paper it is on.
 
 > Behind the scenes the web app runs exactly the same code as the command line,
 > so the Excel file you download is identical to what you would get from the
@@ -68,8 +64,6 @@ While a check runs, a progress bar shows which paper it is on.
 ---
 
 ## What you provide as input
-
-### For the code checks (`5.1` / `5.2`)
 
 A list of papers, where each paper has at least a **title** and a **GitHub
 repository link**. From the command line this list lives in a Python file,
@@ -97,15 +91,6 @@ PAPERS = [
 > by Git, because every user's paper list is different). You create it yourself.
 > In the **web app** you do not need this file at all — you paste or upload your
 > papers directly.
-
-### For the Beall's List check
-
-A different kind of input: records exported from
-[Semantic Scholar](https://www.semanticscholar.org/) (a free academic search
-engine). Each record describes a paper and, crucially, the **journal it was
-published in** (the `publicationVenue` field). This check does **not** use the
-`papers_from_database.py` file. More on this in
-[its own section](#the-bealls-list-predatory-venue-check) below.
 
 ---
 
@@ -205,180 +190,6 @@ python "requirement_checks/5.1.code_availability/5.1.4.code_documentation_qualit
 
 ---
 
-## The Beall's List predatory-venue check
-
-This is a separate, self-contained tool in
-[`requirement_checks/bealls_list_check/`](requirement_checks/bealls_list_check/).
-It answers one question for every paper: **was it published in a journal or by a
-publisher that appears on Beall's List?**
-
-[Beall's List](https://beallslist.net) is a well-known catalogue of journals and
-publishers accused of being "predatory" — charging fees while providing little
-or no real peer review. It is **unofficial, frozen in time (around 2021), and
-contested** (some listed publishers are widely considered legitimate). So a
-match here means *"this journal appears on the list"*, **not** *"this paper is
-bad"*. The check looks only at the **venue**, never at the paper's content. It
-uses **no LLM** by default — every verdict is mechanical and can be traced back
-to exactly what matched.
-
-### How to run it (two steps)
-
-```bash
-# Step 1: download a local copy ("snapshot") of Beall's List, once.
-#         This writes data/bealls_snapshot.json. It is already included, so you
-#         can usually skip this step.
-python requirement_checks/bealls_list_check/scrape_bealls_list.py
-
-# Step 2: compare your papers against the snapshot and write the Excel report.
-python requirement_checks/bealls_list_check/bealls_list_check.py
-```
-
-By default your papers are read from `docs/Updated Abstract Papers/*.json` (these
-files are large, so they are not included); point it elsewhere with the
-`BEALLS_CORPUS_DIR` setting, or just use the **Beall's tab in the web app**.
-
-### What the verdicts mean
-
-Every paper gets one of these **statuses** (the rows are colour-coded by it):
-
-| Status | Meaning |
-|---|---|
-| `on_list` | A **strong** match: the journal's own website, its exact ISSN, or its exact name is on the list. Read as "appears on Beall's List." |
-| `review` | A **weak or uncertain** match that a human should double-check (e.g. the name is only *similar* to a listed one, or only a secondary web link points to a listed site). Not a confident accusation. |
-| `clean` | The journal was identified and is **not** on the list. |
-| `no_venue` | A preprint (e.g. arXiv) or a record with no journal at all — nothing to check. |
-| `out_of_scope` | Only appears if you used a *whitelist* (see below): the paper's journal wasn't in it, so it was skipped. |
-| `error` | The record couldn't be processed (the reason is shown in the row). |
-
-### How to read the Excel report
-
-The report (`results/bealls_list_results.xlsx`) has several sheets. The two you
-will look at most are **Results** (every paper) and **Flagged only** (just the
-`on_list` + `review` papers, so you aren't scrolling past thousands of clean
-ones).
-
-Each paper is shown as a **block of rows** so that every detail gets its own
-line instead of being crammed into one cell. The columns are:
-
-| Column | What's in it |
-|---|---|
-| **#** | The paper's number (this cell spans the whole block). |
-| **Status** | The verdict above, colour-coded (spans the whole block). |
-| **Paper specifications** | A header grouping the next three columns — everything that describes the paper itself: |
-| &nbsp;&nbsp;• Paper | Title / Year / Source file / DOI (the DOI is a clickable link to the article). |
-| &nbsp;&nbsp;• Semantic Scholar venue | The journal exactly as Semantic Scholar reports it: Venue name / Type / Website / ISSN. |
-| &nbsp;&nbsp;• Mentioned in | Every journal/publisher/venue **name** Semantic Scholar ties to this paper (just names — no web links). This is the one column that can grow: a paper recorded under 10 names produces a 10-row block, while the other columns simply leave the extra rows blank. |
-| **Match** | *Why* it was flagged: **Listed as** (the matching Beall entry, a clickable link), **Beall list** (which list it came from), and **Why flagged** (one plain sentence saying how it matched and what that means). |
-
-> Two further sheets: **Data quality** lists only the papers whose Semantic
-> Scholar record looks unreliable, each with the specific problem (see
-> [below](#data-quality-catching-unreliable-input)); **Summary** has the totals;
-> **Legend** is a full plain-language dictionary of every column and value.
-
-**A worked example.** Suppose a paper about plant ecology comes back as
-`review`. Reading its block:
-
-- **Semantic Scholar venue → Venue:** `Phyton`
-- **Mentioned in:** `Phyton`, `Annales Rei Botanicae`
-- **Match → Listed as:** `Phyton` (a *hijacked / cloned journal* entry)
-- **Match → Why flagged:** *"the journal/publisher name exactly matches the
-  list — but hijacked clones reuse the real journal's name, so this may be the
-  legitimate journal rather than the predatory clone; verify."*
-
-In other words: a predatory website once impersonated the real journal *Phyton*,
-so the **name** is on the list — but your paper is very likely in the genuine
-*Phyton* (a long-standing Austrian botany journal). That is exactly why it is
-`review` and not `on_list`: the tool is telling you "this needs a human's eyes,"
-not "this is predatory."
-
-### Whitelist and blacklist (optional)
-
-Two optional inputs let you tailor a run (command-line flags, also available in
-the web app). Each is a JSON list of `{"name": ..., "domain": ...}` entries (a
-plain string works as just a name):
-
-```bash
-python requirement_checks/bealls_list_check/bealls_list_check.py \
-    --whitelist whitelist.json --blacklist blacklist.json
-```
-
-- **`--whitelist` narrows the scope.** When provided, *only* papers whose journal
-  matches a whitelisted entry are checked; all others are marked `out_of_scope`
-  and skipped. Useful when you care about one publisher or a short list of them.
-- **`--blacklist` extends the list.** Its entries are added to Beall's List for
-  this run and flagged just like real entries, so a paper in one comes back
-  `on_list`. Useful for adding venues you already know are bad.
-
-### Data quality (catching unreliable input)
-
-Semantic Scholar's data is sometimes wrong — it occasionally merges two
-different journals that share a name, stores an out-of-date web address, or
-omits the journal entirely. A verdict based on bad input is worse than no
-verdict, so the report includes a separate **Data quality** sheet listing **only
-the papers whose record looks suspect**, each with the specific issue spelled
-out, for example:
-
-- *"No journal/venue information at all (so the venue can't be checked)."*
-- *"The DOI doesn't look like a valid DOI."*
-- *"Semantic Scholar lists web addresses from 2 different publishers for this one
-  journal (…). That usually means it has merged two different journals that
-  share a name, so the venue shown for this paper may be the wrong one — worth
-  checking by hand."*
-
-Optionally, you can also cross-check against **Crossref** (the official registry
-that publishers themselves submit their articles to). When enabled, the journal
-name and ISSN that Semantic Scholar reports are compared with Crossref's official
-record, and any disagreement is flagged:
-
-```bash
-# 'flagged' = only check the on_list/review papers (cheap); 'all' = every DOI.
-python requirement_checks/bealls_list_check/bealls_list_check.py --crossref flagged
-```
-
-> Appearing on the Data quality sheet means *"double-check this by hand"* — it is
-> not proof the verdict is wrong, and an empty result is not a guarantee that
-> everything is right.
-
-This same input validation runs before the `5.1`/`5.2` checks too (there it
-checks the GitHub links instead — missing, unparseable, duplicate, or, if you
-opt in with `CHECK_REPO_LIVENESS=1`, dead links), and the result shows up in the
-web app's **Input data quality** panel.
-
-### Optional: an LLM to help resolve the `review` papers
-
-The mechanical check is precise, but the `review` papers are by definition the
-uncertain ones, and going through them by hand is slow. So there is an **opt-in**
-extra pass that asks an LLM for a concrete recommendation on **each `review`
-paper** (and only those — it does not touch the rest):
-
-```bash
-python requirement_checks/bealls_list_check/bealls_llm_check.py            # all review papers
-python requirement_checks/bealls_list_check/bealls_llm_check.py --limit 50 # cheap test on 50
-```
-
-It runs the normal check first, then for every distinct `review` journal it asks
-the LLM — given the nearest Beall's List entries, Beall's predatory-journal
-criteria, and the model's own knowledge — whether the journal or its publisher is
-predatory. The answer is written into an extra **"LLM review"** column on the
-**Flagged only** sheet, as an actionable recommendation:
-
-- **Verdict:** *Predatory — recommend EXCLUDE* / *Legitimate — recommend KEEP* /
-  *Uncertain — check by hand*
-- **Reason:** one sentence explaining why.
-
-For the *Phyton* example above, the LLM review column would say something like
-*"Verdict: Legitimate — keep. Reason: 'Phyton' is the long-standing Austrian
-botany journal; it only shares a name with the hijacked clone on the list."* —
-turning a vague `review` into a decision you can act on.
-
-This pass costs LLM tokens (but only for the small review backlog). It **never**
-overrides the mechanical verdict and never declares a paper `on_list` on its
-own; it only adds a recommendation. Output goes to
-`results/bealls_llm_results.xlsx`, and the Summary sheet gains an "LLM review"
-section with the counts and token usage.
-
----
-
 ## Criteria reference
 
 Each check lives in its own folder; click a script name to open it. "LLM" means
@@ -472,7 +283,7 @@ requirement_checks/
 │   ├── llm_helpers.py                     # LLM call + JSON parsing + token counter
 │   ├── checker_pipeline.py                # Orchestrator: papers × models → Excel
 │   ├── excel_output.py                    # Borders, headers, status-coloured rows, summary sheets
-│   └── input_quality.py                   # The one shared input-validation function
+│   └── input_quality.py                   # The shared input-validation function
 ├── data/
 │   ├── papers_from_database.py            # Your PAPERS list (git-ignored; you create it)
 │   └── papers_source.py                   # load_papers(): the hook the web app uses to inject uploads
@@ -486,19 +297,10 @@ requirement_checks/
 │   │   ├── check_github_repo_api_documentation/
 │   │   └── shared/                        # helpers shared by the 5.1.4 sub-checkers
 │   └── 5.1.5.code_license/
-├── 5.2.practitioner_usability_and_popularity/
-│   ├── 5.2.2.maintenance_activity_indicators/
-│   ├── 5.2.3.adoption_metrics/
-│   └── 5.2.4.post_publication_maintenance/
-└── bealls_list_check/                     # Standalone Beall's List check (separate input)
-    ├── scrape_bealls_list.py              # Step 1: vendor data/bealls_snapshot.json
-    ├── bealls_list_check.py               # Step 2: match the corpus → Excel (no LLM)
-    ├── bealls_llm_check.py                # Optional LLM pass over the 'review' papers
-    ├── match.py                           # The matching logic (domain / ISSN / name / fuzzy)
-    ├── data_quality.py                    # The Semantic-Scholar data-quality checks
-    ├── normalize.py                       # Name / host / ISSN normalisation
-    ├── config.py                          # Paths + matching tunables
-    └── data/bealls_snapshot.json          # The vendored snapshot (included)
+└── 5.2.practitioner_usability_and_popularity/
+    ├── 5.2.2.maintenance_activity_indicators/
+    ├── 5.2.3.adoption_metrics/
+    └── 5.2.4.post_publication_maintenance/
 
 ui/                                        # The Streamlit web app (app.py + runners.py)
 ```
@@ -533,7 +335,6 @@ flowchart TD
   q52 --> q522["5.2.2 maintenance indicators"]
   q52 --> q523["5.2.3 adoption metrics"]
   q52 --> q524["5.2.4 post-publication maintenance"]
-  rc --> bealls["bealls_list_check/<br/>match venues vs Beall's List<br/>(separate corpus; optional LLM pass)"]
 ```
 
 > To see the diagram, open this file on GitHub or in a Markdown preview

@@ -4,9 +4,9 @@ Launch from the repo root (with the venv active):
 
     streamlit run ui/app.py
 
-Three tabs — 5.1 (code availability), 5.2 (usability/popularity), and the
-Beall's predatory-venue check.  Upload a papers JSON (a list, or a single paper
-object), pick a check, run it, preview the result, and download the Excel.
+Two tabs — 5.1 (code availability) and 5.2 (usability/popularity).  Upload a
+papers JSON (a list, or a single paper object), pick a check, run it, preview the
+result, and download the Excel.
 
 Each check runs the existing checker script as a subprocess with the upload
 injected via an env var (see ui/runners.py), so the UI and the CLI always
@@ -26,12 +26,11 @@ import runners
 
 load_dotenv(runners.REPO_ROOT / ".env")
 
-# In-process validators, for the live "Input data quality" panel (these modules
-# are import-safe — no config/prompts name collisions).
-sys.path.insert(0, str(runners.RC))           # requirement_checks/
-sys.path.insert(0, str(runners._BEALLS))      # bealls_list_check/ (for the venue checks)
+# In-process validator, for the live "Input data quality" panel (import-safe —
+# no config/prompts name collisions).
+sys.path.insert(0, str(runners.RC))           # requirement_checks/ (for the `common` package)
 try:
-    from common import input_quality           # the one shared, field-aware validator
+    from common import input_quality           # the shared input validator
     _VALIDATORS_OK = True
 except Exception:
     _VALIDATORS_OK = False
@@ -50,17 +49,10 @@ def notify(msg, icon=None):
     except Exception:
         pass
 
-# ── Example input shown to the user per section ─────────────────────────────
+# ── Example input shown to the user in the upload widget ────────────────────
 _GH_EXAMPLE = json.dumps(
     [{"title": "Example paper", "repo": "https://github.com/pallets/flask",
       "semanticscholarid": ""}], indent=2)
-_S2_EXAMPLE = json.dumps(
-    [{"title": "Example paper", "venue": "Journal of X", "year": 2023,
-      "externalIds": {"DOI": "10.1234/x"},
-      "publicationVenue": {"name": "Journal of X", "type": "journal",
-                           "url": "https://www.scirp.org/journal/x",
-                           "issn": "1234-5678", "alternate_urls": []},
-      "openAccessPdf": {"url": ""}}], indent=2)
 
 
 def env_sidebar():
@@ -74,14 +66,12 @@ def env_sidebar():
                        "LLM checks cost tokens; large lists can be slow.")
 
 
-def get_papers(section_key: str, corpus: bool):
+def get_papers(section_key: str):
     """Render the upload/paste widget and return a parsed list of papers, or None."""
-    example = _S2_EXAMPLE if corpus else _GH_EXAMPLE
-    fmt = ("Semantic Scholar **paper records** (with `publicationVenue`)"
-           if corpus else "papers with **GitHub links** (`title` + `repo`)")
-    st.caption(f"Input format: {fmt}. Upload a JSON **list**, or a **single** paper object.")
+    st.caption("Input format: papers with **GitHub links** (`title` + `repo`). "
+               "Upload a JSON **list**, or a **single** paper object.")
     with st.expander("See expected format"):
-        st.code(example, language="json")
+        st.code(_GH_EXAMPLE, language="json")
     mode = st.radio("Provide papers via", ["Upload file", "Paste JSON"],
                     horizontal=True, key=f"mode_{section_key}")
     raw = None
@@ -91,7 +81,7 @@ def get_papers(section_key: str, corpus: bool):
             raw = up.getvalue().decode("utf-8")
     else:
         raw = st.text_area("Paste JSON here", height=160, key=f"paste_{section_key}",
-                           placeholder=example)
+                           placeholder=_GH_EXAMPLE)
 
     if not raw or not raw.strip():
         return None
@@ -104,25 +94,6 @@ def get_papers(section_key: str, corpus: bool):
         st.error(str(e))
         return None
     return items
-
-
-def venue_list_input(label: str, key: str):
-    """Optional JSON list of venues for whitelist/blacklist. Returns list or None."""
-    raw = st.text_area(label, height=90, key=key,
-                       placeholder='[{"name": "IEEE", "domain": "ieee.org"}, "Nature"]')
-    if not raw or not raw.strip():
-        return None
-    try:
-        parsed = json.loads(raw)
-    except json.JSONDecodeError as e:
-        st.error(f"{label}: invalid JSON ({e})")
-        return None
-    if isinstance(parsed, dict):
-        parsed = [parsed]
-    if not isinstance(parsed, list):
-        st.error(f"{label}: must be a JSON list of venues.")
-        return None
-    return parsed
 
 
 def render_result(res: runners.RunResult, checker: runners.Checker):
@@ -163,25 +134,24 @@ def _preview(xlsx_bytes: bytes, max_rows: int = 40):
         st.caption(f"(showing first {max_rows} of {len(rows) - 1} rows — download for the full sheet)")
 
 
-def show_input_quality(items, corpus, key):
+def show_input_quality(items, key):
     """Persistent panel showing the input-validation (data-quality) check + result.
 
-    This is where the data-quality / Semantic-Scholar check is visible up front:
-    it runs the offline validators in-process on the loaded papers and offers the
-    report as a downloadable Excel. (Deeper checks — Crossref, repo-liveness —
-    run inside the check itself and appear in the run log + the result workbook.)
+    It runs the offline validator in-process on the loaded papers (missing,
+    non-GitHub, unparseable, or duplicate repo links) and offers the report as a
+    downloadable Excel. (The optional repo-liveness check runs inside the check
+    itself and appears in the run log.)
     """
     if not _VALIDATORS_OK:
         return
     try:
-        flagged = input_quality.validate_papers(items)   # one shared validator (offline)
+        flagged = input_quality.validate_papers(items)   # shared validator (offline)
     except Exception as exc:
         st.caption(f"(input validation unavailable: {exc})")
         return
-    what = "Semantic Scholar venue metadata" if corpus else "GitHub-link papers"
     icon = "⚠️" if flagged else "✅"
-    with st.expander(f"{icon} Input data quality ({what}) — {len(flagged)} of {len(items)} "
-                     f"paper(s) flagged", expanded=bool(flagged)):
+    with st.expander(f"{icon} Input data quality (GitHub-link papers) — {len(flagged)} of "
+                     f"{len(items)} paper(s) flagged", expanded=bool(flagged)):
         st.download_button("⬇️ Download report (.xlsx)",
                            data=runners.build_input_quality_xlsx(items, flagged),
                            file_name="input_data_quality.xlsx", key=f"dqdl_{key}",
@@ -198,15 +168,12 @@ def show_input_quality(items, corpus, key):
 SECTION_INTRO = {
     "5.1": "Is the paper's **code available and documented**?",
     "5.2": "Is the code **maintained and actually used**?",
-    "bealls": "Is the paper's **journal/publisher on Beall's List** of potentially predatory venues?",
 }
 
 
-def _checker_badge(checker, section):
+def _checker_badge(checker):
     if checker.needs_llm:
         return "🔑 Uses an LLM — needs API keys in `.env`, and costs tokens."
-    if section == "bealls":
-        return "⚡ No LLM — matched offline against the vendored Beall's List snapshot."
     return "⚡ No LLM — uses the GitHub API (a `GITHUB_TOKEN` in `.env` is recommended)."
 
 
@@ -220,52 +187,29 @@ def section_tab(section: str):
     label = st.selectbox("Check", labels, key=f"sel_{section}", label_visibility="collapsed")
     checker = checkers[labels.index(label)]
     st.markdown(f"➡️ {checker.description}")
-    st.caption(_checker_badge(checker, section))
+    st.caption(_checker_badge(checker))
     if checker.note:
         st.info("ℹ️ " + checker.note)
 
     # 2 — provide the papers
     st.markdown("**Step 2 · Provide the papers**")
-    items = get_papers(f"{section}_{checker.id}", corpus=checker.corpus_based)
+    items = get_papers(f"{section}_{checker.id}")
     if items is not None:
         st.success(f"✅ Loaded {len(items)} paper(s) — ready to run.")
-        show_input_quality(items, checker.corpus_based, key=checker.id)
+        show_input_quality(items, key=checker.id)
 
     # 3 — options
-    aux_lists = None
-    extra_args = None
     env_overrides = None
     with st.expander("⚙️ Options (optional)"):
-        if section in ("5.1", "5.2"):
-            if st.checkbox(
-                    "Check that each GitHub link still works", key=f"live_{checker.id}",
-                    help="Before running, sends a quick request to every repository URL and flags "
-                         "links that are dead (404) or moved. Slower — it contacts GitHub once per "
-                         "paper. (Input is always validated for missing/duplicate/non-GitHub links "
-                         "regardless; see the panel above.)"):
-                env_overrides = {"CHECK_REPO_LIVENESS": "1"}
-            else:
-                st.caption("Nothing to configure — input is always validated (see the panel above).")
-        if section == "bealls":
-            st.markdown("**Scope — whitelist** (optional)")
-            wl = venue_list_input("Only check papers from these venues — leave empty to check all",
-                                  f"wl_{checker.id}")
-            st.markdown("**Extend the list — blacklist** (optional)")
-            bl = venue_list_input("Also treat papers from these venues as predatory",
-                                  f"bl_{checker.id}")
-            aux_lists = {"--whitelist": wl, "--blacklist": bl}
-            st.caption('Format for both boxes: a JSON list like '
-                       '`[{"name": "IEEE", "domain": "ieee.org"}]` (a plain `"name"` string works too).')
-            if st.checkbox(
-                    "Double-check each venue against Crossref (more reliable, slower)",
-                    key=f"cr_{checker.id}",
-                    help="Crossref is the official registry of published articles (looked up by "
-                         "each paper's DOI). When on, the journal name and ISSN that Semantic "
-                         "Scholar reports are compared against Crossref's official record, and any "
-                         "that disagree are flagged in the Data-quality column — catching papers "
-                         "where Semantic Scholar has the wrong venue. Off is faster; on contacts "
-                         "Crossref once per paper."):
-                extra_args = ["--crossref", "all"]
+        if st.checkbox(
+                "Check that each GitHub link still works", key=f"live_{checker.id}",
+                help="Before running, sends a quick request to every repository URL and flags "
+                     "links that are dead (404) or moved. Slower — it contacts GitHub once per "
+                     "paper. (Input is always validated for missing/duplicate/non-GitHub links "
+                     "regardless; see the panel above.)"):
+            env_overrides = {"CHECK_REPO_LIVENESS": "1"}
+        else:
+            st.caption("Nothing to configure — input is always validated (see the panel above).")
 
     # run
     st.markdown("**Step 3 · Run**")
@@ -285,7 +229,7 @@ def section_tab(section: str):
             if m and int(m.group(2)):                # checks that report "[i/N]"
                 progress.progress(min(int(m.group(1)) / int(m.group(2)), 1.0),
                                   text=f"{m.group(1)}/{m.group(2)} papers…")
-            else:                                    # Beall's has no per-paper counter —
+            else:                                    # no per-paper counter —
                 pulse["v"] = (pulse["v"] + 0.05) % 0.9   # nudge so the bar looks alive
                 progress.progress(pulse["v"], text="Working…")
             if line.strip():
@@ -293,13 +237,11 @@ def section_tab(section: str):
 
         try:
             # st.spinner shows an animated indicator the whole time, so the user
-            # always sees that work is happening even during silent stretches
-            # (e.g. while Beall's loads its snapshot/corpus).
+            # always sees that work is happening even during silent stretches.
             with st.spinner(f'Running "{checker.label}"… '
                             "large lists and LLM checks can take a while."):
-                res = runners.run_checker(checker, items, aux_lists=aux_lists,
-                                          extra_args=extra_args,
-                                          env_overrides=env_overrides, on_line=on_line)
+                res = runners.run_checker(checker, items, env_overrides=env_overrides,
+                                          on_line=on_line)
         except Exception as e:                       # surface any launch failure
             progress.empty(); log_line.empty()
             st.session_state[f"res_{checker.id}"] = None
@@ -317,24 +259,19 @@ def section_tab(section: str):
         render_result(res, checker)
 
 
-st.title("📄 Paper reproducibility & venue checks")
+st.title("📄 Paper code-reproducibility checks")
 st.caption("Pick a tab, choose a check, add your papers as JSON, and run — each check "
            "produces a downloadable Excel.")
 env_sidebar()
 with st.sidebar.expander("ℹ️ What the tabs mean"):
     st.markdown(
         "- **5.1 — Code availability:** is the paper's code public and documented?\n"
-        "- **5.2 — Usability & popularity:** is that code maintained and actually used?\n"
-        "- **Beall's:** is the paper's journal/publisher on Beall's List of *potentially* "
-        "predatory venues?\n\n"
+        "- **5.2 — Usability & popularity:** is that code maintained and actually used?\n\n"
         "In each tab: **(1)** choose a check, **(2)** add papers (a JSON list, or a single "
         "paper object), **(3)** Run. The result downloads as an Excel file.")
 
-tab51, tab52, tab_b = st.tabs(["5.1 · Code availability", "5.2 · Usability & popularity",
-                               "Beall's · predatory venues"])
+tab51, tab52 = st.tabs(["5.1 · Code availability", "5.2 · Usability & popularity"])
 with tab51:
     section_tab("5.1")
 with tab52:
     section_tab("5.2")
-with tab_b:
-    section_tab("bealls")

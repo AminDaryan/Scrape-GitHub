@@ -1,19 +1,10 @@
-"""Shared input data-quality validation — ONE entry point used before EVERY check.
+"""Shared input data-quality validation — ONE entry point used before every check.
 
-:func:`validate_input` is field-aware, so the 5.1/5.2 checkers (via
-``data.papers_source.load_papers``) and the Beall's check (via
-``bealls_list_check.classify_corpus``) run the *same* function.  It dispatches on
-what the record actually contains:
-
-  * a GitHub ``repo`` link  -> repo checks (present / parseable / duplicate /
-    optionally live);
-  * Semantic Scholar venue fields (``publicationVenue`` / ``venue`` / DOI / ISSN)
-    -> venue checks (delegated to ``bealls_list_check.data_quality``: missing
-    venue, malformed DOI/ISSN, encoding artifacts, "merged venues", and an
-    optional Crossref cross-check).
-
-A record can have both (both run), or neither (flagged as such).  An empty result
-means "nothing suspicious found", NOT a guarantee of correctness.
+:func:`validate_input` checks a paper record's GitHub ``repo`` link (present /
+parseable / duplicate / optionally live) plus its title.  The 5.1/5.2 checkers
+call it via ``data.papers_source.load_papers``, so every run validates its input
+as a preprocessing step.  An empty result means "nothing suspicious found", NOT a
+guarantee of correctness.
 """
 
 import sys
@@ -57,56 +48,31 @@ def _repo_flags(paper, *, seen_repos=None, check_liveness=False):
     return flags
 
 
-def _venue_flags(paper, *, use_crossref=False):
-    """Venue checks, delegated to bealls_list_check.data_quality (lazy import)."""
-    bealls = Path(__file__).resolve().parent.parent / "bealls_list_check"
-    if str(bealls) not in sys.path:
-        sys.path.insert(0, str(bealls))
-    try:
-        import data_quality
-    except Exception:
-        return []
-    flags = data_quality.offline_flags(paper)
-    if use_crossref:
-        flags += data_quality.crossref_flags(paper)
-    return flags
-
-
-def _has_venue_fields(paper):
-    return bool(paper.get("publicationVenue")) or bool(paper.get("venue")) \
-        or bool((paper.get("externalIds") or {}).get("DOI"))
-
-
-def validate_input(paper, *, seen_repos=None, check_liveness=False, use_crossref=False):
-    """All data-quality warnings for one record, dispatched on the fields present."""
+def validate_input(paper, *, seen_repos=None, check_liveness=False):
+    """All data-quality warnings for one record (title + GitHub repo checks)."""
     flags = []
     if not (paper.get("title") or "").strip():
         flags.append("Missing title.")
-    has_repo = "repo" in paper
-    has_venue = _has_venue_fields(paper)
-    if has_repo:
+    if "repo" in paper:
         flags += _repo_flags(paper, seen_repos=seen_repos, check_liveness=check_liveness)
-    if has_venue:
-        flags += _venue_flags(paper, use_crossref=use_crossref)
-    if not has_repo and not has_venue:
-        flags.append("No repo link or venue metadata to validate.")
+    else:
+        flags.append("No repo link to validate.")
     return flags
 
 
-def validate_papers(papers, *, check_liveness=False, use_crossref=False):
+def validate_papers(papers, *, check_liveness=False):
     """Return ``[(1-based index, paper, flags), ...]`` for papers with warnings."""
     seen, flagged = set(), []
     for i, paper in enumerate(papers, 1):
-        flags = validate_input(paper, seen_repos=seen, check_liveness=check_liveness,
-                               use_crossref=use_crossref)
+        flags = validate_input(paper, seen_repos=seen, check_liveness=check_liveness)
         if flags:
             flagged.append((i, paper, flags))
     return flagged
 
 
-def log_report(papers, *, check_liveness=False, use_crossref=False):
+def log_report(papers, *, check_liveness=False):
     """Print a concise input data-quality report (the preprocessor step)."""
-    flagged = validate_papers(papers, check_liveness=check_liveness, use_crossref=use_crossref)
+    flagged = validate_papers(papers, check_liveness=check_liveness)
     scope = "offline + liveness" if check_liveness else "offline"
     print(f"[input data quality] {len(papers)} paper(s); "
           f"{len(flagged)} with warnings ({scope}).")
