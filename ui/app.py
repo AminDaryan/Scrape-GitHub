@@ -15,6 +15,8 @@ produce identical output.
 
 import json
 import os
+import re
+import sys
 
 import openpyxl
 import streamlit as st
@@ -24,7 +26,30 @@ import runners
 
 load_dotenv(runners.REPO_ROOT / ".env")
 
+# In-process validators, for the live "Input data quality" panel (these modules
+# are import-safe — no config/prompts name collisions).
+sys.path.insert(0, str(runners.RC))           # requirement_checks/
+sys.path.insert(0, str(runners._BEALLS))      # bealls_list_check/
+try:
+    from common import input_quality
+    import data_quality
+    _VALIDATORS_OK = True
+except Exception:
+    _VALIDATORS_OK = False
+
 st.set_page_config(page_title="Paper reproducibility checks", page_icon="📄", layout="wide")
+
+# Best-effort: show Streamlit toasts in the top-right (falls back to default).
+st.markdown("<style>div[data-testid='stToast']{position:fixed;top:3.5rem;right:1rem;}</style>",
+            unsafe_allow_html=True)
+
+
+def notify(msg, icon=None):
+    """Transient popup; never fatal if the Streamlit build lacks st.toast."""
+    try:
+        st.toast(msg, icon=icon)
+    except Exception:
+        pass
 
 # ── Example input shown to the user per section ─────────────────────────────
 _GH_EXAMPLE = json.dumps(
@@ -79,7 +104,6 @@ def get_papers(section_key: str, corpus: bool):
     except ValueError as e:
         st.error(str(e))
         return None
-    st.success(f"Loaded {len(items)} paper(s).")
     return items
 
 
@@ -104,16 +128,16 @@ def venue_list_input(label: str, key: str):
 
 def render_result(res: runners.RunResult, checker: runners.Checker):
     if res.ok:
-        st.success(f"Done — produced `{res.output_path.name}`.")
-        st.download_button("⬇️ Download Excel", data=res.output_bytes,
+        st.download_button(f"⬇️ Download {res.output_path.name}", data=res.output_bytes,
                            file_name=res.output_path.name, key=f"dl_{checker.id}",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         _preview(res.output_bytes)
     else:
-        st.error(f"The checker exited with code {res.returncode} and no output file was found.")
-    with st.expander("Run log (stdout / stderr)", expanded=not res.ok):
+        st.error(f"The checker exited with code {res.returncode} and produced no output file. "
+                 "See the run log below.")
+    with st.expander("Run log (incl. the input data-quality report)", expanded=not res.ok):
         if res.stdout:
-            st.text(res.stdout[-6000:])
+            st.text(res.stdout[-8000:])
         if res.stderr:
             st.caption("stderr")
             st.text(res.stderr[-4000:])
@@ -139,6 +163,39 @@ def _preview(xlsx_bytes: bytes, max_rows: int = 40):
         st.caption(f"(showing first {max_rows} of {len(rows) - 1} rows — download for the full sheet)")
 
 
+def show_input_quality(items, corpus):
+    """Persistent panel showing the input-validation (data-quality) check + result.
+
+    This is where the data-quality / Semantic-Scholar check is visible up front:
+    it runs the offline validators in-process on the loaded papers. (Deeper
+    checks — Crossref, repo-liveness — run inside the check itself and appear in
+    the run log.)
+    """
+    if not _VALIDATORS_OK:
+        return
+    try:
+        if corpus:                                  # Beall's: S2 venue records
+            flagged = [(i, p, data_quality.offline_flags(p)) for i, p in enumerate(items, 1)]
+            flagged = [t for t in flagged if t[2]]
+            what = "Semantic Scholar venue metadata"
+        else:                                        # 5.1/5.2: GitHub-link papers
+            flagged = input_quality.validate_papers(items)
+            what = "GitHub-link papers"
+    except Exception as exc:
+        st.caption(f"(input validation unavailable: {exc})")
+        return
+    icon = "⚠️" if flagged else "✅"
+    with st.expander(f"{icon} Input data quality ({what}) — {len(flagged)} of {len(items)} "
+                     f"paper(s) flagged", expanded=bool(flagged)):
+        if not flagged:
+            st.caption("No issues found by the offline checks. (Not a guarantee of correctness; "
+                       "Crossref / repo-liveness run during the check and show in the run log.)")
+        for i, p, flags in flagged[:100]:
+            st.markdown(f"**#{i}** {(p.get('title') or '?')[:90]} — " + "; ".join(flags))
+        if len(flagged) > 100:
+            st.caption(f"…and {len(flagged) - 100} more")
+
+
 def section_tab(section: str):
     checkers = runners.checkers_for(section)
     labels = [c.label for c in checkers]
@@ -155,6 +212,8 @@ def section_tab(section: str):
         st.info(checker.note)
 
     items = get_papers(f"{section}_{checker.id}", corpus=checker.corpus_based)
+    if items is not None:
+        show_input_quality(items, checker.corpus_based)
 
     aux_lists = None
     extra_args = None
@@ -184,16 +243,30 @@ def section_tab(section: str):
     run = st.button("▶ Run check", type="primary", key=f"run_{checker.id}",
                     disabled=items is None)
     if run and items is not None:
-        with st.spinner(f"Running {checker.label} on {len(items)} paper(s)… "
-                        "this can take a while for large lists or LLM checks."):
-            try:
-                res = runners.run_checker(checker, items, aux_lists=aux_lists,
-                                          extra_args=extra_args, env_overrides=env_overrides)
-            except Exception as e:                 # surface any launch failure
-                st.session_state[f"res_{checker.id}"] = None
-                st.exception(e)
-                return
+        progress = st.progress(0.0, text="Starting…")
+        status = st.empty()
+        step = re.compile(r"\[\s*(\d+)\s*/\s*(\d+)\s*\]")   # checkers print "[i/N]"
+
+        def on_line(line):
+            m = step.search(line)
+            if m and int(m.group(2)):
+                progress.progress(min(int(m.group(1)) / int(m.group(2)), 1.0),
+                                  text=f"{m.group(1)}/{m.group(2)} papers…")
+            status.caption(line[-140:])             # latest activity, so it's never silent
+
+        try:
+            res = runners.run_checker(checker, items, aux_lists=aux_lists, extra_args=extra_args,
+                                      env_overrides=env_overrides, on_line=on_line)
+        except Exception as e:                       # surface any launch failure
+            progress.empty(); status.empty()
+            st.session_state[f"res_{checker.id}"] = None
+            st.exception(e)
+            return
+        progress.progress(1.0, text="Done")
+        status.empty()
         st.session_state[f"res_{checker.id}"] = res
+        notify("Check complete ✅" if res.ok else "Check failed 🛑",
+               icon="✅" if res.ok else "🛑")
 
     res = st.session_state.get(f"res_{checker.id}")
     if res is not None:

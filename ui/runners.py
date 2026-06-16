@@ -120,7 +120,7 @@ def _newest_xlsx_since(folder: Path, since_ts: float) -> Optional[Path]:
 
 def run_checker(checker: Checker, items: list, *, aux_lists: Optional[dict] = None,
                 extra_args: Optional[list] = None, env_overrides: Optional[dict] = None,
-                timeout: Optional[int] = None) -> RunResult:
+                on_line=None, timeout: Optional[int] = None) -> RunResult:
     """Run one checker over *items* and return its produced Excel.
 
     *items* is a list of paper objects (GitHub-link papers for 5.1/5.2; Semantic
@@ -130,7 +130,9 @@ def run_checker(checker: Checker, items: list, *, aux_lists: Optional[dict] = No
 
     *aux_lists* maps a CLI flag to a list written to a temp JSON and passed to
     the checker — used for Beall's ``--whitelist`` / ``--blacklist``; empty
-    lists are skipped.
+    lists are skipped.  *on_line(line)*, if given, is called for each stdout line
+    as it arrives (so the UI can show live progress); otherwise output is just
+    captured.
     """
     started = time.time()
     with tempfile.TemporaryDirectory(prefix="bealls_ui_") as tmp:
@@ -159,8 +161,26 @@ def run_checker(checker: Checker, items: list, *, aux_lists: Optional[dict] = No
             cmd += [flag, str(aux_file)]
         cmd += list(extra_args or [])
 
-        proc = subprocess.run(cmd, env=env, cwd=str(REPO_ROOT),
-                              capture_output=True, text=True, timeout=timeout)
+        if on_line is None:
+            proc = subprocess.run(cmd, env=env, cwd=str(REPO_ROOT),
+                                  capture_output=True, text=True, timeout=timeout)
+            stdout, stderr, returncode = proc.stdout or "", proc.stderr or "", proc.returncode
+        else:
+            # Stream stdout (stderr merged in, so order is preserved and the pipe
+            # can't deadlock) so the caller can show live progress.
+            proc = subprocess.Popen(cmd, env=env, cwd=str(REPO_ROOT),
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                    text=True, bufsize=1)
+            captured = []
+            for line in proc.stdout:
+                line = line.rstrip("\n")
+                captured.append(line)
+                try:
+                    on_line(line)
+                except Exception:
+                    pass                       # a UI hiccup must not kill the run
+            proc.wait(timeout=timeout)
+            stdout, stderr, returncode = "\n".join(captured), "", proc.returncode
 
     out_path = checker.output if checker.output.exists() else None
     fresh = _newest_xlsx_since(checker.output.parent, started)
@@ -169,10 +189,10 @@ def run_checker(checker: Checker, items: list, *, aux_lists: Optional[dict] = No
 
     output_bytes = out_path.read_bytes() if out_path else None
     return RunResult(
-        ok=(proc.returncode == 0 and output_bytes is not None),
-        returncode=proc.returncode,
-        stdout=proc.stdout or "",
-        stderr=proc.stderr or "",
+        ok=(returncode == 0 and output_bytes is not None),
+        returncode=returncode,
+        stdout=stdout,
+        stderr=stderr,
         output_path=out_path,
         output_bytes=output_bytes,
     )
