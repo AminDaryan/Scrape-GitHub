@@ -1,6 +1,6 @@
 # Scrape-GitHub
 
-## What is this, in one paragraph?
+## What is this?
 
 Imagine you are writing a survey of, say, 500 research papers and you want to
 answer questions like: *How many of these papers actually published working
@@ -47,10 +47,15 @@ tabs:
 - **5.1 — Code availability:** is the paper's code public and documented?
 - **5.2 — Usability & popularity:** is that code maintained and actually used?
 
-In each tab you follow three steps: **(1)** choose a check from the dropdown
-(each check shows a one-line description and a badge saying whether it uses an
-LLM), **(2)** paste or upload your papers as JSON, **(3)** press **Run**. When it
-finishes you can preview the result in the page and download it as an Excel file.
+In each tab you follow three steps:
+
+1. **Choose a check** from the dropdown (each shows a one-line description and a
+   badge saying whether it uses an LLM).
+2. **Add your papers** — paste or upload them as JSON.
+3. **Press Run.**
+
+When it finishes you can preview the result in the page and download it as an
+Excel file.
 
 As soon as your papers load, an **Input data quality** panel appears and tells
 you up front if anything about your input looks wrong (a missing or non-GitHub
